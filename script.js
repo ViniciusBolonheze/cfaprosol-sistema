@@ -1,3 +1,9 @@
+const SUPABASE_URL = 'https://jrudgjopfxyyhnvgidz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_VScGEvhYLgQSDGll2IQIsw_bsTQXRCO'; 
+
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
 const STORAGE_DATA_KEY = 'prosol_cfa_excel_data_v2';
 const STORAGE_COLS_KEY = 'prosol_cfa_excel_cols_v2';
 const STORAGE_CONVOCACAO_KEY = 'prosol_cfa_convocacao_v1';
