@@ -3,9 +3,6 @@ const SUPABASE_ANON_KEY = 'sb_publishable_VScGEvhYLgQSDGll2IQIsw_bsTQXRCO';
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
-const STORAGE_DATA_KEY = 'prosol_cfa_excel_data_v2';
-const STORAGE_COLS_KEY = 'prosol_cfa_excel_cols_v2';
 const STORAGE_CONVOCACAO_KEY = 'prosol_cfa_convocacao_v1';
 
 let defaultColumns = [
@@ -31,33 +28,56 @@ let selectedAthleteIndex = null;
 let currentPfTab = 'antropometricas';
 let selectedConvocados = new Set();
 
-function loadFromStorage() {
-    const savedCols = localStorage.getItem(STORAGE_COLS_KEY);
-    const savedData = localStorage.getItem(STORAGE_DATA_KEY);
-    const savedConvocacao = localStorage.getItem(STORAGE_CONVOCACAO_KEY);
+async function loadFromStorage() {
+    try {
+        const { data, error } = await _supabase
+            .from('sistema_config')
+            .select('colunas, dados')
+            .eq('id', 1)
+            .single();
 
-    if (savedCols) {
-        try { excelColumns = JSON.parse(savedCols); } catch(e) {}
+        if (error) {
+            console.error('Erro ao carregar do Supabase:', error);
+        } else if (data) {
+            if (data.colunas && data.colunas.length > 0) excelColumns = data.colunas;
+            if (data.dados && data.dados.length > 0) excelData = data.dados;
+        }
+    } catch (err) {
+        console.error('Erro de conexão:', err);
     }
-    if (savedData) {
-        try { excelData = JSON.parse(savedData); } catch(e) {}
-    }
+
+    const savedConvocacao = localStorage.getItem(STORAGE_CONVOCACAO_KEY);
     if (savedConvocacao) {
         try { selectedConvocados = new Set(JSON.parse(savedConvocacao)); } catch(e) {}
     }
-}
 
-function saveToStorage() {
-    localStorage.setItem(STORAGE_COLS_KEY, JSON.stringify(excelColumns));
-    localStorage.setItem(STORAGE_DATA_KEY, JSON.stringify(excelData));
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    loadFromStorage();
     initExcelTable();
     ensureTestAddButton();
     ensureConvocacaoModalDom();
     ensurePrintStyles();
+}
+
+async function saveToStorage() {
+    try {
+        const { error } = await _supabase
+            .from('sistema_config')
+            .update({
+                colunas: excelColumns,
+                dados: excelData,
+                atualizado_em: new Date()
+            })
+            .eq('id', 1);
+
+        if (error) {
+            console.error('Erro ao salvar no Supabase:', error);
+        }
+    } catch (err) {
+        console.error('Erro ao salvar:', err);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadFromStorage();
 });
 
 /* === ESTILOS E FUNÇÕES DE IMPRESSÃO / EXPORTAÇÃO === */
@@ -1282,8 +1302,8 @@ function carregarConvocacaoSalva() {
         alert('Nenhuma convocação salva encontrada.');
     }
 }
+
 function addNewEvaluation() {
-    // 1. Verifica qual é a próxima avaliação a ser adicionada
     let nextEvalNum = 2;
     for (let i = 2; i <= 20; i++) {
         let exists = excelColumns.some(col => col.toLowerCase() === ('data' + i).toLowerCase() || col.toLowerCase() === ('avaliação' + i).toLowerCase());
@@ -1293,7 +1313,6 @@ function addNewEvaluation() {
         }
     }
 
-    // 2. Lista completa de colunas correspondentes ao modelo da nova avaliação
     const colunasParaAdicionar = [
         'AVALIAÇÃO' + nextEvalNum,
         'Data' + nextEvalNum,
@@ -1333,25 +1352,22 @@ function addNewEvaluation() {
         'Agilidade' + nextEvalNum
     ];
 
-    // 3. Adiciona as colunas à estrutura do banco de dados se já não existirem
     colunasParaAdicionar.forEach(novaCol => {
         if (!excelColumns.includes(novaCol)) {
             excelColumns.push(novaCol);
         }
     });
 
-    // 4. Preenche os dados de cada atleta para esta nova avaliação
     excelData.forEach(row => {
         colunasParaAdicionar.forEach(novaCol => {
             if (novaCol.toUpperCase().includes('AVALIAÇÃO')) {
-                row[novaCol] = 'Avaliação ' + nextEvalNum; // Preenche conforme solicitado[cite: 16]
+                row[novaCol] = 'Avaliação ' + nextEvalNum;
             } else if (row[novaCol] === undefined) {
                 row[novaCol] = '';
             }
         });
     });
 
-    // 5. Salva no navegador e atualiza as telas e selects de avaliação
     saveToStorage();
     renderExcelTable();
     
@@ -1385,10 +1401,8 @@ function deleteCurrentEvaluation() {
     }
 
     if (confirm('Deseja realmente apagar todas as colunas e dados referentes à Avaliação ' + evalNum + '?')) {
-        // Remove as colunas da avaliação selecionada do array de colunas
         excelColumns = excelColumns.filter(col => !col.endsWith(evalNum) && !col.toLowerCase().includes('avaliação' + evalNum));
 
-        // Remove os dados correspondentes de cada atleta
         excelData.forEach(row => {
             Object.keys(row).forEach(key => {
                 if (key.endsWith(evalNum) || key.toLowerCase().includes('avaliação' + evalNum)) {
@@ -1400,7 +1414,6 @@ function deleteCurrentEvaluation() {
         saveToStorage();
         renderExcelTable();
 
-        // Remove a opção do select e retorna para a Avaliação 1
         for (let i = 0; i < evalSelect.options.length; i++) {
             if (evalSelect.options[i].value === evalNum) {
                 evalSelect.remove(i);
