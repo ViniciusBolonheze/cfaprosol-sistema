@@ -1,7 +1,8 @@
 const SUPABASE_URL = 'https://jrudgjopfxiyyhnvgidz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_VScGEvhYLgQSDGll2IQIsw_bsTQXRCO';
 
-const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const { createClient } = supabase;
+const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const STORAGE_CONVOCACAO_KEY = 'prosol_cfa_convocacao_v1';
 
