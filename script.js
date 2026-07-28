@@ -7,7 +7,7 @@ const STORAGE_CONVOCACAO_KEY = 'prosol_cfa_convocacao_v1';
 
 let defaultColumns = [
     'Ano', 'NOME COMPLETO', 'APELIDO', 'Data de nascimento', 'Posição 1', 'Posição 2', 'CIDADE', 'Contato', 'RG', 'Foto', 
-    'AVALIAÇÃO1', 'Data1', 'Altura1', 'alturasentado1', 'peso1', 'Dobras1_1', 'Dobras2_1', 'Dobras3_1', 'Dobras4_1', 'PercentualGordura1', 'alturapredita1', 'nivel1', 'distancia1', 'Salto1_1', 'Salto2_1', 'Salto3_1', 'MelhorSalto1', 'aceleração1_1', 'velocidade1_1', 'aceleração2_2', 'velocidade2_1', 'aceleração3_1', 'velocidade3_1', 'aceleração4_1', 'velocidade4_1', 'aceleração5_1', 'velocidade5_1', 'aceleração6_1', 'velocidade6_1', 'aceleração7_1', 'velocidade7_1', 'Aceleraçãofinal1', 'Velocidadefinal1', 'Volta1_1', 'Volta2_1', 'Agilidade1', 
+    'AVALIAÇÃO1', 'Data1', 'Altura1', 'alturasentado1', 'peso1', 'Dobras1_1', 'Dobras2_1', 'Dobras3_1', 'Dobras4_1', 'PercentualGordura1', 'alturapredita1', 'nivel1', 'distancia1', 'Salto1_1', 'Salto2_1', 'Salto3_1', 'MelhorSalto1', 'aceleração1_1', 'velocidade1_1', 'aceleração2_1', 'velocidade2_1', 'aceleração3_1', 'velocidade3_1', 'aceleração4_1', 'velocidade4_1', 'aceleração5_1', 'velocidade5_1', 'aceleração6_1', 'velocidade6_1', 'aceleração7_1', 'velocidade7_1', 'Aceleraçãofinal1', 'Velocidadefinal1', 'Volta1_1', 'Volta2_1', 'Agilidade1', 
     'AVALIAÇÃO2', 'Data2', 'Altura2', 'alturasentado2', 'peso2', 'Dobras1_2', 'Dobras2_2', 'Dobras3_2', 'Dobras4_2', 'PercentualGordura2', 'alturapredita2', 'nivel2', 'distancia2', 'Salto1_2', 'Salto2_2', 'Salto3_2', 'MelhorSalto2', 'aceleração1_2', 'velocidade1_2', 'aceleração2_2', 'velocidade2_2', 'aceleração3_2', 'velocidade3_2', 'aceleração4_2', 'velocidade4_2', 'aceleração5_2', 'velocidade5_2', 'aceleração6_2', 'velocidade6_2', 'aceleração7_2', 'velocidade7_2', 'Aceleraçãofinal2', 'Velocidadefinal2', 'Volta1_2', 'Volta2_2', 'Agilidade2'
 ];
 
@@ -764,24 +764,24 @@ function renderPfTable() {
 
     let baseCols = [];
     if (currentPfTab === 'antropometricas') {
-        baseCols = ['Altura', 'alturapredita', 'alturasentado', 'peso', 'Dobras1', 'Dobras2', 'Dobras3', 'Dobras4'];
+        baseCols = ['Altura', 'alturapredita', 'alturasentado', 'peso', 'Dobras1_', 'Dobras2_', 'Dobras3_', 'Dobras4_'];
     } else if (currentPfTab === 'resistencia') {
         baseCols = ['nivel', 'distancia'];
     } else if (currentPfTab === 'potencia') {
-        baseCols = ['Salto1', 'Salto2', 'Salto3', 'MelhorSalto'];
+        baseCols = ['Salto1_', 'Salto2_', 'Salto3_', 'MelhorSalto'];
     } else if (currentPfTab === 'velocidade') {
         baseCols = [
             'Aceleraçãofinal', 'Velocidadefinal', 
-            'aceleração1', 'velocidade1', 
-            'aceleração2', 'velocidade2', 
-            'aceleração3', 'velocidade3', 
-            'aceleração4', 'velocidade4', 
-            'aceleração5', 'velocidade5', 
-            'aceleração6', 'velocidade6', 
-            'aceleração7', 'velocidade7'
+            'aceleração1_', 'velocidade1_', 
+            'aceleração2_', 'velocidade2_', 
+            'aceleração3_', 'velocidade3_', 
+            'aceleração4_', 'velocidade4_', 
+            'aceleração5_', 'velocidade5_', 
+            'aceleração6_', 'velocidade6_', 
+            'aceleração7_', 'velocidade7_'
         ];
     } else if (currentPfTab === 'agilidade') {
-        baseCols = ['Volta1', 'Volta2', 'Agilidade'];
+        baseCols = ['Volta1_', 'Volta2_', 'Agilidade'];
     }
 
     let colsToDisplay = ['Ano', 'NOME COMPLETO', 'Data de nascimento', 'Data' + evalNum];
@@ -792,7 +792,7 @@ function renderPfTable() {
     colsToDisplay.forEach((col) => {
         const th = document.createElement('th');
         let label = col;
-        let cleanCol = col.replace(evalNum, '');
+        let cleanCol = col.replace(evalNum, '').replace('_', '');
 
         if (col === 'Data de nascimento') label = 'DATA NASCIMENTO';
         else if (col.startsWith('Data') && col !== 'Data de nascimento') label = 'DATA AVALIAÇÃO';
