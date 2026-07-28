@@ -53,6 +53,7 @@ async function loadFromStorage() {
     }
 
     initExcelTable();
+    populateEvalSelect(); // Adiciona opções de avaliações dinamicamente
     ensureTestAddButton();
     ensureConvocacaoModalDom();
     ensurePrintStyles();
@@ -376,6 +377,7 @@ function importExcelFile(event) {
                 excelColumns = Object.keys(jsonData[0]);
                 excelData = jsonData;
                 saveToStorage();
+                populateEvalSelect(); // Atualiza a seleção após importação
                 renderExcelTable();
                 alert(`Banco de dados importado e salvo com sucesso! ${jsonData.length} atletas carregados.`);
             } else {
@@ -751,6 +753,131 @@ function ensureTestAddButton() {
     }
 }
 
+/* === FUNÇÕES CORRIGIDAS/ADICIONADAS DE AVALIAÇÕES === */
+
+function populateEvalSelect() {
+    let maxEval = 1;
+    excelColumns.forEach(col => {
+        let match = col.match(/^Data(\d+)$/i);
+        if (match) {
+            let num = parseInt(match[1]);
+            if (num > maxEval) maxEval = num;
+        }
+    });
+
+    const evalSelect = document.getElementById('pf-eval-select');
+    if (evalSelect) {
+        let currentVal = evalSelect.value;
+        evalSelect.innerHTML = '';
+        for (let i = 1; i <= maxEval; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = 'Avaliação ' + i;
+            evalSelect.appendChild(opt);
+        }
+        if (currentVal && currentVal <= maxEval) {
+            evalSelect.value = currentVal;
+        } else {
+            evalSelect.value = maxEval; // se for apagada, volta para a última
+        }
+    }
+}
+
+function addNewEvaluation() {
+    let maxEval = 1;
+    excelColumns.forEach(col => {
+        let match = col.match(/^Data(\d+)$/i);
+        if (match) {
+            let num = parseInt(match[1]);
+            if (num > maxEval) maxEval = num;
+        }
+    });
+    
+    let newEval = maxEval + 1;
+    
+    // Lista de colunas para construir uma nova avaliação no banco
+    let newCols = [
+        'AVALIAÇÃO' + newEval, 'Data' + newEval, 'Altura' + newEval, 'alturasentado' + newEval, 'peso' + newEval,
+        'Dobras1_' + newEval, 'Dobras2_' + newEval, 'Dobras3_' + newEval, 'Dobras4_' + newEval, 'PercentualGordura' + newEval,
+        'alturapredita' + newEval, 'nivel' + newEval, 'distancia' + newEval,
+        'Salto1_' + newEval, 'Salto2_' + newEval, 'Salto3_' + newEval, 'MelhorSalto' + newEval,
+        'aceleração1_' + newEval, 'velocidade1_' + newEval, 'aceleração2_' + newEval, 'velocidade2_' + newEval,
+        'aceleração3_' + newEval, 'velocidade3_' + newEval, 'aceleração4_' + newEval, 'velocidade4_' + newEval,
+        'aceleração5_' + newEval, 'velocidade5_' + newEval, 'aceleração6_' + newEval, 'velocidade6_' + newEval,
+        'aceleração7_' + newEval, 'velocidade7_' + newEval, 'Aceleraçãofinal' + newEval, 'Velocidadefinal' + newEval,
+        'Volta1_' + newEval, 'Volta2_' + newEval, 'Agilidade' + newEval
+    ];
+    
+    newCols.forEach(c => {
+        if (!excelColumns.includes(c)) excelColumns.push(c);
+    });
+    
+    excelData.forEach(row => {
+        newCols.forEach(c => {
+            if (row[c] === undefined) row[c] = '';
+        });
+    });
+    
+    saveToStorage();
+    populateEvalSelect();
+    
+    const evalSelect = document.getElementById('pf-eval-select');
+    if (evalSelect) evalSelect.value = newEval;
+    
+    renderPfTable();
+    alert('Avaliação ' + newEval + ' adicionada com sucesso!');
+}
+
+function deleteCurrentEvaluation() {
+    const evalSelect = document.getElementById('pf-eval-select');
+    if (!evalSelect) return;
+    
+    let currentEval = parseInt(evalSelect.value);
+    
+    let maxEval = 1;
+    excelColumns.forEach(col => {
+        let match = col.match(/^Data(\d+)$/i);
+        if (match) {
+            let num = parseInt(match[1]);
+            if (num > maxEval) maxEval = num;
+        }
+    });
+
+    if (currentEval !== maxEval || currentEval === 1) {
+        alert('Você só pode apagar a última avaliação (se for maior que 1) para preservar a ordem.');
+        return;
+    }
+    
+    if (confirm('Deseja realmente apagar a Avaliação ' + currentEval + ' e todos os seus dados? Esta ação não pode ser desfeita.')) {
+        let colsToRemove = excelColumns.filter(c => {
+            const low = c.toLowerCase();
+            return low === ('avaliação' + currentEval) || low.endsWith(currentEval) || low.endsWith('_' + currentEval);
+        });
+        
+        // Protege colunas chaves por precaução
+        colsToRemove = colsToRemove.filter(c => c !== 'Ano' && c !== 'NOME COMPLETO');
+
+        excelColumns = excelColumns.filter(c => !colsToRemove.includes(c));
+        
+        excelData.forEach(row => {
+            colsToRemove.forEach(c => {
+                delete row[c];
+            });
+        });
+        
+        saveToStorage();
+        populateEvalSelect();
+        
+        if (evalSelect) {
+            evalSelect.value = maxEval - 1;
+        }
+        
+        renderPfTable();
+        alert('Avaliação ' + currentEval + ' apagada com sucesso.');
+    }
+}
+/* ======================================================== */
+
 function renderPfTable() {
     const headerRow = document.getElementById('pf-header-row');
     const tbody = document.getElementById('pf-tbody');
@@ -760,7 +887,7 @@ function renderPfTable() {
 
     const evalSelect = document.getElementById('pf-eval-select');
     const yearSelect = document.getElementById('pf-year-select');
-    const evalNum = evalSelect ? evalSelect.value : '1';
+    const evalNum = evalSelect && evalSelect.value ? evalSelect.value : '1';
     const selectedYear = yearSelect ? yearSelect.value : 'todos';
 
     let baseCols = [];
@@ -1197,232 +1324,72 @@ function showPositionChoiceModal(options, onSelect) {
         <div style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); width: 320px; text-align: center;">
             <h3 style="margin-bottom: 20px; font-size: 16px; color: #333;">Escolha a Posição Específica</h3>
             <div id="position-choice-buttons" style="display: flex; flex-direction: column; gap: 12px;"></div>
-            <button onclick="document.getElementById('position-choice-modal').style.display='none'" style="margin-top: 15px; padding: 8px 15px; background: #e74c3c; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancelar</button>
+            <button onclick="document.getElementById('position-choice-modal').style.display='none'" style="margin-top: 15px; background: #e0e0e0; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">Cancelar</button>
         </div>
     `;
-    const btnContainer = document.getElementById('position-choice-buttons');
+
+    const buttonsContainer = document.getElementById('position-choice-buttons');
     options.forEach(opt => {
         const btn = document.createElement('button');
         btn.textContent = opt;
-        btn.style.cssText = `padding: 12px; background: #0984e3; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;`;
+        btn.style.cssText = 'padding: 10px; background: #58111a; color: #d4af37; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;';
         btn.onclick = () => {
             choiceModal.style.display = 'none';
             onSelect(opt);
         };
-        btnContainer.appendChild(btn);
+        buttonsContainer.appendChild(btn);
     });
 }
 
 function updateAthletePositionInDatabase(globalIndex, newPosition) {
-    let row = excelData[globalIndex];
-    if (!row) return;
-
-    let posKey = 'Posição 1';
-    let found = false;
-    for (let key in row) {
-        let kLow = key.toLowerCase();
-        if (kLow.includes('posição') || kLow.includes('posicao')) {
-            posKey = key;
-            found = true;
-            break;
-        }
-    }
-    if (!found) {
-        if (!excelColumns.includes('Posição 1')) {
-            excelColumns.push('Posição 1');
-        }
-        posKey = 'Posição 1';
-    }
-
-    excelData[globalIndex][posKey] = newPosition;
-    saveToStorage();
-    renderConvocacaoLists();
-
-    const atletasScreen = document.getElementById('atletas-screen');
-    if (atletasScreen && atletasScreen.classList.contains('active-screen')) {
-        renderAtletasScreen();
+    let posCol = excelColumns.find(c => c.toLowerCase() === 'posição 1' || c.toLowerCase() === 'posicao 1');
+    if (!posCol) posCol = 'Posição 1';
+    if (!excelColumns.includes(posCol)) excelColumns.push(posCol);
+    
+    if (excelData[globalIndex]) {
+        excelData[globalIndex][posCol] = newPosition;
+        saveToStorage();
+        renderConvocacaoLists();
     }
 }
 
 function limparConvocacao() {
     selectedConvocados.clear();
-    localStorage.removeItem(STORAGE_CONVOCACAO_KEY);
     renderConvocacaoLists();
-    alert('Convocação limpa!');
-}
-
-function excluirAtletasSelecionadosConvocacao() {
-    if (selectedConvocados.size === 0) {
-        alert('Nenhum atleta selecionado na convocação. Clique sobre os atletas desejados para selecioná-los antes de excluir.');
-        return;
-    }
-
-    if (confirm(`Deseja realmente excluir permanentemente os ${selectedConvocados.size} atleta(s) selecionado(s) da convocação e do banco de dados?`)) {
-        const indicesParaRemover = Array.from(selectedConvocados).sort((a, b) => b - a);
-
-        indicesParaRemover.forEach(index => {
-            excelData.splice(index, 1);
-        });
-
-        selectedConvocados.clear();
-        localStorage.removeItem(STORAGE_CONVOCACAO_KEY);
-        saveToStorage();
-        renderConvocacaoLists();
-
-        const atletasScreen = document.getElementById('atletas-screen');
-        if (atletasScreen && atletasScreen.classList.contains('active-screen')) {
-            renderAtletasScreen();
-        }
-        const excelDbScreen = document.getElementById('excel-db-screen');
-        if (excelDbScreen && excelDbScreen.classList.contains('active-screen')) {
-            renderExcelTable();
-        }
-
-        alert('Atleta(s) excluído(s) com sucesso!');
-    }
 }
 
 function confirmarConvocacao() {
-    const indicesArray = Array.from(selectedConvocados);
-    localStorage.setItem(STORAGE_CONVOCACAO_KEY, JSON.stringify(indicesArray));
-    alert(`Convocação confirmada e salva com sucesso! Total de atletas convocados: ${indicesArray.length}`);
-    closeConvocacaoModal();
+    if (selectedConvocados.size === 0) {
+        alert('Nenhum atleta selecionado para convocação.');
+        return;
+    }
+    localStorage.setItem(STORAGE_CONVOCACAO_KEY, JSON.stringify(Array.from(selectedConvocados)));
+    alert('Convocação salva com sucesso!');
 }
 
 function carregarConvocacaoSalva() {
     const saved = localStorage.getItem(STORAGE_CONVOCACAO_KEY);
     if (saved) {
-        try {
-            selectedConvocados = new Set(JSON.parse(saved));
+        try { 
+            selectedConvocados = new Set(JSON.parse(saved)); 
             renderConvocacaoLists();
-            alert(`Convocação carregada com sucesso! ${selectedConvocados.size} atletas selecionados.`);
+            alert('Convocação carregada!');
         } catch(e) {
-            alert('Erro ao carregar convocação salva.');
+            alert('Erro ao carregar convocação.');
         }
     } else {
         alert('Nenhuma convocação salva encontrada.');
     }
 }
 
-function addNewEvaluation() {
-    let nextEvalNum = 2;
-    for (let i = 2; i <= 20; i++) {
-        let exists = excelColumns.some(col => col.toLowerCase() === ('data' + i).toLowerCase() || col.toLowerCase() === ('avaliação' + i).toLowerCase());
-        if (!exists) {
-            nextEvalNum = i;
-            break;
-        }
-    }
-
-    const colunasParaAdicionar = [
-        'AVALIAÇÃO' + nextEvalNum,
-        'Data' + nextEvalNum,
-        'Altura' + nextEvalNum,
-        'alturasentado' + nextEvalNum,
-        'peso' + nextEvalNum,
-        'Dobras1_' + nextEvalNum,
-        'Dobras2_' + nextEvalNum,
-        'Dobras3_' + nextEvalNum,
-        'Dobras4_' + nextEvalNum,
-        'PercentualGordura' + nextEvalNum,
-        'alturapredita' + nextEvalNum,
-        'nivel' + nextEvalNum,
-        'distancia' + nextEvalNum,
-        'Salto1_' + nextEvalNum,
-        'Salto2_' + nextEvalNum,
-        'Salto3_' + nextEvalNum,
-        'MelhorSalto' + nextEvalNum,
-        'aceleração1_' + nextEvalNum,
-        'velocidade1_' + nextEvalNum,
-        'aceleração2_' + nextEvalNum,
-        'velocidade2_' + nextEvalNum,
-        'aceleração3_' + nextEvalNum,
-        'velocidade3_' + nextEvalNum,
-        'aceleração4_' + nextEvalNum,
-        'velocidade4_' + nextEvalNum,
-        'aceleração5_' + nextEvalNum,
-        'velocidade5_' + nextEvalNum,
-        'aceleração6_' + nextEvalNum,
-        'velocidade6_' + nextEvalNum,
-        'aceleração7_' + nextEvalNum,
-        'velocidade7_' + nextEvalNum,
-        'Aceleraçãofinal' + nextEvalNum,
-        'Velocidadefinal' + nextEvalNum,
-        'Volta1_' + nextEvalNum,
-        'Volta2_' + nextEvalNum,
-        'Agilidade' + nextEvalNum
-    ];
-
-    colunasParaAdicionar.forEach(novaCol => {
-        if (!excelColumns.includes(novaCol)) {
-            excelColumns.push(novaCol);
-        }
-    });
-
-    excelData.forEach(row => {
-        colunasParaAdicionar.forEach(novaCol => {
-            if (novaCol.toUpperCase().includes('AVALIAÇÃO')) {
-                row[novaCol] = 'Avaliação ' + nextEvalNum;
-            } else if (row[novaCol] === undefined) {
-                row[novaCol] = '';
-            }
-        });
-    });
-
-    saveToStorage();
-    renderExcelTable();
-    
-    const evalSelect = document.getElementById('pf-eval-select');
-    if (evalSelect) {
-        let optionExists = false;
-        for (let opt of evalSelect.options) {
-            if (opt.value === String(nextEvalNum)) optionExists = true;
-        }
-        if (!optionExists) {
-            let opt = document.createElement('option');
-            opt.value = nextEvalNum;
-            opt.textContent = 'Avaliação ' + nextEvalNum;
-            evalSelect.appendChild(opt);
-        }
-        evalSelect.value = String(nextEvalNum);
-    }
-
-    renderPfTable();
-    alert('Nova Avaliação (' + nextEvalNum + ') adicionada com sucesso!');
-}
-
-function deleteCurrentEvaluation() {
-    const evalSelect = document.getElementById('pf-eval-select');
-    if (!evalSelect) return;
-    
-    const evalNum = evalSelect.value;
-    if (evalNum === '1') {
-        alert('A Avaliação 1 é a base principal do sistema e não pode ser apagada.');
+function excluirAtletasSelecionadosConvocacao() {
+    if (selectedConvocados.size === 0) {
+        alert('Nenhum atleta selecionado.');
         return;
     }
-
-    if (confirm('Deseja realmente apagar todas as colunas e dados referentes à Avaliação ' + evalNum + '?')) {
-        excelColumns = excelColumns.filter(col => !col.endsWith(evalNum) && !col.toLowerCase().includes('avaliação' + evalNum));
-
-        excelData.forEach(row => {
-            Object.keys(row).forEach(key => {
-                if (key.endsWith(evalNum) || key.toLowerCase().includes('avaliação' + evalNum)) {
-                    delete row[key];
-                }
-            });
-        });
-
-        saveToStorage();
-        renderExcelTable();
-
-        for (let i = 0; i < evalSelect.options.length; i++) {
-            if (evalSelect.options[i].value === evalNum) {
-                evalSelect.remove(i);
-                break;
-            }
-        }
-        evalSelect.value = '1';
-        renderPfTable();
-        alert('Avaliação apagada com sucesso!');
+    if (confirm('Deseja realmente remover os atletas selecionados da lista de convocados?')) {
+        selectedConvocados.clear();
+        localStorage.removeItem(STORAGE_CONVOCACAO_KEY);
+        renderConvocacaoLists();
     }
 }
