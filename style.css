@@ -126,6 +126,7 @@ body {
     display: flex;
     flex-direction: column;
     width: 100%;
+    overflow: hidden; /* Controlado em cada tela */
 }
 
 .screen {
@@ -387,44 +388,27 @@ body {
     flex-shrink: 0;
 }
 
-.vba-green-btn {
-    background-color: #00c853;
-    color: #000;
+.vba-green-btn, .vba-red-btn, .vba-gray-btn {
     font-weight: bold;
-    border: 2px solid #009624;
     padding: 12px 10px;
     cursor: pointer;
     text-align: center;
     border-radius: 4px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.vba-green-btn {
+    background-color: #00c853; color: #000; border: 2px solid #009624;
 }
 
 .vba-red-btn {
-    background-color: #ff5252;
-    color: #fff;
-    font-weight: bold;
-    border: 2px solid #d32f2f;
-    padding: 12px 10px;
-    cursor: pointer;
-    text-align: center;
-    border-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    background-color: #ff5252; color: #fff; border: 2px solid #d32f2f;
 }
 
-.vba-red-btn:hover {
-    background-color: #ff1744;
-}
+.vba-red-btn:hover { background-color: #ff1744; }
 
 .vba-gray-btn {
-    background-color: #e0e0e0;
-    color: #000;
-    font-weight: bold;
-    border: 2px solid #999;
-    padding: 12px 10px;
-    cursor: pointer;
-    text-align: center;
-    border-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    background-color: #e0e0e0; color: #000; border: 2px solid #999;
 }
 
 .vba-positions-grid {
@@ -467,14 +451,8 @@ body {
     border-radius: 2px;
 }
 
-.athlete-item:hover {
-    background-color: #d0e1fd;
-}
-
-.athlete-item.selected {
-    background-color: #316ac5;
-    color: white;
-}
+.athlete-item:hover { background-color: #d0e1fd; }
+.athlete-item.selected { background-color: #316ac5; color: white; }
 
 /* === TELA DE TESTES FÍSICOS === */
 #testes-screen.active-screen {
@@ -546,27 +524,26 @@ body {
     color: #000000;
 }
 
-.pf-btn-home {
-    background: #1976d2;
+.pf-btn-home, .pf-btn-close {
     color: white;
-    border: 1px solid #0d47a1;
-    padding: 8px 16px;
     font-weight: bold;
-    font-size: 12px;
     cursor: pointer;
     border-radius: 4px;
+}
+
+.pf-btn-home {
+    background: #1976d2;
+    border: 1px solid #0d47a1;
+    padding: 8px 16px;
+    font-size: 12px;
     margin-left: auto;
 }
 
 .pf-btn-close {
     background: #e53935;
-    color: white;
     border: 1px solid #b71c1c;
     padding: 8px 14px;
-    font-weight: bold;
     font-size: 14px;
-    cursor: pointer;
-    border-radius: 4px;
 }
 
 .pf-title-bar {
@@ -785,29 +762,274 @@ body {
 }
 
 /* Botões de Adicionar e Apagar Avaliação */
-.pf-btn-add-eval {
-    background: #27ae60;
+.pf-btn-add-eval, .pf-btn-del-eval {
     color: white;
-    border: 1px solid #1e8449;
     padding: 8px 12px;
     font-size: 11px;
     font-weight: bold;
     cursor: pointer;
     border-radius: 4px;
 }
-.pf-btn-add-eval:hover {
-    background: #219653;
+
+.pf-btn-add-eval { background: #27ae60; border: 1px solid #1e8449; }
+.pf-btn-add-eval:hover { background: #219653; }
+.pf-btn-del-eval { background: #c0392b; border: 1px solid #962d22; }
+.pf-btn-del-eval:hover { background: #a93226; }
+
+/* ========================================================
+   ESTILOS DA TELA DE GRUPOS (Separação de Grupos)
+   ======================================================== */
+#grupos-screen.active-screen {
+    /* Permitir scroll em toda a tela para resolver o problema de arrastar */
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background-color: #ece9d8;
+    height: 100%;
 }
-.pf-btn-del-eval {
-    background: #c0392b;
-    color: white;
-    border: 1px solid #962d22;
-    padding: 8px 12px;
-    font-size: 11px;
+
+.grupos-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.grupos-top-bar {
+    display: flex;
+    justify-content: space-between;
+    background-color: #f5f5f5;
+    padding: 10px 15px;
+    border-bottom: 2px solid #ccc;
+    gap: 20px;
+}
+
+.grupos-filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.grupos-filter-section strong {
+    font-size: 13px;
+    color: #333;
+}
+
+.grupos-year-checkboxes {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
     font-weight: bold;
-    cursor: pointer;
-    border-radius: 4px;
 }
-.pf-btn-del-eval:hover {
-    background: #a93226;
+
+.grupos-category-section {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.select-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.select-group select {
+    padding: 6px;
+    border: 1px solid #7f9db9;
+    border-radius: 4px;
+    font-size: 12px;
+    background: #fff;
+}
+
+.grupos-media-panel {
+    background-color: #d0e1fd;
+    border-bottom: 2px solid #316ac5;
+    padding: 8px 15px;
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.media-title {
+    color: #000;
+    text-transform: uppercase;
+}
+
+.grupos-media-panel span:not(.media-title) {
+    color: #b30000;
+}
+
+.grupos-split-view {
+    display: flex;
+    flex-direction: column; /* Coloca os atletas em cima e as fichas em baixo */
+    gap: 15px;
+    padding: 15px;
+}
+
+.grupos-list-panel {
+    background: #fff;
+    border: 1px solid #7f9db9;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.grupos-panel-title {
+    background-color: #e50000;
+    color: #fff;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+    padding: 8px;
+    border-bottom: 2px solid #b30000;
+}
+
+/* Lista super compacta em 2 colunas para os atletas (em cima) */
+/* Lista em 2 colunas com bordas finas e tudo em uma linha */
+.grupos-atletas-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 2 colunas para garantir que caiba em uma linha */
+    gap: 6px 12px;
+    padding: 10px;
+    background: #f9f9f9;
+    max-height: 280px;
+    overflow-y: auto;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.athlete-list-item {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: grab;
+    font-size: 11px;
+    color: #333;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    /* Removemos o display: flex daqui, a classe athlete-grid-layout vai gerenciar isso */
+}
+.athlete-grid-layout {
+    display: grid;
+    /* 1 coluna maior para o nome (3.5) e 6 colunas iguais (1fr) para os dados */
+    grid-template-columns: 3.5fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    gap: 5px;
+    align-items: center;
+    text-align: center;
+}
+
+.athlete-list-header div:hover {
+    color: #f9c614; /* Dourado no hover para mostrar que é clicável */
+}
+
+.athlete-list-item:hover {
+    background-color: #f4f4f4;
+    border-color: #bbb;
+}
+
+.athlete-list-item:active {
+    cursor: grabbing;
+}
+
+.athlete-list-item.athlete-grouped {
+    opacity: 0.5;
+    background-color: #fff0f0;
+    border-color: #ffcccc;
+    text-decoration: line-through;
+}
+
+/* O nome fica em negrito e com uma largura base para ajudar no alinhamento */
+.athlete-name {
+    text-align: left; /* Mantém o nome alinhado à esquerda */
+    font-weight: bold;
+    color: #000;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Os dados ficam com peso normal da fonte */
+.athlete-stat {
+    font-weight: normal;
+    color: #444;
+}
+
+/* Grid de 2 colunas para as Fichas (em baixo) */
+.grupos-fichas-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.grupos-ficha-panel {
+    background: #fff;
+    border: 1px solid #7f9db9;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.table-container {
+    flex: 1;
+    overflow-x: auto;
+}
+
+.grupos-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px; /* Fonte reduzida para caber no grid duplo */
+}
+
+.grupos-data-table th, .grupos-data-table td {
+    border: 1px solid #d0d0d0;
+    padding: 6px 4px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.grupos-data-table th {
+    background-color: #f2f2f2;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    color: #333;
+}
+
+.ficha-table td input {
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: center;
+    font-size: 11px;
+    color: #b30000;
+    font-weight: bold;
+}
+
+.ficha-table td input:focus {
+    outline: 1px solid #316ac5;
+    background: #fff;
+}
+
+@media (max-width: 1100px) {
+    .grupos-fichas-grid {
+        grid-template-columns: 1fr; /* Coloca 1 por linha em telas menores */
+    }
+}
+#ordenacao-botoes button {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 2px 6px;
+    cursor: pointer;
+    color: #333;
+    font-size: 10px;
+}
+
+#ordenacao-botoes button:hover {
+    background: #f0f0f0;
 }

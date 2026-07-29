@@ -3,9 +3,12 @@ const SUPABASE_ANON_KEY = 'sb_publishable_VScGEvhYLgQSDGll2IQIsw_bsTQXRCO';
 
 const { createClient } = supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Variável global para armazenar a quantidade de grupos ativa (padrão é 6)
+let quantidadeGruposAtivos = 6;
 
 const STORAGE_CONVOCACAO_KEY = 'prosol_cfa_convocacao_v1';
-
+let criterioOrdenacaoAtual = 'nome';
+let direcaoOrdenacaoAtual = 'asc'; // 'asc' (menor para maior / A-Z) ou 'desc' (maior para menor / Z-A)
 let defaultColumns = [
     'Ano', 'NOME COMPLETO', 'APELIDO', 'Data de nascimento', 'Posição 1', 'Posição 2', 'CIDADE', 'Contato', 'RG', 'Foto', 
     'AVALIAÇÃO1', 'Data1', 'Altura1', 'alturasentado1', 'peso1', 'Dobras1_1', 'Dobras2_1', 'Dobras3_1', 'Dobras4_1', 'PercentualGordura1', 'alturapredita1', 'nivel1', 'distancia1', 'Salto1_1', 'Salto2_1', 'Salto3_1', 'MelhorSalto1', 'aceleração1_1', 'velocidade1_1', 'aceleração2_1', 'velocidade2_1', 'aceleração3_1', 'velocidade3_1', 'aceleração4_1', 'velocidade4_1', 'aceleração5_1', 'velocidade5_1', 'aceleração6_1', 'velocidade6_1', 'aceleração7_1', 'velocidade7_1', 'Aceleraçãofinal1', 'Velocidadefinal1', 'Volta1_1', 'Volta2_1', 'Agilidade1', 
@@ -29,23 +32,19 @@ let selectedAthleteIndex = null;
 let currentPfTab = 'antropometricas';
 let selectedConvocados = new Set();
 
+// Variável de controle para os Grupos
+let gruposData = {
+    'Grupo 1': [], 'Grupo 2': [], 'Grupo 3': [], 'Grupo 4': [], 'Grupo 5': [], 'Grupo 6': []
+};
+
 async function loadFromStorage() {
     try {
-        const { data, error } = await _supabase
-            .from('sistema_config')
-            .select('colunas, dados')
-            .eq('id', 1)
-            .single();
-
-        if (error) {
-            console.error('Erro ao carregar do Supabase:', error);
-        } else if (data) {
+        const { data, error } = await _supabase.from('sistema_config').select('colunas, dados').eq('id', 1).single();
+        if (!error && data) {
             if (data.colunas && data.colunas.length > 0) excelColumns = data.colunas;
             if (data.dados && data.dados.length > 0) excelData = data.dados;
         }
-    } catch (err) {
-        console.error('Erro de conexão:', err);
-    }
+    } catch (err) { console.error('Erro de conexão:', err); }
 
     const savedConvocacao = localStorage.getItem(STORAGE_CONVOCACAO_KEY);
     if (savedConvocacao) {
@@ -53,246 +52,136 @@ async function loadFromStorage() {
     }
 
     initExcelTable();
-    populateEvalSelect(); // Adiciona opções de avaliações dinamicamente
+    populateEvalSelect(); 
     ensureTestAddButton();
+    ensureGruposButton(); // Inicializa o novo botão flutuante
     ensureConvocacaoModalDom();
     ensurePrintStyles();
+    initGruposFilter(); // Inicializa checkboxes da aba de grupos
 }
 
 async function saveToStorage() {
     try {
-        const { error } = await _supabase
-            .from('sistema_config')
-            .update({
-                colunas: excelColumns,
-                dados: excelData,
-                atualizado_em: new Date()
-            })
-            .eq('id', 1);
-
-        if (error) {
-            console.error('Erro ao salvar no Supabase:', error);
-        }
-    } catch (err) {
-        console.error('Erro ao salvar:', err);
-    }
+        await _supabase.from('sistema_config').update({
+            colunas: excelColumns, dados: excelData, atualizado_em: new Date()
+        }).eq('id', 1);
+    } catch (err) { console.error('Erro ao salvar:', err); }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    loadFromStorage();
-});
+document.addEventListener("DOMContentLoaded", () => { loadFromStorage(); });
 
-/* === ESTILOS E FUNÇÕES DE IMPRESSÃO / EXPORTAÇÃO === */
+/* === FUNÇÕES DE IMPRESSÃO / EXPORTAÇÃO === */
 function ensurePrintStyles() {
     if (!document.getElementById('dynamic-print-style')) {
         const style = document.createElement('style');
         style.id = 'dynamic-print-style';
         style.innerHTML = `
             @media print {
-                body > *:not(#fichaModal) {
-                    display: none !important;
-                }
-                
-                #fichaModal {
-                    position: absolute !important;
-                    left: 0 !important;
-                    top: 0 !important;
-                    width: 100% !important;
-                    height: auto !important;
-                    background: #fff !important;
-                    display: block !important;
-                    z-index: 9999 !important;
-                }
-                
-                .modal-container {
-                    box-shadow: none !important;
-                    border: none !important;
-                    width: 100% !important;
-                    max-width: 100% !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-                
-                .modal-header, .close-btn, .print-hide, button {
-                    display: none !important;
-                }
-                
-                #fichaExportContent {
-                    display: block !important;
-                    width: 100% !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-                
-                #fichaExportContent .modal-footer ~ .modal-footer {
-                    display: none !important;
-                }
-                
-                html, body {
-                    background: #fff !important;
-                    height: auto !important;
-                    overflow: visible !important;
-                }
-                
-                @page {
-                    size: portrait;
-                    margin: 10mm;
-                }
+                body > *:not(#fichaModal) { display: none !important; }
+                #fichaModal { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; background: #fff !important; display: block !important; z-index: 9999 !important; }
+                .modal-container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                .modal-header, .close-btn, .print-hide, button { display: none !important; }
+                #fichaExportContent { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                #fichaExportContent .modal-footer ~ .modal-footer { display: none !important; }
+                html, body { background: #fff !important; height: auto !important; overflow: visible !important; }
+                @page { size: portrait; margin: 10mm; }
             }
         `;
         document.head.appendChild(style);
     }
 }
 
+
+function onQtdGruposChange() {
+    const selectQtd = document.getElementById('select-qtd-grupos');
+    quantidadeGruposAtivos = parseInt(selectQtd.value) || 6;
+    renderGruposScreen();
+}
+
+
 function shareFichaPDF() {
     const element = document.getElementById('fichaExportContent');
     if (!element) return;
-
     if (typeof html2pdf !== 'undefined') {
-        const opt = {
-            margin:       10,
-            filename:     'ficha_do_atleta.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
+        const opt = { margin: 10, filename: 'ficha_do_atleta.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         html2pdf().from(element).set(opt).outputPdf('blob').then((pdfBlob) => {
             const file = new File([pdfBlob], 'ficha_do_atleta.pdf', { type: 'application/pdf' });
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                navigator.share({
-                    files: [file],
-                    title: 'Ficha do Atleta',
-                    text: 'Segue a ficha do atleta em PDF.'
-                }).catch(err => {
-                    console.log('Compartilhamento cancelado ou erro:', err);
-                });
-            } else {
-                html2pdf().from(element).set(opt).save();
-            }
+                navigator.share({ files: [file], title: 'Ficha do Atleta', text: 'Segue a ficha do atleta em PDF.' }).catch(err => console.log('Erro:', err));
+            } else { html2pdf().from(element).set(opt).save(); }
         });
-    } else {
-        window.print();
-    }
+    } else { window.print(); }
 }
+function printFicha() { window.print(); }
 
-function printFicha() {
-    window.print();
-}
-/* ============================================= */
-
+/* === NAVEGAÇÃO === */
 function enterSystem() {
-    const loginScreen = document.getElementById('login-screen');
-    const homeScreen = document.getElementById('home-screen');
-    const mainNav = document.getElementById('main-nav');
-    const yellowBarNav = document.getElementById('yellow-bar-nav');
-
-    if (loginScreen) loginScreen.classList.remove('active-screen');
-    if (homeScreen) homeScreen.classList.add('active-screen');
-    
-    if (mainNav) mainNav.style.display = 'flex';
-    if (yellowBarNav) yellowBarNav.style.display = 'block';
-    
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('login-screen').classList.remove('active-screen');
+    document.getElementById('home-screen').classList.add('active-screen');
+    document.getElementById('main-nav').style.display = 'flex';
+    document.getElementById('yellow-bar-nav').style.display = 'block';
 }
 
 function navigateTo(screenId, event) {
-    if (screenId === 'convocacao') {
-        openConvocacaoModal();
-        return;
-    }
+    if (screenId === 'convocacao') { openConvocacaoModal(); return; }
 
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active-screen'));
 
-    const fab = document.getElementById('btn-add-athlete-pf-fab');
-    if (fab) {
-        fab.style.display = (screenId === 'testes') ? 'flex' : 'none';
-    }
+    const fabAdd = document.getElementById('btn-add-athlete-pf-fab');
+    const fabGrupos = document.getElementById('btn-grupos-pf-fab');
+    if (fabAdd) fabAdd.style.display = (screenId === 'testes') ? 'flex' : 'none';
+    if (fabGrupos) fabGrupos.style.display = (screenId === 'testes') ? 'flex' : 'none';
 
     if (screenId === 'home') {
-        const homeScreen = document.getElementById('home-screen');
-        if (homeScreen) homeScreen.classList.add('active-screen');
+        document.getElementById('home-screen').classList.add('active-screen');
     } else if (screenId === 'excel-db') {
-        const excelDbScreen = document.getElementById('excel-db-screen');
-        if (excelDbScreen) excelDbScreen.classList.add('active-screen');
+        document.getElementById('excel-db-screen').classList.add('active-screen');
         renderExcelTable();
     } else if (screenId === 'atletas') {
-        const atletasScreen = document.getElementById('atletas-screen');
-        if (atletasScreen) atletasScreen.classList.add('active-screen');
+        document.getElementById('atletas-screen').classList.add('active-screen');
         renderAtletasScreen();
-        if (event && event.target && event.target.classList.contains('nav-btn')) {
-            event.target.classList.add('active');
-        }
+        if (event && event.target && event.target.classList.contains('nav-btn')) event.target.classList.add('active');
     } else if (screenId === 'testes') {
-        const testesScreen = document.getElementById('testes-screen');
-        if (testesScreen) testesScreen.classList.add('active-screen');
-        ensureTestAddButton();
-        if (fab) fab.style.display = 'flex';
+        document.getElementById('testes-screen').classList.add('active-screen');
         renderPfTable();
-        if (event && event.target && event.target.classList.contains('nav-btn')) {
-            event.target.classList.add('active');
-        }
+        if (event && event.target && event.target.classList.contains('nav-btn')) event.target.classList.add('active');
+    } else if (screenId === 'grupos') {
+        document.getElementById('grupos-screen').classList.add('active-screen');
+        renderGruposScreen();
     } else {
-        const genericScreen = document.getElementById('generic-screen');
-        if (genericScreen) genericScreen.classList.add('active-screen');
-        const titles = {
-            'prancheta': 'Prancheta Tática Virtual',
-            'relatorios': 'Relatórios de Desempenho',
-            'jogos': 'Controle de Jogos'
-        };
-        const genericTitle = document.getElementById('generic-title');
-        if (genericTitle) genericTitle.innerText = titles[screenId] || 'Módulo em Desenvolvimento';
-        if (event && event.target && event.target.classList.contains('nav-btn')) {
-            event.target.classList.add('active');
-        }
+        document.getElementById('generic-screen').classList.add('active-screen');
+        const titles = { 'prancheta': 'Prancheta Tática Virtual', 'relatorios': 'Relatórios de Desempenho', 'jogos': 'Controle de Jogos' };
+        document.getElementById('generic-title').innerText = titles[screenId] || 'Módulo em Desenvolvimento';
+        if (event && event.target && event.target.classList.contains('nav-btn')) event.target.classList.add('active');
     }
 }
 
 function toggleFullScreen() {
     if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-            alert(`Erro ao habilitar tela cheia: ${err.message}`);
-        });
+        document.documentElement.requestFullscreen().catch(err => alert(`Erro: ${err.message}`));
     } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
+        if (document.exitFullscreen) document.exitFullscreen();
     }
 }
 
+/* === FUNÇÕES AUXILIARES / EXCEL === */
 function initExcelTable() {
     const headerRow = document.getElementById('excel-header-row');
     if (!headerRow) return;
     headerRow.innerHTML = '';
-    
-    const thNum = document.createElement('th');
-    thNum.textContent = '#';
-    headerRow.appendChild(thNum);
-
-    excelColumns.forEach(col => {
-        const th = document.createElement('th');
-        th.textContent = col;
-        headerRow.appendChild(th);
-    });
+    const thNum = document.createElement('th'); thNum.textContent = '#'; headerRow.appendChild(thNum);
+    excelColumns.forEach(col => { const th = document.createElement('th'); th.textContent = col; headerRow.appendChild(th); });
 }
 
 function convertExcelDate(value) {
     if (!value) return '';
-    if (typeof value === 'string' && (value.includes('/') || value.includes('-'))) {
-        return value;
-    }
+    if (typeof value === 'string' && (value.includes('/') || value.includes('-'))) return value;
     let num = Number(value);
     if (!isNaN(num) && num > 1000 && num < 60000) {
         let utc_days = Math.floor(num - 25569);
-        let utc_value = utc_days * 86400;
-        let date_info = new Date(utc_value * 1000);
-        
-        let day = String(date_info.getUTCDate()).padStart(2, '0');
-        let month = String(date_info.getUTCMonth() + 1).padStart(2, '0');
-        let year = date_info.getUTCFullYear();
-        
-        return `${day}/${month}/${year}`;
+        let date_info = new Date(utc_days * 86400 * 1000);
+        return `${String(date_info.getUTCDate()).padStart(2, '0')}/${String(date_info.getUTCMonth() + 1).padStart(2, '0')}/${date_info.getUTCFullYear()}`;
     }
     return value;
 }
@@ -302,11 +191,7 @@ function formatGordura(val) {
     let clean = String(val).replace('%', '').trim().replace(',', '.');
     let num = parseFloat(clean);
     if (isNaN(num)) return val;
-
-    if (num > 0 && num <= 1) {
-        num = num * 100;
-    }
-
+    if (num > 0 && num <= 1) num = num * 100;
     return num.toFixed(2).replace('.', ',') + '%';
 }
 
@@ -315,758 +200,708 @@ function renderExcelTable() {
     const tbody = document.getElementById('excel-tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
-
     excelData.forEach((row, rowIndex) => {
         const tr = document.createElement('tr');
-        
         const tdNum = document.createElement('td');
-        tdNum.textContent = rowIndex + 1;
-        tdNum.style.backgroundColor = '#f2f2f2';
-        tdNum.style.fontWeight = 'bold';
+        tdNum.textContent = rowIndex + 1; tdNum.style.backgroundColor = '#f2f2f2'; tdNum.style.fontWeight = 'bold';
         tr.appendChild(tdNum);
-
         excelColumns.forEach(col => {
             const td = document.createElement('td');
             const input = document.createElement('input');
             input.type = 'text';
-            
             let val = row[col] !== undefined && row[col] !== null ? row[col] : '';
-            if (col.toLowerCase().includes('data') || col.toLowerCase().includes('nascimento')) {
-                val = convertExcelDate(val);
-            }
-
+            if (col.toLowerCase().includes('data') || col.toLowerCase().includes('nascimento')) val = convertExcelDate(val);
             input.value = val;
-            input.onchange = (e) => {
-                excelData[rowIndex][col] = e.target.value;
-                saveToStorage();
-            };
-            td.appendChild(input);
-            tr.appendChild(td);
+            input.onchange = (e) => { excelData[rowIndex][col] = e.target.value; saveToStorage(); };
+            td.appendChild(input); tr.appendChild(td);
         });
-
         tbody.appendChild(tr);
     });
 }
 
 function addRowToExcel() {
-    let newRow = {};
-    excelColumns.forEach(col => {
-        newRow[col] = '';
-    });
-    excelData.push(newRow);
-    saveToStorage();
-    renderExcelTable();
+    let newRow = {}; excelColumns.forEach(col => { newRow[col] = ''; });
+    excelData.push(newRow); saveToStorage(); renderExcelTable();
 }
 
 function importExcelFile(event) {
     const file = event.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
-            
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-            
+            const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
             if (jsonData.length > 0) {
                 excelColumns = Object.keys(jsonData[0]);
-                excelData = jsonData;
-                saveToStorage();
-                populateEvalSelect(); // Atualiza a seleção após importação
-                renderExcelTable();
-                alert(`Banco de dados importado e salvo com sucesso! ${jsonData.length} atletas carregados.`);
-            } else {
-                alert('O arquivo Excel parece estar vazio.');
+                excelData = jsonData; saveToStorage(); populateEvalSelect(); renderExcelTable();
+                alert(`Importado com sucesso! ${jsonData.length} atletas carregados.`);
             }
-        } catch (error) {
-            alert(`Erro ao ler o arquivo Excel: ${error.message}`);
-        }
+        } catch (error) { alert(`Erro: ${error.message}`); }
     };
-    reader.readAsArrayBuffer(file);
-    event.target.value = '';
+    reader.readAsArrayBuffer(file); event.target.value = '';
 }
 
+/* === FUNÇÕES GENÉRICAS E TELA DE ATLETAS MANTIDAS DO ORIGINAL === */
 function openFichaAtleta(globalIndex) {
     if (globalIndex === null || globalIndex === undefined || !excelData[globalIndex]) {
-        alert('Selecione um atleta na lista primeiro clicando sobre o nome dele e depois clique em Ver Ficha Atleta.');
-        return;
+        alert('Selecione um atleta na lista primeiro.'); return;
     }
-
     const row = excelData[globalIndex];
-
     function getVal(keys) {
         for (let key in row) {
             let kLow = key.toLowerCase();
             for (let target of keys) {
                 if (kLow === target.toLowerCase() || kLow.includes(target.toLowerCase())) {
-                    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
-                        return row[key];
-                    }
+                    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') return row[key];
                 }
             }
         }
         return '-';
     }
-
     let maxEvalNum = 1;
     for (let i = 1; i <= 20; i++) {
         let hasEvalData = false;
         for (let key in row) {
             let kLow = key.toLowerCase();
-            if ((kLow === ('altura' + i) || kLow === ('peso' + i) || kLow === ('data' + i) || kLow === ('dobras1_' + i) || kLow === ('dobras1' + i)) && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '' && String(row[key]).trim() !== '-') {
-                hasEvalData = true;
-                break;
-            }
+            if ((kLow === ('altura' + i) || kLow === ('peso' + i) || kLow === ('data' + i)) && row[key] && String(row[key]).trim() !== '-') { hasEvalData = true; break; }
         }
-        if (hasEvalData) {
-            maxEvalNum = i;
-        }
+        if (hasEvalData) maxEvalNum = i;
     }
     const evalNum = maxEvalNum;
-
     function getEvalVal(baseNames) {
         for (let base of baseNames) {
-            let candidates = [
-                base + evalNum,
-                base + '_' + evalNum
-            ];
+            let candidates = [base + evalNum, base + '_' + evalNum];
             for (let cand of candidates) {
                 for (let key in row) {
                     if (key.toLowerCase() === cand.toLowerCase()) {
-                        if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '' && String(row[key]).trim() !== '-') {
-                            return row[key];
-                        }
+                        if (row[key] && String(row[key]).trim() !== '-' && String(row[key]).trim() !== '') return row[key];
                     }
                 }
             }
         }
         return '-';
     }
-
-    const nome = getVal(['NOME COMPLETO', 'nome']) !== '-' ? getVal(['NOME COMPLETO', 'nome']) : (getVal(['APELIDO']) !== '-' ? getVal(['APELIDO']) : 'Atleta Sem Nome');
+    const nome = getVal(['NOME COMPLETO', 'nome']) !== '-' ? getVal(['NOME COMPLETO', 'nome']) : (getVal(['APELIDO']) !== '-' ? getVal(['APELIDO']) : 'Sem Nome');
     const posicao = getVal(['Posição 1', 'posicao1', 'posição']);
     const nascimento = convertExcelDate(getVal(['Data de nascimento', 'nascimento']));
     const cidade = getVal(['CIDADE', 'cidade']);
     const foto = getVal(['Foto', 'foto']);
-
     const altura = getEvalVal(['Altura', 'altura']);
     const peso = getEvalVal(['peso', 'peso']);
-    const alturapredita = getEvalVal(['alturapredita', 'alturapredita']);
+    const alturapredita = getEvalVal(['alturapredita']);
     const subescapular = getEvalVal(['Dobras1', 'dobras1']);
     const triciptal = getEvalVal(['Dobras2', 'dobras2']);
     const supraIliaca = getEvalVal(['Dobras3', 'dobras3']);
     const abdominal = getEvalVal(['Dobras4', 'dobras4']);
-    const gorduraRaw = getEvalVal(['PercentualGordura', 'gordura', 'percentualgordura']);
-    const gordura = formatGordura(gorduraRaw);
+    const gordura = formatGordura(getEvalVal(['PercentualGordura', 'gordura']));
     const dataAvaliacao = convertExcelDate(getEvalVal(['Data', 'data']));
-
-    const photoSrc = (foto && foto !== '-') ? foto : 'foto.jpg';
-
-    const modalBody = document.getElementById('fichaModalBody');
-    if (modalBody) {
-        modalBody.innerHTML = `
-            <div id="fichaExportContent" style="background: #fff; padding: 10px;">
-                <div class="player-profile">
-                    <img src="${photoSrc}" alt="${nome}" class="player-photo" crossorigin="anonymous" onerror="this.onerror=null; this.src='https://via.placeholder.com/110x140?text=Sem+Foto';">
-                    <div class="player-details">
-                        <h3>${nome}</h3>
-                        <p><strong>Posição:</strong> ${posicao}</p>
-                        <p><strong>Nascimento:</strong> ${nascimento}</p>
-                        <p><strong>Cidade:</strong> ${cidade !== '-' ? cidade : 'Apucarana'}</p>
-                        <p><strong>Clube:</strong> CFA Prosol</p>
-                    </div>
-                </div>
-
-                <div class="metrics-section">
-                    <h4>MEDIDAS ANTROPOMÉTRICAS ${dataAvaliacao !== '-' ? '(Avaliação ' + evalNum + ': ' + dataAvaliacao + ')' : '(Avaliação ' + evalNum + ')'}</h4>
-                    <div class="metrics-grid">
-                        <div class="metric-item"><strong>Altura:</strong> ${altura !== '-' ? altura + ' m' : '-'}</div>
-                        <div class="metric-item"><strong>Subescapular:</strong> ${subescapular !== '-' ? subescapular + ' cm' : '-'}</div>
-                        <div class="metric-item"><strong>Massa Corporal:</strong> ${peso !== '-' ? peso + ' Kg' : '-'}</div>
-                        <div class="metric-item"><strong>Triciptal:</strong> ${triciptal !== '-' ? triciptal + ' cm' : '-'}</div>
-                        <div class="metric-item"><strong>Supra Ilíaca:</strong> ${supraIliaca !== '-' ? supraIliaca + ' cm' : '-'}</div>
-                        <div class="metric-item"><strong>Abdominal:</strong> ${abdominal !== '-' ? abdominal + ' cm' : '-'}</div>
-                        <div class="metric-item"><strong>% Gordura:</strong> ${gordura}</div>
-                    </div>
-                    ${alturapredita !== '-' ? `<div class="predicted-height">Altura Predita: ${alturapredita} m</div>` : ''}
-                </div>
-
-                <div class="modal-footer" style="background-color: #f9f9f9; padding: 12px; font-size: 0.8rem; border-top: 1px solid #ddd; color: #555; margin-top: 15px;">
-                    <p><strong>CEO Enzo Gardini:</strong> (43) 98807-1610</p>
-                    <p><strong>Coordenador Geral Roberto Fonseca Júnior:</strong> (43) 99110-4544</p>
-                    <p><strong>Secretaria CFA Prosol:</strong> (43) 99670-7654</p>
-                    <p><strong>Instagram:</strong> @cfaprosol</p>
+    
+    document.getElementById('fichaModalBody').innerHTML = `
+        <div id="fichaExportContent" style="background: #fff; padding: 10px;">
+            <div class="player-profile">
+                <img src="${(foto && foto !== '-') ? foto : 'https://via.placeholder.com/110x140?text=Sem+Foto'}" class="player-photo">
+                <div class="player-details">
+                    <h3>${nome}</h3><p><strong>Posição:</strong> ${posicao}</p><p><strong>Nascimento:</strong> ${nascimento}</p><p><strong>Cidade:</strong> ${cidade !== '-' ? cidade : 'Apucarana'}</p>
                 </div>
             </div>
-
-            <div style="display: flex; gap: 10px; margin-top: 20px;" class="no-print">
-                <button onclick="shareFichaPDF()" style="flex: 1; padding: 12px; background: #0984e3; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">Compartilhar PDF</button>
-                <button onclick="printFicha()" style="flex: 1; padding: 12px; background: #6c5ce7; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">Imprimir</button>
+            <div class="metrics-section">
+                <h4>MEDIDAS ANTROPOMÉTRICAS ${dataAvaliacao !== '-' ? '(Avaliação ' + evalNum + ': ' + dataAvaliacao + ')' : ''}</h4>
+                <div class="metrics-grid">
+                    <div class="metric-item"><strong>Altura:</strong> ${altura !== '-' ? altura + ' m' : '-'}</div>
+                    <div class="metric-item"><strong>Subescapular:</strong> ${subescapular !== '-' ? subescapular + ' cm' : '-'}</div>
+                    <div class="metric-item"><strong>Massa Corporal:</strong> ${peso !== '-' ? peso + ' Kg' : '-'}</div>
+                    <div class="metric-item"><strong>Triciptal:</strong> ${triciptal !== '-' ? triciptal + ' cm' : '-'}</div>
+                    <div class="metric-item"><strong>Supra Ilíaca:</strong> ${supraIliaca !== '-' ? supraIliaca + ' cm' : '-'}</div>
+                    <div class="metric-item"><strong>Abdominal:</strong> ${abdominal !== '-' ? abdominal + ' cm' : '-'}</div>
+                    <div class="metric-item"><strong>% Gordura:</strong> ${gordura}</div>
+                </div>
+                ${alturapredita !== '-' ? `<div class="predicted-height">Altura Predita: ${alturapredita} m</div>` : ''}
             </div>
-        `;
-    }
-
-    const modal = document.getElementById('fichaModal');
-    if (modal) modal.style.display = 'flex';
+            <div class="modal-footer" style="margin-top: 15px;"><p><strong>CEO Enzo Gardini:</strong> (43) 98807-1610</p><p><strong>Instagram:</strong> @cfaprosol</p></div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;" class="no-print">
+            <button onclick="shareFichaPDF()" style="flex: 1; padding: 12px; background: #0984e3; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Compartilhar PDF</button>
+            <button onclick="printFicha()" style="flex: 1; padding: 12px; background: #6c5ce7; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Imprimir</button>
+        </div>
+    `;
+    document.getElementById('fichaModal').style.display = 'flex';
 }
-
-function closeModal() {
-    const modal = document.getElementById('fichaModal');
-    if (modal) modal.style.display = 'none';
-}
-
-window.onclick = function(event) {
-    const modal = document.getElementById('fichaModal');
-    if (event.target === modal) {
-        modal.style.display = 'none';
-    }
-}
+function closeModal() { document.getElementById('fichaModal').style.display = 'none'; }
+window.onclick = function(event) { if (event.target === document.getElementById('fichaModal')) closeModal(); }
 
 function renderAtletasScreen() {
-    const checkboxes = document.querySelectorAll('.year-chk');
-    let selectedYears = [];
-    checkboxes.forEach(chk => {
-        if (chk.checked) selectedYears.push(chk.value);
-    });
-
-    const posLists = {
-        'goleiros': document.getElementById('list-goleiros'),
-        'zagueiros': document.getElementById('list-zagueiros'),
-        'laterais': document.getElementById('list-laterais'),
-        'volantes': document.getElementById('list-volantes'),
-        'meias': document.getElementById('list-meias'),
-        'atacantes': document.getElementById('list-atacantes'),
-        'extremos': document.getElementById('list-extremos')
-    };
-
-    for (let key in posLists) {
-        if (posLists[key]) posLists[key].innerHTML = '';
-    }
+    const selectedYears = Array.from(document.querySelectorAll('.year-chk:checked')).map(chk => chk.value);
+    const posLists = { 'goleiros': document.getElementById('list-goleiros'), 'zagueiros': document.getElementById('list-zagueiros'), 'laterais': document.getElementById('list-laterais'), 'volantes': document.getElementById('list-volantes'), 'meias': document.getElementById('list-meias'), 'atacantes': document.getElementById('list-atacantes'), 'extremos': document.getElementById('list-extremos') };
+    for (let key in posLists) { if (posLists[key]) posLists[key].innerHTML = ''; }
 
     excelData.forEach((row, globalIndex) => {
-        let anoAtleta = '';
-        for (let key in row) {
-            if (key.toLowerCase() === 'ano') {
-                anoAtleta = String(row[key] || '').trim();
-                break;
-            }
-        }
-
-        if (selectedYears.length > 0 && !selectedYears.includes(anoAtleta)) {
-            return;
-        }
-
-        let nomeExibicao = '';
-        for (let key in row) {
-            let kLow = key.toLowerCase();
-            if (kLow.includes('apelido') && row[key]) {
-                nomeExibicao = row[key];
-                break;
-            }
-        }
-        if (!nomeExibicao) {
-            for (let key in row) {
-                let kLow = key.toLowerCase();
-                if (kLow.includes('nome') && row[key]) {
-                    nomeExibicao = row[key];
-                    break;
-                }
-            }
-        }
-        if (!nomeExibicao) nomeExibicao = 'Atleta Sem Nome';
-
-        let posicaoAtleta = '';
-        for (let key in row) {
-            let kLow = key.toLowerCase();
-            if (kLow.includes('posição') || kLow.includes('posicao')) {
-                posicaoAtleta = String(row[key] || '').toLowerCase();
-                break;
-            }
-        }
-
+        let anoAtleta = Object.keys(row).find(k => k.toLowerCase() === 'ano'); anoAtleta = anoAtleta ? String(row[anoAtleta]).trim() : '';
+        if (selectedYears.length > 0 && !selectedYears.includes(anoAtleta)) return;
+        
+        let nomeExibicao = Object.keys(row).find(k => k.toLowerCase().includes('apelido')); nomeExibicao = nomeExibicao && row[nomeExibicao] ? row[nomeExibicao] : '';
+        if (!nomeExibicao) { let nm = Object.keys(row).find(k => k.toLowerCase().includes('nome')); nomeExibicao = nm && row[nm] ? row[nm] : 'Sem Nome'; }
+        
+        let posicao = Object.keys(row).find(k => k.toLowerCase().includes('posição') || k.toLowerCase().includes('posicao'));
+        posicao = posicao ? String(row[posicao]).toLowerCase() : '';
+        
         let targetBox = 'meias';
-        if (posicaoAtleta.includes('goleiro')) targetBox = 'goleiros';
-        else if (posicaoAtleta.includes('zagueiro')) targetBox = 'zagueiros';
-        else if (posicaoAtleta.includes('lateral')) targetBox = 'laterais';
-        else if (posicaoAtleta.includes('volante')) targetBox = 'volantes';
-        else if (posicaoAtleta.includes('meia')) targetBox = 'meias';
-        else if (posicaoAtleta.includes('atacante')) targetBox = 'atacantes';
-        else if (posicaoAtleta.includes('extremo') || posicaoAtleta.includes('ponta')) targetBox = 'extremos';
+        if (posicao.includes('goleiro')) targetBox = 'goleiros'; else if (posicao.includes('zagueiro')) targetBox = 'zagueiros'; else if (posicao.includes('lateral')) targetBox = 'laterais'; else if (posicao.includes('volante')) targetBox = 'volantes'; else if (posicao.includes('atacante')) targetBox = 'atacantes'; else if (posicao.includes('extremo') || posicao.includes('ponta')) targetBox = 'extremos';
 
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'athlete-item';
-        if (selectedAthleteIndex === globalIndex) {
-            itemDiv.classList.add('selected');
-            itemDiv.style.backgroundColor = '#0984e3';
-            itemDiv.style.color = '#fff';
-        }
+        itemDiv.className = 'athlete-item' + (selectedAthleteIndex === globalIndex ? ' selected' : '');
+        if(selectedAthleteIndex === globalIndex) { itemDiv.style.backgroundColor = '#0984e3'; itemDiv.style.color = '#fff'; }
         itemDiv.innerHTML = `<span>${nomeExibicao}</span> <span>${anoAtleta}</span>`;
-        
-        itemDiv.onclick = () => {
-            selectedAthleteIndex = globalIndex;
-            renderAtletasScreen();
-        };
-
-        if (posLists[targetBox]) {
-            posLists[targetBox].appendChild(itemDiv);
-        }
+        itemDiv.onclick = () => { selectedAthleteIndex = globalIndex; renderAtletasScreen(); };
+        if (posLists[targetBox]) posLists[targetBox].appendChild(itemDiv);
     });
 }
 
 function deleteSelectedAthlete() {
-    if (selectedAthleteIndex === null || selectedAthleteIndex === undefined) {
-        alert('Selecione um atleta na lista clicando sobre o nome dele antes de excluir.');
-        return;
-    }
-    let athleteName = '';
-    for (let key in excelData[selectedAthleteIndex]) {
-        if (key.toLowerCase().includes('nome')) {
-            athleteName = excelData[selectedAthleteIndex][key];
-            break;
-        }
-    }
-    if (confirm(`Deseja realmente excluir o atleta "${athleteName || 'Selecionado'}"?`)) {
-        excelData.splice(selectedAthleteIndex, 1);
-        selectedAthleteIndex = null;
-        saveToStorage();
-        renderAtletasScreen();
-        alert('Atleta excluído com sucesso!');
-    }
+    if (selectedAthleteIndex === null) { alert('Selecione um atleta na lista.'); return; }
+    if (confirm('Deseja realmente excluir o atleta?')) { excelData.splice(selectedAthleteIndex, 1); selectedAthleteIndex = null; saveToStorage(); renderAtletasScreen(); }
 }
-
-function openAddAthleteModal() {
-    uploadedPhotoBase64 = '';
-    const form = document.getElementById('athlete-form');
-    if (form) form.reset();
-    const lbl = document.getElementById('file-label-text');
-    if (lbl) lbl.textContent = 'Selecionar Foto';
-    const modal = document.getElementById('add-athlete-modal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function closeAddAthleteModal() {
-    const modal = document.getElementById('add-athlete-modal');
-    if (modal) modal.style.display = 'none';
-}
-
+function openAddAthleteModal() { uploadedPhotoBase64 = ''; document.getElementById('athlete-form').reset(); document.getElementById('add-athlete-modal').style.display = 'flex'; }
+function closeAddAthleteModal() { document.getElementById('add-athlete-modal').style.display = 'none'; }
 function previewAthletePhoto(input) {
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        const lbl = document.getElementById('file-label-text');
-        if (lbl) lbl.textContent = file.name;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            uploadedPhotoBase64 = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
+    if (input.files && input.files[0]) { document.getElementById('file-label-text').textContent = input.files[0].name; const reader = new FileReader(); reader.onload = function(e) { uploadedPhotoBase64 = e.target.result; }; reader.readAsDataURL(input.files[0]); }
 }
-
 function saveNewAthlete(event) {
     event.preventDefault();
-
-    const nome = document.getElementById('add-nome').value;
-    const apelido = document.getElementById('add-apelido').value;
-    const ano = document.getElementById('add-ano').value;
-    const nascimento = document.getElementById('add-nascimento').value;
-    const posicao = document.getElementById('add-posicao').value;
-    const cidade = document.getElementById('add-cidade').value;
-    const contato = document.getElementById('add-contato').value;
-    const rg = document.getElementById('add-rg').value;
-
-    let newRow = {};
-    excelColumns.forEach(col => { newRow[col] = ''; });
-
-    if (excelColumns.includes('Ano')) newRow['Ano'] = ano;
-    if (excelColumns.includes('NOME COMPLETO')) newRow['NOME COMPLETO'] = nome;
-    if (excelColumns.includes('APELIDO')) newRow['APELIDO'] = apelido;
-    if (excelColumns.includes('Data de nascimento')) newRow['Data de nascimento'] = nascimento;
-    if (excelColumns.includes('Posição 1')) newRow['Posição 1'] = posicao;
-    if (excelColumns.includes('CIDADE')) newRow['CIDADE'] = cidade;
-    if (excelColumns.includes('Contato')) newRow['Contato'] = contato;
-    if (excelColumns.includes('RG')) newRow['RG'] = rg;
-    if (excelColumns.includes('Foto')) newRow['Foto'] = uploadedPhotoBase64;
-
-    excelData.push(newRow);
-    saveToStorage();
-    closeAddAthleteModal();
-    renderAtletasScreen();
-    
-    const testesScreen = document.getElementById('testes-screen');
-    if (testesScreen && testesScreen.classList.contains('active-screen')) {
-        renderPfTable();
-    }
-
-    alert('Atleta adicionado e salvo com sucesso!');
+    let newRow = {}; excelColumns.forEach(col => { newRow[col] = ''; });
+    newRow['Ano'] = document.getElementById('add-ano').value; newRow['NOME COMPLETO'] = document.getElementById('add-nome').value; newRow['APELIDO'] = document.getElementById('add-apelido').value; newRow['Data de nascimento'] = document.getElementById('add-nascimento').value; newRow['Posição 1'] = document.getElementById('add-posicao').value; newRow['CIDADE'] = document.getElementById('add-cidade').value; newRow['Contato'] = document.getElementById('add-contato').value; newRow['RG'] = document.getElementById('add-rg').value; newRow['Foto'] = uploadedPhotoBase64;
+    excelData.push(newRow); saveToStorage(); closeAddAthleteModal(); renderAtletasScreen();
+    alert('Salvo com sucesso!');
 }
 
+/* === TESTES FÍSICOS === */
 function switchPfTab(tabName, eventObj) {
     currentPfTab = tabName;
     document.querySelectorAll('.pf-tab').forEach(t => t.classList.remove('active'));
-    
-    const targetEl = eventObj ? eventObj.target : (window.event ? window.event.target : null);
-    if (targetEl) targetEl.classList.add('active');
-    
+    if(eventObj) eventObj.target.classList.add('active');
     renderPfTable();
 }
 
 function ensureTestAddButton() {
     let fab = document.getElementById('btn-add-athlete-pf-fab');
     if (!fab) {
-        fab = document.createElement('div');
-        fab.id = 'btn-add-athlete-pf-fab';
-        fab.innerHTML = '+ add';
-        fab.style.position = 'fixed';
-        fab.style.bottom = '30px';
-        fab.style.right = '30px';
-        fab.style.width = '65px';
-        fab.style.height = '65px';
-        fab.style.borderRadius = '50%';
-        fab.style.backgroundColor = '#2ed573';
-        fab.style.color = '#fff';
-        fab.style.display = 'none';
-        fab.style.alignItems = 'center';
-        fab.style.justifyContent = 'center';
-        fab.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
-        fab.style.cursor = 'pointer';
-        fab.style.fontWeight = 'bold';
-        fab.style.fontSize = '13px';
-        fab.style.zIndex = '9999';
-        fab.style.userSelect = 'none';
-        fab.style.transition = 'transform 0.2s, background-color 0.2s';
-        
-        fab.onmouseover = () => {
-            fab.style.transform = 'scale(1.1)';
-            fab.style.backgroundColor = '#26af5f';
-        };
-        fab.onmouseout = () => {
-            fab.style.transform = 'scale(1.0)';
-            fab.style.backgroundColor = '#2ed573';
-        };
-        fab.onclick = openAddAthleteModal;
+        fab = document.createElement('div'); fab.id = 'btn-add-athlete-pf-fab'; fab.innerHTML = '+ add';
+        fab.style.cssText = 'position:fixed; bottom:30px; right:30px; width:65px; height:65px; border-radius:50%; background-color:#2ed573; color:#fff; display:none; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,0.4); cursor:pointer; font-weight:bold; font-size:13px; z-index:9999; user-select:none; transition:0.2s;';
+        fab.onmouseover = () => { fab.style.transform = 'scale(1.1)'; fab.style.backgroundColor = '#26af5f'; };
+        fab.onmouseout = () => { fab.style.transform = 'scale(1.0)'; fab.style.backgroundColor = '#2ed573'; };
+        fab.onclick = openAddAthleteModal; document.body.appendChild(fab);
+    }
+}
+
+// NOVO: Criar botão flutuante para Grupos
+function ensureGruposButton() {
+    let fab = document.getElementById('btn-grupos-pf-fab');
+    if (!fab) {
+        fab = document.createElement('div'); fab.id = 'btn-grupos-pf-fab'; fab.innerHTML = 'Grupos';
+        // Posicionado um pouco acima do botão +add (bottom: 105px)
+        fab.style.cssText = 'position:fixed; bottom:105px; right:30px; width:65px; height:65px; border-radius:50%; background-color:#316ac5; color:#fff; display:none; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,0.4); cursor:pointer; font-weight:bold; font-size:12px; z-index:9999; user-select:none; transition:0.2s;';
+        fab.onmouseover = () => { fab.style.transform = 'scale(1.1)'; fab.style.backgroundColor = '#214a8a'; };
+        fab.onmouseout = () => { fab.style.transform = 'scale(1.0)'; fab.style.backgroundColor = '#316ac5'; };
+        fab.onclick = () => navigateTo('grupos'); 
         document.body.appendChild(fab);
     }
 }
 
-/* === FUNÇÕES CORRIGIDAS/ADICIONADAS DE AVALIAÇÕES === */
-
 function populateEvalSelect() {
     let maxEval = 1;
-    excelColumns.forEach(col => {
-        let match = col.match(/^Data(\d+)$/i);
-        if (match) {
-            let num = parseInt(match[1]);
-            if (num > maxEval) maxEval = num;
-        }
-    });
-
+    excelColumns.forEach(col => { let m = col.match(/^Data(\d+)$/i); if (m && parseInt(m[1]) > maxEval) maxEval = parseInt(m[1]); });
     const evalSelect = document.getElementById('pf-eval-select');
     if (evalSelect) {
-        let currentVal = evalSelect.value;
-        evalSelect.innerHTML = '';
+        let currentVal = evalSelect.value; evalSelect.innerHTML = '';
         for (let i = 1; i <= maxEval; i++) {
-            const opt = document.createElement('option');
-            opt.value = i;
-            opt.textContent = 'Avaliação ' + i;
-            evalSelect.appendChild(opt);
+            const opt = document.createElement('option'); opt.value = i; opt.textContent = 'Avaliação ' + i; evalSelect.appendChild(opt);
         }
-        if (currentVal && currentVal <= maxEval) {
-            evalSelect.value = currentVal;
-        } else {
-            evalSelect.value = maxEval; // se for apagada, volta para a última
-        }
+        evalSelect.value = (currentVal && currentVal <= maxEval) ? currentVal : maxEval;
     }
 }
 
 function addNewEvaluation() {
-    let maxEval = 1;
-    excelColumns.forEach(col => {
-        let match = col.match(/^Data(\d+)$/i);
-        if (match) {
-            let num = parseInt(match[1]);
-            if (num > maxEval) maxEval = num;
-        }
-    });
-    
+    let maxEval = 1; excelColumns.forEach(c => { let m = c.match(/^Data(\d+)$/i); if (m && parseInt(m[1]) > maxEval) maxEval = parseInt(m[1]); });
     let newEval = maxEval + 1;
-    
-    // Lista de colunas para construir uma nova avaliação no banco
-    let newCols = [
-        'AVALIAÇÃO' + newEval, 'Data' + newEval, 'Altura' + newEval, 'alturasentado' + newEval, 'peso' + newEval,
-        'Dobras1_' + newEval, 'Dobras2_' + newEval, 'Dobras3_' + newEval, 'Dobras4_' + newEval, 'PercentualGordura' + newEval,
-        'alturapredita' + newEval, 'nivel' + newEval, 'distancia' + newEval,
-        'Salto1_' + newEval, 'Salto2_' + newEval, 'Salto3_' + newEval, 'MelhorSalto' + newEval,
-        'aceleração1_' + newEval, 'velocidade1_' + newEval, 'aceleração2_' + newEval, 'velocidade2_' + newEval,
-        'aceleração3_' + newEval, 'velocidade3_' + newEval, 'aceleração4_' + newEval, 'velocidade4_' + newEval,
-        'aceleração5_' + newEval, 'velocidade5_' + newEval, 'aceleração6_' + newEval, 'velocidade6_' + newEval,
-        'aceleração7_' + newEval, 'velocidade7_' + newEval, 'Aceleraçãofinal' + newEval, 'Velocidadefinal' + newEval,
-        'Volta1_' + newEval, 'Volta2_' + newEval, 'Agilidade' + newEval
-    ];
-    
-    newCols.forEach(c => {
-        if (!excelColumns.includes(c)) excelColumns.push(c);
-    });
-    
-    excelData.forEach(row => {
-        newCols.forEach(c => {
-            if (row[c] === undefined) row[c] = '';
-        });
-    });
-    
-    saveToStorage();
-    populateEvalSelect();
-    
-    const evalSelect = document.getElementById('pf-eval-select');
-    if (evalSelect) evalSelect.value = newEval;
-    
-    renderPfTable();
-    alert('Avaliação ' + newEval + ' adicionada com sucesso!');
+    let newCols = ['AVALIAÇÃO', 'Data', 'Altura', 'alturasentado', 'peso', 'Dobras1_', 'Dobras2_', 'Dobras3_', 'Dobras4_', 'PercentualGordura', 'alturapredita', 'nivel', 'distancia', 'Salto1_', 'Salto2_', 'Salto3_', 'MelhorSalto', 'aceleração1_', 'velocidade1_', 'aceleração2_', 'velocidade2_', 'aceleração3_', 'velocidade3_', 'aceleração4_', 'velocidade4_', 'aceleração5_', 'velocidade5_', 'aceleração6_', 'velocidade6_', 'aceleração7_', 'velocidade7_', 'Aceleraçãofinal', 'Velocidadefinal', 'Volta1_', 'Volta2_', 'Agilidade'].map(c => c + newEval);
+    newCols.forEach(c => { if (!excelColumns.includes(c)) excelColumns.push(c); });
+    excelData.forEach(row => { newCols.forEach(c => { if (row[c] === undefined) row[c] = ''; }); });
+    saveToStorage(); populateEvalSelect(); document.getElementById('pf-eval-select').value = newEval; renderPfTable(); alert('Avaliação ' + newEval + ' adicionada!');
 }
 
 function deleteCurrentEvaluation() {
     const evalSelect = document.getElementById('pf-eval-select');
     if (!evalSelect) return;
-    
     let currentEval = parseInt(evalSelect.value);
-    
-    let maxEval = 1;
-    excelColumns.forEach(col => {
-        let match = col.match(/^Data(\d+)$/i);
-        if (match) {
-            let num = parseInt(match[1]);
-            if (num > maxEval) maxEval = num;
-        }
-    });
-
-    if (currentEval !== maxEval || currentEval === 1) {
-        alert('Você só pode apagar a última avaliação (se for maior que 1) para preservar a ordem.');
-        return;
-    }
-    
-    if (confirm('Deseja realmente apagar a Avaliação ' + currentEval + ' e todos os seus dados? Esta ação não pode ser desfeita.')) {
-        let colsToRemove = excelColumns.filter(c => {
-            const low = c.toLowerCase();
-            return low === ('avaliação' + currentEval) || low.endsWith(currentEval) || low.endsWith('_' + currentEval);
-        });
-        
-        // Protege colunas chaves por precaução
-        colsToRemove = colsToRemove.filter(c => c !== 'Ano' && c !== 'NOME COMPLETO');
-
+    let maxEval = 1; excelColumns.forEach(c => { let m = c.match(/^Data(\d+)$/i); if (m && parseInt(m[1]) > maxEval) maxEval = parseInt(m[1]); });
+    if (currentEval !== maxEval || currentEval === 1) { alert('Só pode apagar a última avaliação (se maior que 1).'); return; }
+    if (confirm('Deseja apagar a Avaliação ' + currentEval + '?')) {
+        let colsToRemove = excelColumns.filter(c => c.toLowerCase() === ('avaliação' + currentEval) || c.toLowerCase().endsWith(currentEval) || c.toLowerCase().endsWith('_' + currentEval)).filter(c => c !== 'Ano' && c !== 'NOME COMPLETO');
         excelColumns = excelColumns.filter(c => !colsToRemove.includes(c));
-        
-        excelData.forEach(row => {
-            colsToRemove.forEach(c => {
-                delete row[c];
-            });
-        });
-        
-        saveToStorage();
-        populateEvalSelect();
-        
-        if (evalSelect) {
-            evalSelect.value = maxEval - 1;
-        }
-        
-        renderPfTable();
-        alert('Avaliação ' + currentEval + ' apagada com sucesso.');
+        excelData.forEach(row => { colsToRemove.forEach(c => { delete row[c]; }); });
+        saveToStorage(); populateEvalSelect(); evalSelect.value = maxEval - 1; renderPfTable(); alert('Apagada.');
     }
 }
-/* ======================================================== */
 
 function renderPfTable() {
-    const headerRow = document.getElementById('pf-header-row');
-    const tbody = document.getElementById('pf-tbody');
-    if (!headerRow || !tbody) return;
-    headerRow.innerHTML = '';
-    tbody.innerHTML = '';
-
-    const evalSelect = document.getElementById('pf-eval-select');
-    const yearSelect = document.getElementById('pf-year-select');
-    const evalNum = evalSelect && evalSelect.value ? evalSelect.value : '1';
-    const selectedYear = yearSelect ? yearSelect.value : 'todos';
+    const headerRow = document.getElementById('pf-header-row'); const tbody = document.getElementById('pf-tbody');
+    if (!headerRow || !tbody) return; headerRow.innerHTML = ''; tbody.innerHTML = '';
+    const evalNum = document.getElementById('pf-eval-select') ? document.getElementById('pf-eval-select').value : '1';
+    const selectedYear = document.getElementById('pf-year-select') ? document.getElementById('pf-year-select').value : 'todos';
 
     let baseCols = [];
-    if (currentPfTab === 'antropometricas') {
-        baseCols = ['Altura', 'alturapredita', 'alturasentado', 'peso', 'Dobras1_', 'Dobras2_', 'Dobras3_', 'Dobras4_'];
-    } else if (currentPfTab === 'resistencia') {
-        baseCols = ['nivel', 'distancia'];
-    } else if (currentPfTab === 'potencia') {
-        baseCols = ['Salto1_', 'Salto2_', 'Salto3_', 'MelhorSalto'];
-    } else if (currentPfTab === 'velocidade') {
-        baseCols = [
-            'Aceleraçãofinal', 'Velocidadefinal', 
-            'aceleração1_', 'velocidade1_', 
-            'aceleração2_', 'velocidade2_', 
-            'aceleração3_', 'velocidade3_', 
-            'aceleração4_', 'velocidade4_', 
-            'aceleração5_', 'velocidade5_', 
-            'aceleração6_', 'velocidade6_', 
-            'aceleração7_', 'velocidade7_'
-        ];
-    } else if (currentPfTab === 'agilidade') {
-        baseCols = ['Volta1_', 'Volta2_', 'Agilidade'];
-    }
+    if (currentPfTab === 'antropometricas') baseCols = ['Altura', 'alturapredita', 'alturasentado', 'peso', 'Dobras1_', 'Dobras2_', 'Dobras3_', 'Dobras4_'];
+    else if (currentPfTab === 'resistencia') baseCols = ['nivel', 'distancia'];
+    else if (currentPfTab === 'potencia') baseCols = ['Salto1_', 'Salto2_', 'Salto3_', 'MelhorSalto'];
+    else if (currentPfTab === 'velocidade') baseCols = ['Aceleraçãofinal', 'Velocidadefinal', 'aceleração1_', 'velocidade1_', 'aceleração2_', 'velocidade2_', 'aceleração3_', 'velocidade3_', 'aceleração4_', 'velocidade4_', 'aceleração5_', 'velocidade5_', 'aceleração6_', 'velocidade6_', 'aceleração7_', 'velocidade7_'];
+    else if (currentPfTab === 'agilidade') baseCols = ['Volta1_', 'Volta2_', 'Agilidade'];
 
     let colsToDisplay = ['Ano', 'NOME COMPLETO', 'Data de nascimento', 'Data' + evalNum];
-    baseCols.forEach(col => {
-        colsToDisplay.push(col + evalNum);
-    });
+    baseCols.forEach(col => colsToDisplay.push(col + evalNum));
 
     colsToDisplay.forEach((col) => {
-        const th = document.createElement('th');
-        let label = col;
-        let cleanCol = col.replace(evalNum, '').replace('_', '');
-
-        if (col === 'Data de nascimento') label = 'DATA NASCIMENTO';
-        else if (col.startsWith('Data') && col !== 'Data de nascimento') label = 'DATA AVALIAÇÃO';
-        else if (cleanCol === 'Altura') label = 'ALTURA';
-        else if (cleanCol === 'alturapredita') {
-            label = 'ALTURA PREDITA';
-            th.style.color = '#4cd137';
-        }
-        else if (cleanCol === 'alturasentado') label = 'ALT. SENTADO';
-        else if (cleanCol === 'peso') label = 'PESO';
-        else if (cleanCol === 'Dobras1') label = 'SBE';
-        else if (cleanCol === 'Dobras2') label = 'TRI';
-        else if (cleanCol === 'Dobras3') label = 'SPI';
-        else if (cleanCol === 'Dobras4') label = 'ABD';
-        else if (cleanCol === 'nivel') label = 'NÍVEL';
-        else if (cleanCol === 'distancia') label = 'DISTÂNCIA';
-        else if (cleanCol === 'Salto1') label = 'SALTO 1';
-        else if (cleanCol === 'Salto2') label = 'SALTO 2';
-        else if (cleanCol === 'Salto3') label = 'SALTO 3';
-        else if (cleanCol === 'MelhorSalto') label = 'FINAL';
-        else if (cleanCol === 'Volta1') label = 'VOLTA 1';
-        else if (cleanCol === 'Volta2') label = 'VOLTA 2';
-        else if (cleanCol === 'Agilidade') label = 'AGILIDADE';
-        else if (cleanCol === 'Aceleraçãofinal') label = 'MÉDIA ACELERAÇÃO';
-        else if (cleanCol === 'Velocidadefinal') label = 'MÉDIA VELOCIDADE';
-        else if (cleanCol.toLowerCase().includes('aceleração')) label = cleanCol.replace(/aceleração/i, 'ACELERAÇÃO ');
-        else if (cleanCol.toLowerCase().includes('velocidade')) label = cleanCol.replace(/velocidade/i, 'VELOCIDADE ');
-
+        const th = document.createElement('th'); let label = col; let cleanCol = col.replace(evalNum, '').replace('_', '');
+        if (col === 'Data de nascimento') label = 'DATA NASCIMENTO'; else if (col.startsWith('Data')) label = 'DATA AVALIAÇÃO'; else if (cleanCol === 'Altura') label = 'ALTURA'; else if (cleanCol === 'alturapredita') { label = 'ALTURA PREDITA'; th.style.color = '#4cd137'; } else if (cleanCol === 'alturasentado') label = 'ALT. SENTADO'; else if (cleanCol === 'peso') label = 'PESO'; else if (cleanCol === 'Dobras1') label = 'SBE'; else if (cleanCol === 'Dobras2') label = 'TRI'; else if (cleanCol === 'Dobras3') label = 'SPI'; else if (cleanCol === 'Dobras4') label = 'ABD'; else if (cleanCol === 'nivel') label = 'NÍVEL'; else if (cleanCol === 'distancia') label = 'DISTÂNCIA'; else if (cleanCol === 'Salto1') label = 'SALTO 1'; else if (cleanCol === 'Salto2') label = 'SALTO 2'; else if (cleanCol === 'Salto3') label = 'SALTO 3'; else if (cleanCol === 'MelhorSalto') label = 'FINAL'; else if (cleanCol === 'Volta1') label = 'VOLTA 1'; else if (cleanCol === 'Volta2') label = 'VOLTA 2'; else if (cleanCol === 'Agilidade') label = 'AGILIDADE'; else if (cleanCol === 'Aceleraçãofinal') label = 'MÉDIA ACELERAÇÃO'; else if (cleanCol === 'Velocidadefinal') label = 'MÉDIA VELOCIDADE'; else if (cleanCol.toLowerCase().includes('aceleração')) label = cleanCol.replace(/aceleração/i, 'ACELERAÇÃO '); else if (cleanCol.toLowerCase().includes('velocidade')) label = cleanCol.replace(/velocidade/i, 'VELOCIDADE ');
         th.textContent = label.toUpperCase();
-
-        if (col === 'Ano') {
-            th.style.position = 'sticky';
-            th.style.left = '0px';
-            th.style.zIndex = '5';
-            th.style.backgroundColor = '#e1e1e1';
-            th.style.minWidth = '60px';
-        } else if (col === 'NOME COMPLETO') {
-            th.style.position = 'sticky';
-            th.style.left = '60px';
-            th.style.zIndex = '5';
-            th.style.backgroundColor = '#e1e1e1';
-            th.style.minWidth = '220px';
-        }
-
+        if (col === 'Ano' || col === 'NOME COMPLETO') { th.style.position = 'sticky'; th.style.left = col === 'Ano' ? '0px' : '60px'; th.style.zIndex = '5'; th.style.backgroundColor = '#e1e1e1'; th.style.minWidth = col === 'Ano' ? '60px' : '220px'; }
         headerRow.appendChild(th);
     });
 
     excelData.forEach((row, rowIndex) => {
-        let anoAtleta = '';
-        for (let key in row) {
-            if (key.toLowerCase() === 'ano') {
-                anoAtleta = String(row[key] || '').trim();
-                break;
-            }
-        }
-
-        if (selectedYear !== 'todos' && anoAtleta !== selectedYear) {
-            return;
-        }
-
+        let anoAtleta = Object.keys(row).find(k => k.toLowerCase() === 'ano'); anoAtleta = anoAtleta ? String(row[anoAtleta]).trim() : '';
+        if (selectedYear !== 'todos' && anoAtleta !== selectedYear) return;
         const tr = document.createElement('tr');
         colsToDisplay.forEach(col => {
             const td = document.createElement('td');
-
-            let val = '';
-            if (row[col] !== undefined && row[col] !== null) {
-                val = row[col];
-            } else {
-                let foundKey = Object.keys(row).find(k => k.toLowerCase() === col.toLowerCase());
-                if (foundKey) val = row[foundKey];
-            }
-
-            if (col.toLowerCase().includes('data') || col.toLowerCase().includes('nascimento')) {
-                val = convertExcelDate(val);
-            }
-
-            const isReadOnlyField = (col === 'Ano' || col === 'NOME COMPLETO' || col === 'Data de nascimento');
-
-            if (isReadOnlyField) {
-                td.textContent = val;
-                td.style.backgroundColor = '#f4f6f7';
-                td.style.fontWeight = '600';
-                td.style.color = '#333';
-            } else {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = val;
-                input.onchange = (e) => {
-                    let targetKey = col;
-                    let foundKey = Object.keys(row).find(k => k.toLowerCase() === col.toLowerCase());
-                    if (foundKey) targetKey = foundKey;
-                    
-                    excelData[rowIndex][targetKey] = e.target.value;
-                    saveToStorage();
-                };
+            let val = row[col] !== undefined ? row[col] : (row[Object.keys(row).find(k => k.toLowerCase() === col.toLowerCase())] || '');
+            if (col.toLowerCase().includes('data') || col.toLowerCase().includes('nascimento')) val = convertExcelDate(val);
+            if (['Ano', 'NOME COMPLETO', 'Data de nascimento'].includes(col)) { td.textContent = val; td.style.backgroundColor = '#f4f6f7'; td.style.fontWeight = '600'; }
+            else {
+                const input = document.createElement('input'); input.type = 'text'; input.value = val;
+                input.onchange = (e) => { excelData[rowIndex][Object.keys(row).find(k => k.toLowerCase() === col.toLowerCase()) || col] = e.target.value; saveToStorage(); };
                 td.appendChild(input);
             }
-
-            if (col === 'Ano') {
-                td.style.position = 'sticky';
-                td.style.left = '0px';
-                td.style.zIndex = '2';
-                td.style.backgroundColor = '#f4f6f7';
-                td.style.minWidth = '60px';
-            } else if (col === 'NOME COMPLETO') {
-                td.style.position = 'sticky';
-                td.style.left = '60px';
-                td.style.zIndex = '2';
-                td.style.backgroundColor = '#f4f6f7';
-                td.style.minWidth = '220px';
-            }
-
+            if (col === 'Ano' || col === 'NOME COMPLETO') { td.style.position = 'sticky'; td.style.left = col === 'Ano' ? '0px' : '60px'; td.style.zIndex = '2'; td.style.backgroundColor = '#f4f6f7'; td.style.minWidth = col === 'Ano' ? '60px' : '220px'; }
             tr.appendChild(td);
         });
         tbody.appendChild(tr);
     });
 }
 
+
+
+
+/* ========================================================
+   MÓDULO NOVO: GRUPOS (Separação de Grupos)
+   ======================================================== */
+
+// Extrai as métricas da última avaliação existente do atleta
+function getUltimaAvaliacao(row) {
+    let maxEvalNum = 1;
+    for (let i = 1; i <= 20; i++) {
+        let hasData = false;
+        for (let key in row) {
+            let kLow = key.toLowerCase();
+            if ((kLow === ('altura' + i) || kLow === ('peso' + i) || kLow === ('distancia' + i) || kLow === ('data' + i)) && row[key] && String(row[key]).trim() !== '-') {
+                hasData = true; break;
+            }
+        }
+        if (hasData) maxEvalNum = i;
+    }
+
+    function getVal(baseName) {
+        let val = '-';
+        for (let key in row) {
+            let k = key.toLowerCase();
+            if (k === (baseName.toLowerCase() + maxEvalNum) || k === (baseName.toLowerCase() + '_' + maxEvalNum)) {
+                if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') val = row[key];
+            }
+        }
+        return val;
+    }
+
+    return {
+        distancia: getVal('distancia'),
+        gordura: formatGordura(getVal('PercentualGordura')),
+        aceleracao: getVal('Aceleraçãofinal'),
+        velocidade: getVal('Velocidadefinal'),
+        agilidade: getVal('Agilidade'),
+        potencia: getVal('MelhorSalto')
+    };
+}
+
+function initGruposFilter() {
+    const container = document.getElementById('grupos-anos-filter');
+    if (!container) return;
+    container.innerHTML = '';
+    const anos = ['2009', '2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017', '2018'];
+    anos.forEach(ano => {
+        container.innerHTML += `<label><input type="checkbox" class="grupo-chk-ano" value="${ano}" onchange="renderGruposScreen()"> ${ano}</label>`;
+    });
+}
+
+function renderGruposScreen() {
+    renderGruposLista();
+    renderFichaGrupo();
+    calcularMediaCategoria(); // Atualiza a média se houver categoria selecionada
+    
+    // NOVO: Controla a visibilidade dos painéis de grupos de acordo com a quantidade selecionada (1 a 6)
+    document.querySelectorAll('.grupos-ficha-panel').forEach(panel => {
+        const grupoNome = panel.getAttribute('data-grupo'); // Ex: "Grupo 1", "Grupo 2"...
+        if (grupoNome) {
+            // Extrai o número do grupo (ex: "Grupo 3" vira o número 3)
+            const numeroGrupo = parseInt(grupoNome.replace('Grupo ', ''));
+            
+            // Se o número do grupo for menor ou igual ao selecionado, ele aparece. Senão, fica oculto.
+            if (numeroGrupo <= quantidadeGruposAtivos) {
+                panel.style.display = 'block'; // Ou 'flex', dependendo do seu layout original
+            } else {
+                panel.style.display = 'none';
+                
+                // Opcional: Se o usuário diminuiu a quantidade de grupos e havia atletas no grupo oculto,
+                // você pode opcionalmente limpá-los ou mantê-los nos dados. Aqui mantemos apenas oculto visualmente.
+            }
+        }
+    });
+
+    // Configura o Drop Zone em TODAS as fichas ativas
+    document.querySelectorAll('.grupos-ficha-panel').forEach(panel => {
+        // Ignora painéis que estão ocultos
+        if (panel.style.display === 'none') return;
+
+        panel.ondragover = (e) => e.preventDefault();
+        panel.ondrop = (e) => {
+            e.preventDefault();
+            const globalIndex = parseInt(e.dataTransfer.getData('text/plain'));
+            const grupoAtual = panel.getAttribute('data-grupo');
+            
+            if (!isNaN(globalIndex) && !isAtletaEmAlgumGrupo(globalIndex)) {
+                gruposData[grupoAtual].push({ index: globalIndex, manualData: {} });
+                renderGruposScreen(); // Re-renderiza para atualizar cores e tabelas
+            }
+        };
+    });
+}
+
+function isAtletaEmAlgumGrupo(globalIndex) {
+    for (let grupo in gruposData) {
+        if (gruposData[grupo].some(atleta => atleta.index === globalIndex)) return true;
+    }
+    return false;
+}
+
+function renderGruposLista() {
+    const container = document.getElementById('grupos-lista-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const anosSelecionados = Array.from(document.querySelectorAll('.grupo-chk-ano:checked')).map(chk => chk.value);
+
+    let atletasValidos = [];
+
+    excelData.forEach((row, globalIndex) => {
+        let anoAtleta = Object.keys(row).find(k => k.toLowerCase() === 'ano');
+        anoAtleta = anoAtleta ? String(row[anoAtleta]).trim() : '';
+
+        if (anosSelecionados.length > 0 && !anosSelecionados.includes(anoAtleta)) return;
+        if (isAtletaEmAlgumGrupo(globalIndex)) return;
+
+        let nomeExibicao = Object.keys(row).find(k => k.toLowerCase().includes('apelido'));
+        nomeExibicao = nomeExibicao && row[nomeExibicao] ? row[nomeExibicao] : '';
+        if (!nomeExibicao) {
+            let nm = Object.keys(row).find(k => k.toLowerCase().includes('nome'));
+            nomeExibicao = nm && row[nm] ? row[nm] : 'Sem Nome';
+        }
+
+        const stats = getUltimaAvaliacao(row);
+
+        atletasValidos.push({ globalIndex, nomeExibicao, anoAtleta, stats });
+    });
+
+    // Lógica de Ordenação
+    atletasValidos.sort((a, b) => {
+        let valorA, valorB;
+        if (criterioOrdenacaoAtual === 'nome') {
+            valorA = a.nomeExibicao.toLowerCase();
+            valorB = b.nomeExibicao.toLowerCase();
+            if (valorA < valorB) return direcaoOrdenacaoAtual === 'asc' ? -1 : 1;
+            if (valorA > valorB) return direcaoOrdenacaoAtual === 'asc' ? 1 : -1;
+            return 0;
+        } else {
+            valorA = parseFloat(String(a.stats[criterioOrdenacaoAtual]).replace(',', '.')) || 0;
+            valorB = parseFloat(String(b.stats[criterioOrdenacaoAtual]).replace(',', '.')) || 0;
+            if (direcaoOrdenacaoAtual === 'asc') return valorA - valorB; 
+            else return valorB - valorA; 
+        }
+    });
+
+    // Função auxiliar para exibir a setinha da ordenação atual
+    const getSortIcon = (criterio) => {
+        if (criterioOrdenacaoAtual === criterio) {
+            return direcaoOrdenacaoAtual === 'asc' ? ' <i class="fa-solid fa-caret-up"></i>' : ' <i class="fa-solid fa-caret-down"></i>';
+        }
+        return '';
+    };
+
+    // Montando o Cabeçalho (com função de filtro embutida)
+    const headerHTML = `
+        <div class="athlete-list-header athlete-grid-layout">
+            <div onclick="mudarOrdenacao('nome')">NOME / ANO${getSortIcon('nome')}</div>
+            <div onclick="mudarOrdenacao('distancia')">RES.${getSortIcon('distancia')}</div>
+            <div onclick="mudarOrdenacao('gordura')">% GOR.${getSortIcon('gordura')}</div>
+            <div onclick="mudarOrdenacao('aceleracao')">ACE.${getSortIcon('aceleracao')}</div>
+            <div onclick="mudarOrdenacao('velocidade')">VEL.${getSortIcon('velocidade')}</div>
+            <div onclick="mudarOrdenacao('agilidade')">AGIL.${getSortIcon('agilidade')}</div>
+            <div onclick="mudarOrdenacao('potencia')">POT.${getSortIcon('potencia')}</div>
+        </div>
+    `;
+
+    // Como são 2 colunas no grid, injetamos o cabeçalho 2 vezes para preencher o topo de ambas
+    container.innerHTML += headerHTML + headerHTML;
+
+    // Renderiza os atletas (sem os prefixos, apenas os dados)
+    atletasValidos.forEach(atleta => {
+        const card = document.createElement('div');
+        card.className = 'athlete-list-item athlete-grid-layout';
+        card.draggable = true;
+        card.ondragstart = (e) => { e.dataTransfer.setData('text/plain', atleta.globalIndex); };
+	// NOVO: Adiciona o evento de clique para abrir o pop-up de seleção de grupo
+        card.onclick = () => openSelectGrupoModal(atleta.globalIndex);
+        card.style.cursor = 'pointer';
+        card.innerHTML = `
+            <span class="athlete-name" title="${atleta.nomeExibicao} (${atleta.anoAtleta})">${atleta.nomeExibicao} (${atleta.anoAtleta})</span>
+            <span class="athlete-stat" title="Resistência">${atleta.stats.distancia}</span>
+            <span class="athlete-stat" title="% Gordura">${atleta.stats.gordura}</span>
+            <span class="athlete-stat" title="Aceleração">${atleta.stats.aceleracao}</span>
+            <span class="athlete-stat" title="Velocidade">${atleta.stats.velocidade}</span>
+            <span class="athlete-stat" title="Agilidade">${atleta.stats.agilidade}</span>
+            <span class="athlete-stat" title="Potência">${atleta.stats.potencia}</span>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderFichaGrupo() {
+    const grupos = ['Grupo 1', 'Grupo 2', 'Grupo 3', 'Grupo 4', 'Grupo 5', 'Grupo 6'];
+    
+    grupos.forEach(grupoNome => {
+        const tbody = document.getElementById(`tbody-${grupoNome}`);
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        const atletasDoGrupo = gruposData[grupoNome] || [];
+
+        atletasDoGrupo.forEach((item, arrIndex) => {
+            const row = excelData[item.index];
+            let anoAtleta = Object.keys(row).find(k => k.toLowerCase() === 'ano');
+            anoAtleta = anoAtleta ? String(row[anoAtleta]).trim() : '';
+            
+            let nomeExibicao = Object.keys(row).find(k => k.toLowerCase().includes('apelido'));
+            nomeExibicao = nomeExibicao && row[nomeExibicao] ? row[nomeExibicao] : '';
+            if (!nomeExibicao) {
+                let nm = Object.keys(row).find(k => k.toLowerCase().includes('nome'));
+                nomeExibicao = nm && row[nm] ? row[nm] : 'Sem Nome';
+            }
+
+            const defaultStats = getUltimaAvaliacao(row);
+
+            const valDistancia = item.manualData.distancia !== undefined ? item.manualData.distancia : defaultStats.distancia;
+            const valGordura = item.manualData.gordura !== undefined ? item.manualData.gordura : defaultStats.gordura;
+            const valAceleracao = item.manualData.aceleracao !== undefined ? item.manualData.aceleracao : defaultStats.aceleracao;
+            const valVelocidade = item.manualData.velocidade !== undefined ? item.manualData.velocidade : defaultStats.velocidade;
+            const valAgilidade = item.manualData.agilidade !== undefined ? item.manualData.agilidade : defaultStats.agilidade;
+            const valPotencia = item.manualData.potencia !== undefined ? item.manualData.potencia : defaultStats.potencia;
+
+            const tr = document.createElement('tr');
+            
+            const tdAction = document.createElement('td');
+            tdAction.innerHTML = `<button style="background:none; border:none; color:#e53935; cursor:pointer;" onclick="removerAtletaDoGrupo('${grupoNome}', ${item.index})"><i class="fa-solid fa-trash"></i></button>`;
+            
+            const tdNome = document.createElement('td'); tdNome.textContent = nomeExibicao; tdNome.style.fontWeight = 'bold';
+            const tdAno = document.createElement('td'); tdAno.textContent = anoAtleta;
+
+            const createInputCell = (field, value) => {
+                const td = document.createElement('td');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = value;
+                input.onchange = (e) => {
+                    gruposData[grupoNome][arrIndex].manualData[field] = e.target.value;
+                };
+                td.appendChild(input);
+                return td;
+            };
+
+            tr.appendChild(tdAction);
+            tr.appendChild(tdNome);
+            tr.appendChild(tdAno);
+            tr.appendChild(createInputCell('distancia', valDistancia));
+            tr.appendChild(createInputCell('gordura', valGordura));
+            tr.appendChild(createInputCell('aceleracao', valAceleracao));
+            tr.appendChild(createInputCell('velocidade', valVelocidade));
+            tr.appendChild(createInputCell('agilidade', valAgilidade));
+            tr.appendChild(createInputCell('potencia', valPotencia));
+
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+function removerAtletaDoGrupo(grupo, globalIndex) {
+    gruposData[grupo] = gruposData[grupo].filter(item => item.index !== globalIndex);
+    renderGruposScreen();
+}
+
+function limparGrupo(grupoNome) {
+    if (confirm(`Deseja limpar todos os atletas do ${grupoNome}?`)) {
+        gruposData[grupoNome] = [];
+        renderGruposScreen();
+    }
+}
+
+// Calcula as médias baseado APENAS nos anos da categoria escolhida, lendo do banco completo (excelData)
+function calcularMediaCategoria() {
+    const categoria = document.getElementById('grupo-categoria-select').value;
+    let anosCategoria = [];
+    
+    if (categoria === 'sub11') anosCategoria = ['2015', '2016', '2017', '2018'];
+    else if (categoria === 'sub12') anosCategoria = ['2014'];
+    else if (categoria === 'sub13') anosCategoria = ['2013'];
+    else if (categoria === 'sub16') anosCategoria = ['2009', '2010', '2011', '2012'];
+
+    if (anosCategoria.length === 0) {
+        document.getElementById('media-resistencia').textContent = `Resistência: -`;
+        document.getElementById('media-gordura').textContent = `% Gordura: -`;
+        document.getElementById('media-aceleracao').textContent = `Aceleração: -`;
+        document.getElementById('media-velocidade').textContent = `Velocidade: -`;
+        document.getElementById('media-agilidade').textContent = `Agilidade: -`;
+        document.getElementById('media-potencia').textContent = `Potência: -`;
+        return;
+    }
+
+    let sums = { dist: 0, gordura: 0, acel: 0, vel: 0, agil: 0, pot: 0 };
+    let counts = { dist: 0, gordura: 0, acel: 0, vel: 0, agil: 0, pot: 0 };
+
+    excelData.forEach(row => {
+        let anoAtleta = Object.keys(row).find(k => k.toLowerCase() === 'ano');
+        anoAtleta = anoAtleta ? String(row[anoAtleta]).trim() : '';
+
+        if (anosCategoria.includes(anoAtleta)) {
+            const stats = getUltimaAvaliacao(row);
+            
+            const parseNum = (str) => {
+                if(!str || str === '-') return NaN;
+                return parseFloat(String(str).replace('%', '').replace(',', '.'));
+            };
+
+            const d = parseNum(stats.distancia); if(!isNaN(d)){ sums.dist += d; counts.dist++; }
+            const g = parseNum(stats.gordura); if(!isNaN(g)){ sums.gordura += g; counts.gordura++; }
+            const ac = parseNum(stats.aceleracao); if(!isNaN(ac)){ sums.acel += ac; counts.acel++; }
+            const v = parseNum(stats.velocidade); if(!isNaN(v)){ sums.vel += v; counts.vel++; }
+            const ag = parseNum(stats.agilidade); if(!isNaN(ag)){ sums.agil += ag; counts.agil++; }
+            const p = parseNum(stats.potencia); if(!isNaN(p)){ sums.pot += p; counts.pot++; }
+        }
+    });
+
+    const formatMedia = (sum, count, isGordura) => {
+        if(count === 0) return '-';
+        let media = sum / count;
+        return media.toFixed(2).replace('.', ',') + (isGordura ? '%' : '');
+    };
+
+    document.getElementById('media-resistencia').textContent = `Resistência: ${formatMedia(sums.dist, counts.dist)}`;
+    document.getElementById('media-gordura').textContent = `% Gordura: ${formatMedia(sums.gordura, counts.gordura, true)}`;
+    document.getElementById('media-aceleracao').textContent = `Aceleração: ${formatMedia(sums.acel, counts.acel)}`;
+    document.getElementById('media-velocidade').textContent = `Velocidade: ${formatMedia(sums.vel, counts.vel)}`;
+    document.getElementById('media-agilidade').textContent = `Agilidade: ${formatMedia(sums.agil, counts.agil)}`;
+    document.getElementById('media-potencia').textContent = `Potência: ${formatMedia(sums.pot, counts.pot)}`;
+}
+
+
+let atletaSelecionadoParaGrupo = null;
+
+function openSelectGrupoModal(globalIndex) {
+    atletaSelecionadoParaGrupo = globalIndex;
+    const row = excelData[globalIndex];
+    let nomeExibicao = Object.keys(row).find(k => k.toLowerCase().includes('apelido'));
+    nomeExibicao = nomeExibicao && row[nomeExibicao] ? row[nomeExibicao] : '';
+    if (!nomeExibicao) {
+        let nm = Object.keys(row).find(k => k.toLowerCase().includes('nome'));
+        nomeExibicao = nm && row[nm] ? row[nm] : 'Sem Nome';
+    }
+    
+    document.getElementById('modal-atleta-nome').textContent = `Atleta: ${nomeExibicao}`;
+    
+    // Gera os botões dos grupos dinamicamente baseados na quantidade ativa selecionada
+    const containerGrupos = document.getElementById('modal-grupos-container');
+    containerGrupos.innerHTML = '';
+    
+    for (let i = 1; i <= quantidadeGruposAtivos; i++) {
+        const nomeGrupo = `Grupo ${i}`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'vba-btn-salvar';
+        btn.style.width = '100%';
+        btn.style.textAlign = 'center';
+        btn.style.marginBottom = '2px';
+        btn.textContent = nomeGrupo;
+        
+        btn.onclick = () => {
+            if (!isAtletaEmAlgumGrupo(atletaSelecionadoParaGrupo)) {
+                gruposData[nomeGrupo].push({ index: atletaSelecionadoParaGrupo, manualData: {} });
+                renderGruposScreen();
+            }
+            closeSelectGrupoModal();
+        };
+        
+        containerGrupos.appendChild(btn);
+    }
+
+    document.getElementById('select-grupo-modal').style.display = 'flex';
+}
+
+function closeSelectGrupoModal() {
+    document.getElementById('select-grupo-modal').style.display = 'none';
+    atletaSelecionadoParaGrupo = null;
+}
+
+
+
+
+
+
+function mudarOrdenacao(criterio) {
+    if (criterioOrdenacaoAtual === criterio) {
+        // Se já está ordenado por este critério, inverte a direção (asc <-> desc)
+        direcaoOrdenacaoAtual = direcaoOrdenacaoAtual === 'asc' ? 'desc' : 'asc';
+    } else {
+        // Se mudou de critério, define ele e começa do padrão (asc)
+        criterioOrdenacaoAtual = criterio;
+        direcaoOrdenacaoAtual = 'asc';
+    }
+
+    // Como inserimos os ícones dinamicamente na renderGruposLista, 
+    // basta re-renderizar a lista para que a ordenação visual e funcional seja aplicada.
+    renderGruposLista();
+}
+
+
+/* === RESTANTE DO CÓDIGO (CONVOCAÇÃO, ETC.) MANTIDO IGUAL === */
+/* === RESTANTE DO CÓDIGO (CONVOCAÇÃO, ETC.) MANTIDO IGUAL === */
 function ensureConvocacaoModalDom() {
     let modal = document.getElementById('convocacao-modal');
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'convocacao-modal';
-        modal.style.cssText = `
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 10000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        `;
-
+        modal.style.cssText = `display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 10000; align-items: center; justify-content: center; padding: 20px;`;
         modal.innerHTML = `
             <div style="background: #fff; width: 100%; max-width: 1250px; height: 90vh; border-radius: 8px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #aaa;">
                 <div style="background: #f1f1f1; padding: 12px 20px; border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 16px;">
                     <span>Atletas - Arraste para mudar de posição</span>
                     <button onclick="closeConvocacaoModal()" style="background: none; border: none; font-size: 18px; font-weight: bold; cursor: pointer; color: #555;">&times;</button>
                 </div>
-                
                 <div id="convocacao-years-bar" style="padding: 12px 20px; display: flex; gap: 20px; flex-wrap: wrap; background: #fafafa; border-bottom: 1px solid #ddd; align-items: center; justify-content: center;"></div>
-
                 <div style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; background: #fff;">
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
                         <div class="drop-box" data-category="goleiros" style="border: 1px solid #b2bec3; border-radius: 4px; display: flex; flex-direction: column; background: #fff;">
@@ -1086,7 +921,6 @@ function ensureConvocacaoModalDom() {
                             <div id="conv-list-volantes" style="height: 180px; overflow-y: auto; background: #fff; padding: 2px;"></div>
                         </div>
                     </div>
-
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
                         <div class="drop-box" data-category="meias" style="border: 1px solid #b2bec3; border-radius: 4px; display: flex; flex-direction: column; background: #fff;">
                             <div style="background: #dfe6e9; padding: 6px; text-align: center; font-weight: bold; border-bottom: 1px solid #b2bec3; font-size: 14px;">Meias</div>
@@ -1102,7 +936,6 @@ function ensureConvocacaoModalDom() {
                         </div>
                     </div>
                 </div>
-
                 <div style="background: #f1f1f1; padding: 15px 20px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; gap: 10px;">
                         <button onclick="carregarConvocacaoSalva()" style="padding: 8px 15px; border: 1px solid #b2bec3; background: #fff; border-radius: 4px; cursor: pointer; font-weight: 600;">Carregar Convocacões</button>
@@ -1118,278 +951,115 @@ function ensureConvocacaoModalDom() {
         document.body.appendChild(modal);
     }
 }
-
-function openConvocacaoModal() {
-    ensureConvocacaoModalDom();
-    renderConvocacaoScreen();
-    document.getElementById('convocacao-modal').style.display = 'flex';
-}
-
-function closeConvocacaoModal() {
-    const modal = document.getElementById('convocacao-modal');
-    if (modal) modal.style.display = 'none';
-}
-
+function openConvocacaoModal() { ensureConvocacaoModalDom(); renderConvocacaoScreen(); document.getElementById('convocacao-modal').style.display = 'flex'; }
+function closeConvocacaoModal() { document.getElementById('convocacao-modal').style.display = 'none'; }
 function renderConvocacaoScreen() {
-    const yearsBar = document.getElementById('convocacao-years-bar');
-    if (!yearsBar) return;
+    const yearsBar = document.getElementById('convocacao-years-bar'); if (!yearsBar) return;
     yearsBar.innerHTML = '';
-    
-    const anosDisponiveis = ['2009', '2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017'];
-    anosDisponiveis.forEach(ano => {
-        const label = document.createElement('label');
-        label.style.display = 'flex';
-        label.style.alignItems = 'center';
-        label.style.gap = '5px';
-        label.style.cursor = 'pointer';
-        label.style.fontWeight = '500';
-
-        const chk = document.createElement('input');
-        chk.type = 'checkbox';
-        chk.value = ano;
-        chk.checked = false;
-        chk.className = 'conv-year-chk';
-        chk.onchange = renderConvocacaoLists;
-
-        label.appendChild(chk);
-        label.appendChild(document.createTextNode(ano));
-        yearsBar.appendChild(label);
+    ['2009', '2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017', '2018'].forEach(ano => {
+        const label = document.createElement('label'); label.style.cssText = 'display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: 500;';
+        const chk = document.createElement('input'); chk.type = 'checkbox'; chk.value = ano; chk.checked = false; chk.className = 'conv-year-chk'; chk.onchange = renderConvocacaoLists;
+        label.appendChild(chk); label.appendChild(document.createTextNode(ano)); yearsBar.appendChild(label);
     });
-
     renderConvocacaoLists();
 }
-
 function renderConvocacaoLists() {
-    const checkboxes = document.querySelectorAll('.conv-year-chk');
-    let selectedYears = [];
-    checkboxes.forEach(chk => {
-        if (chk.checked) selectedYears.push(chk.value);
-    });
-
-    const posLists = {
-        'goleiros': document.getElementById('conv-list-goleiros'),
-        'zagueiros': document.getElementById('conv-list-zagueiros'),
-        'laterais': document.getElementById('conv-list-laterais'),
-        'volantes': document.getElementById('conv-list-volantes'),
-        'meias': document.getElementById('conv-list-meias'),
-        'atacantes': document.getElementById('conv-list-atacantes'),
-        'extremos': document.getElementById('conv-list-extremos')
-    };
-
-    for (let key in posLists) {
-        if (posLists[key]) posLists[key].innerHTML = '';
-    }
+    const selectedYears = Array.from(document.querySelectorAll('.conv-year-chk:checked')).map(chk => chk.value);
+    const posLists = { 'goleiros': document.getElementById('conv-list-goleiros'), 'zagueiros': document.getElementById('conv-list-zagueiros'), 'laterais': document.getElementById('conv-list-laterais'), 'volantes': document.getElementById('conv-list-volantes'), 'meias': document.getElementById('conv-list-meias'), 'atacantes': document.getElementById('conv-list-atacantes'), 'extremos': document.getElementById('conv-list-extremos') };
+    for (let key in posLists) { if (posLists[key]) posLists[key].innerHTML = ''; }
 
     document.querySelectorAll('.drop-box').forEach(box => {
         const cat = box.getAttribute('data-category');
         box.ondragover = (e) => e.preventDefault();
-        box.ondrop = (e) => {
-            e.preventDefault();
-            const globalIndex = parseInt(e.dataTransfer.getData('text/plain'));
-            if (!isNaN(globalIndex)) {
-                handleAthleteDrop(globalIndex, cat);
-            }
-        };
+        box.ondrop = (e) => { e.preventDefault(); const globalIndex = parseInt(e.dataTransfer.getData('text/plain')); if (!isNaN(globalIndex)) handleAthleteDrop(globalIndex, cat); };
     });
 
     if (selectedYears.length === 0) return;
 
     excelData.forEach((row, globalIndex) => {
-        let anoAtleta = '';
-        for (let key in row) {
-            if (key.toLowerCase() === 'ano') {
-                anoAtleta = String(row[key] || '').trim();
-                break;
-            }
-        }
+        let anoAtleta = Object.keys(row).find(k => k.toLowerCase() === 'ano'); anoAtleta = anoAtleta ? String(row[anoAtleta]).trim() : '';
+        if (!selectedYears.includes(anoAtleta)) return;
 
-        if (!selectedYears.includes(anoAtleta)) {
-            return;
-        }
-
-        let nomeExibicao = '';
-        for (let key in row) {
-            let kLow = key.toLowerCase();
-            if (kLow.includes('apelido') && row[key]) {
-                nomeExibicao = row[key];
-                break;
-            }
-        }
-        if (!nomeExibicao) {
-            for (let key in row) {
-                let kLow = key.toLowerCase();
-                if (kLow.includes('nome') && row[key]) {
-                    nomeExibicao = row[key];
-                    break;
-                }
-            }
-        }
-        if (!nomeExibicao) nomeExibicao = 'Atleta Sem Nome';
-
-        let posicaoAtleta = '';
-        for (let key in row) {
-            let kLow = key.toLowerCase();
-            if (kLow.includes('posição') || kLow.includes('posicao')) {
-                posicaoAtleta = String(row[key] || '').toLowerCase();
-                break;
-            }
-        }
-
+        let nomeExibicao = Object.keys(row).find(k => k.toLowerCase().includes('apelido')); nomeExibicao = nomeExibicao && row[nomeExibicao] ? row[nomeExibicao] : '';
+        if (!nomeExibicao) { let nm = Object.keys(row).find(k => k.toLowerCase().includes('nome')); nomeExibicao = nm && row[nm] ? row[nm] : 'Sem Nome'; }
+        
+        let posicao = Object.keys(row).find(k => k.toLowerCase().includes('posição') || k.toLowerCase().includes('posicao'));
+        posicao = posicao ? String(row[posicao]).toLowerCase() : '';
+        
         let targetBox = 'meias';
-        if (posicaoAtleta.includes('goleiro')) targetBox = 'goleiros';
-        else if (posicaoAtleta.includes('zagueiro')) targetBox = 'zagueiros';
-        else if (posicaoAtleta.includes('lateral')) targetBox = 'laterais';
-        else if (posicaoAtleta.includes('volante')) targetBox = 'volantes';
-        else if (posicaoAtleta.includes('meia')) targetBox = 'meias';
-        else if (posicaoAtleta.includes('atacante')) targetBox = 'atacantes';
-        else if (posicaoAtleta.includes('extremo') || posicaoAtleta.includes('ponta')) targetBox = 'extremos';
+        if (posicao.includes('goleiro')) targetBox = 'goleiros'; else if (posicao.includes('zagueiro')) targetBox = 'zagueiros'; else if (posicao.includes('lateral')) targetBox = 'laterais'; else if (posicao.includes('volante')) targetBox = 'volantes'; else if (posicao.includes('atacante')) targetBox = 'atacantes'; else if (posicao.includes('extremo') || posicao.includes('ponta')) targetBox = 'extremos';
 
         const itemDiv = document.createElement('div');
-        itemDiv.draggable = true;
-        itemDiv.style.padding = '6px 8px';
-        itemDiv.style.cursor = 'grab';
-        itemDiv.style.display = 'flex';
-        itemDiv.style.justifyContent = 'space-between';
-        itemDiv.style.fontSize = '13px';
-        itemDiv.style.borderBottom = '1px solid #f1f1f1';
-        itemDiv.style.userSelect = 'none';
-
-        itemDiv.ondragstart = (e) => {
-            e.dataTransfer.setData('text/plain', globalIndex);
-        };
-
-        if (selectedConvocados.has(globalIndex)) {
-            itemDiv.style.backgroundColor = '#0984e3';
-            itemDiv.style.color = '#fff';
-        }
-
+        itemDiv.draggable = true; itemDiv.style.cssText = 'padding: 6px 8px; cursor: grab; display: flex; justify-content: space-between; font-size: 13px; border-bottom: 1px solid #f1f1f1; user-select: none;';
+        itemDiv.ondragstart = (e) => { e.dataTransfer.setData('text/plain', globalIndex); };
+        if (selectedConvocados.has(globalIndex)) { itemDiv.style.backgroundColor = '#0984e3'; itemDiv.style.color = '#fff'; }
         itemDiv.innerHTML = `<span>${nomeExibicao}</span> <span style="font-size: 11px; opacity: 0.8;">${anoAtleta}</span>`;
-        
         itemDiv.onclick = (e) => {
             e.stopPropagation();
-            if (selectedConvocados.has(globalIndex)) {
-                selectedConvocados.delete(globalIndex);
-                itemDiv.style.backgroundColor = 'transparent';
-                itemDiv.style.color = '#000';
-            } else {
-                selectedConvocados.add(globalIndex);
-                itemDiv.style.backgroundColor = '#0984e3';
-                itemDiv.style.color = '#fff';
-            }
+            if (selectedConvocados.has(globalIndex)) { selectedConvocados.delete(globalIndex); itemDiv.style.backgroundColor = 'transparent'; itemDiv.style.color = '#000'; }
+            else { selectedConvocados.add(globalIndex); itemDiv.style.backgroundColor = '#0984e3'; itemDiv.style.color = '#fff'; }
         };
-
-        if (posLists[targetBox]) {
-            posLists[targetBox].appendChild(itemDiv);
-        }
+        if (posLists[targetBox]) posLists[targetBox].appendChild(itemDiv);
     });
 }
-
 function handleAthleteDrop(globalIndex, targetCategory) {
-    if (targetCategory === 'goleiros') {
-        updateAthletePositionInDatabase(globalIndex, 'Goleiro');
-    } else if (targetCategory === 'zagueiros') {
-        updateAthletePositionInDatabase(globalIndex, 'Zagueiro');
-    } else if (targetCategory === 'meias') {
-        updateAthletePositionInDatabase(globalIndex, 'Meia');
-    } else if (targetCategory === 'atacantes') {
-        updateAthletePositionInDatabase(globalIndex, 'Atacante');
-    } else if (targetCategory === 'laterais') {
-        showPositionChoiceModal(['Lateral Direito', 'Lateral Esquerdo'], (chosen) => {
-            updateAthletePositionInDatabase(globalIndex, chosen);
-        });
-    } else if (targetCategory === 'volantes') {
-        showPositionChoiceModal(['1º Volante', '2º Volante'], (chosen) => {
-            updateAthletePositionInDatabase(globalIndex, chosen);
-        });
-    } else if (targetCategory === 'extremos') {
-        showPositionChoiceModal(['Ponta Dir.', 'Ponta Esq.'], (chosen) => {
-            updateAthletePositionInDatabase(globalIndex, chosen);
-        });
-    }
+    if (targetCategory === 'goleiros') updateAthletePositionInDatabase(globalIndex, 'Goleiro'); else if (targetCategory === 'zagueiros') updateAthletePositionInDatabase(globalIndex, 'Zagueiro'); else if (targetCategory === 'meias') updateAthletePositionInDatabase(globalIndex, 'Meia'); else if (targetCategory === 'atacantes') updateAthletePositionInDatabase(globalIndex, 'Atacante');
+    else if (targetCategory === 'laterais') showPositionChoiceModal(['Lateral Direito', 'Lateral Esquerdo'], (chosen) => updateAthletePositionInDatabase(globalIndex, chosen));
+    else if (targetCategory === 'volantes') showPositionChoiceModal(['1º Volante', '2º Volante'], (chosen) => updateAthletePositionInDatabase(globalIndex, chosen));
+    else if (targetCategory === 'extremos') showPositionChoiceModal(['Ponta Dir.', 'Ponta Esq.'], (chosen) => updateAthletePositionInDatabase(globalIndex, chosen));
 }
-
 function showPositionChoiceModal(options, onSelect) {
     let choiceModal = document.getElementById('position-choice-modal');
     if (!choiceModal) {
-        choiceModal = document.createElement('div');
-        choiceModal.id = 'position-choice-modal';
-        choiceModal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5);
-            z-index: 10500; display: flex; align-items: center; justify-content: center;
-        `;
+        choiceModal = document.createElement('div'); choiceModal.id = 'position-choice-modal';
+        choiceModal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 10500; display: flex; align-items: center; justify-content: center;';
         document.body.appendChild(choiceModal);
     }
     choiceModal.style.display = 'flex';
-    choiceModal.innerHTML = `
-        <div style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); width: 320px; text-align: center;">
-            <h3 style="margin-bottom: 20px; font-size: 16px; color: #333;">Escolha a Posição Específica</h3>
-            <div id="position-choice-buttons" style="display: flex; flex-direction: column; gap: 12px;"></div>
-            <button onclick="document.getElementById('position-choice-modal').style.display='none'" style="margin-top: 15px; background: #e0e0e0; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">Cancelar</button>
-        </div>
-    `;
-
-    const buttonsContainer = document.getElementById('position-choice-buttons');
+    choiceModal.innerHTML = `<div style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); width: 320px; text-align: center;"><h3 style="margin-bottom: 20px; font-size: 16px; color: #333;">Escolha a Posição Específica</h3><div id="position-choice-buttons" style="display: flex; flex-direction: column; gap: 12px;"></div><button onclick="document.getElementById('position-choice-modal').style.display='none'" style="margin-top: 15px; background: #e0e0e0; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">Cancelar</button></div>`;
     options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.textContent = opt;
-        btn.style.cssText = 'padding: 10px; background: #58111a; color: #d4af37; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;';
-        btn.onclick = () => {
-            choiceModal.style.display = 'none';
-            onSelect(opt);
-        };
-        buttonsContainer.appendChild(btn);
+        const btn = document.createElement('button'); btn.textContent = opt; btn.style.cssText = 'padding: 10px; background: #58111a; color: #d4af37; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;';
+        btn.onclick = () => { choiceModal.style.display = 'none'; onSelect(opt); };
+        document.getElementById('position-choice-buttons').appendChild(btn);
     });
 }
-
 function updateAthletePositionInDatabase(globalIndex, newPosition) {
     let posCol = excelColumns.find(c => c.toLowerCase() === 'posição 1' || c.toLowerCase() === 'posicao 1');
-    if (!posCol) posCol = 'Posição 1';
-    if (!excelColumns.includes(posCol)) excelColumns.push(posCol);
-    
-    if (excelData[globalIndex]) {
-        excelData[globalIndex][posCol] = newPosition;
-        saveToStorage();
-        renderConvocacaoLists();
-    }
+    if (!posCol) { posCol = 'Posição 1'; excelColumns.push(posCol); }
+    if (excelData[globalIndex]) { excelData[globalIndex][posCol] = newPosition; saveToStorage(); renderConvocacaoLists(); }
 }
-
-function limparConvocacao() {
-    selectedConvocados.clear();
-    renderConvocacaoLists();
-}
-
+function limparConvocacao() { selectedConvocados.clear(); renderConvocacaoLists(); }
 function confirmarConvocacao() {
-    if (selectedConvocados.size === 0) {
-        alert('Nenhum atleta selecionado para convocação.');
-        return;
-    }
-    localStorage.setItem(STORAGE_CONVOCACAO_KEY, JSON.stringify(Array.from(selectedConvocados)));
-    alert('Convocação salva com sucesso!');
+    if (selectedConvocados.size === 0) { alert('Nenhum atleta selecionado.'); return; }
+    localStorage.setItem(STORAGE_CONVOCACAO_KEY, JSON.stringify(Array.from(selectedConvocados))); alert('Convocação salva com sucesso!');
 }
-
 function carregarConvocacaoSalva() {
     const saved = localStorage.getItem(STORAGE_CONVOCACAO_KEY);
-    if (saved) {
-        try { 
-            selectedConvocados = new Set(JSON.parse(saved)); 
-            renderConvocacaoLists();
-            alert('Convocação carregada!');
-        } catch(e) {
-            alert('Erro ao carregar convocação.');
-        }
-    } else {
-        alert('Nenhuma convocação salva encontrada.');
-    }
+    if (saved) { try { selectedConvocados = new Set(JSON.parse(saved)); renderConvocacaoLists(); alert('Convocação carregada!'); } catch(e) { alert('Erro ao carregar.'); } } 
+    else { alert('Nenhuma convocação salva encontrada.'); }
+}
+function excluirAtletasSelecionadosConvocacao() {
+    if (selectedConvocados.size === 0) { alert('Nenhum atleta selecionado.'); return; }
+    if (confirm('Deseja remover os atletas selecionados da convocação?')) { selectedConvocados.clear(); localStorage.removeItem(STORAGE_CONVOCACAO_KEY); renderConvocacaoLists(); }
 }
 
-function excluirAtletasSelecionadosConvocacao() {
-    if (selectedConvocados.size === 0) {
-        alert('Nenhum atleta selecionado.');
-        return;
+// Ativa a rolagem automática (auto-scroll) da tela de grupos ao arrastar um atleta para a beirada
+document.addEventListener('DOMContentLoaded', () => {
+    const screenScroll = document.getElementById('grupos-screen');
+    if (screenScroll) {
+        screenScroll.addEventListener('dragover', (e) => {
+            const scrollSpeed = 15;
+            const edgeSize = 80; // Zona de ativação do scroll nas bordas (pixels)
+            const rect = screenScroll.getBoundingClientRect();
+            
+            // Se o mouse estiver perto da borda inferior durante o arrasto, desce a tela
+            if (e.clientY > rect.bottom - edgeSize) {
+                screenScroll.scrollTop += scrollSpeed;
+            } 
+            // Se o mouse estiver perto da borda superior, sobe a tela
+            else if (e.clientY < rect.top + edgeSize) {
+                screenScroll.scrollTop -= scrollSpeed;
+            }
+        });
     }
-    if (confirm('Deseja realmente remover os atletas selecionados da lista de convocados?')) {
-        selectedConvocados.clear();
-        localStorage.removeItem(STORAGE_CONVOCACAO_KEY);
-        renderConvocacaoLists();
-    }
-}
+});

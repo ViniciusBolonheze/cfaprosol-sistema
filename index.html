@@ -15,129 +15,22 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* Estilos do Pop-up (Ficha do Atleta) */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-
-        .modal-container {
-            background-color: #fff;
-            width: 90%;
-            max-width: 500px;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            border: 3px solid #d4af37;
-        }
-
-        .modal-header {
-            background-color: #58111a;
-            color: #d4af37;
-            padding: 15px;
-            text-align: center;
-            position: relative;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-        }
-
-        .close-btn {
-            position: absolute;
-            right: 15px;
-            top: 12px;
-            color: #fff;
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
-        .modal-body {
-            padding: 20px;
-            color: #333;
-        }
-
-        .player-profile {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-        }
-
-        .player-photo {
-            width: 110px;
-            height: 140px;
-            object-fit: cover;
-            border: 2px solid #ccc;
-            border-radius: 6px;
-        }
-
-        .player-details h3 {
-            margin: 0 0 5px 0;
-            color: #58111a;
-            font-size: 1.1rem;
-        }
-
-        .player-details p {
-            margin: 4px 0;
-            font-size: 0.9rem;
-        }
-
-        .metrics-section h4 {
-            background-color: #f4f4f4;
-            padding: 8px;
-            margin: 0 0 10px 0;
-            font-size: 0.95rem;
-            color: #58111a;
-            text-align: center;
-            border-left: 4px solid #58111a;
-        }
-
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-        }
-
-        .metric-item {
-            background: #fafafa;
-            padding: 6px 10px;
-            border-radius: 4px;
-            border: 1px solid #e0e0e0;
-        }
-
-        .predicted-height {
-            text-align: center;
-            font-weight: bold;
-            color: #58111a;
-            margin: 10px 0 15px 0;
-            font-size: 0.95rem;
-        }
-
-        .modal-footer {
-            background-color: #f9f9f9;
-            padding: 12px;
-            font-size: 0.8rem;
-            border-top: 1px solid #ddd;
-            color: #555;
-        }
-
-        .modal-footer p {
-            margin: 3px 0;
-        }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); justify-content: center; align-items: center; z-index: 9999; }
+        .modal-container { background-color: #fff; width: 90%; max-width: 500px; border-radius: 10px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border: 3px solid #d4af37; }
+        .modal-header { background-color: #58111a; color: #d4af37; padding: 15px; text-align: center; position: relative; }
+        .modal-header h2 { margin: 0; font-size: 1.2rem; text-transform: uppercase; }
+        .close-btn { position: absolute; right: 15px; top: 12px; color: #fff; font-size: 1.5rem; cursor: pointer; }
+        .modal-body { padding: 20px; color: #333; }
+        .player-profile { display: flex; gap: 15px; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
+        .player-photo { width: 110px; height: 140px; object-fit: cover; border: 2px solid #ccc; border-radius: 6px; }
+        .player-details h3 { margin: 0 0 5px 0; color: #58111a; font-size: 1.1rem; }
+        .player-details p { margin: 4px 0; font-size: 0.9rem; }
+        .metrics-section h4 { background-color: #f4f4f4; padding: 8px; margin: 0 0 10px 0; font-size: 0.95rem; color: #58111a; text-align: center; border-left: 4px solid #58111a; }
+        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; margin-bottom: 10px; }
+        .metric-item { background: #fafafa; padding: 6px 10px; border-radius: 4px; border: 1px solid #e0e0e0; }
+        .predicted-height { text-align: center; font-weight: bold; color: #58111a; margin: 10px 0 15px 0; font-size: 0.95rem; }
+        .modal-footer { background-color: #f9f9f9; padding: 12px; font-size: 0.8rem; border-top: 1px solid #ddd; color: #555; }
+        .modal-footer p { margin: 3px 0; }
     </style>
 </head>
 <body>
@@ -145,9 +38,7 @@
     <!-- Cabeçalho Superior -->
     <header class="top-header">
         <div class="header-content-top">
-            <div class="instagram-icon">
-                <i class="fab fa-instagram"></i>
-            </div>
+            <div class="instagram-icon"><i class="fab fa-instagram"></i></div>
             <div class="date-display">segunda-feira, 27 de julho de 2026</div>
         </div>
         <button class="fullscreen-btn" onclick="toggleFullScreen()" title="Tela Cheia">
@@ -155,7 +46,6 @@
         </button>
     </header>
 
-    <!-- Barra Amarela Superior -->
     <div class="yellow-bar"></div>
 
     <!-- Menu de Navegação / Botões -->
@@ -169,10 +59,8 @@
         <button class="nav-btn" onclick="navigateTo('testes', event)">TESTES FÍSICOS</button>
     </nav>
 
-    <!-- Barra Amarela Inferior ao Menu -->
     <div class="yellow-bar" id="yellow-bar-nav" style="display: none;"></div>
 
-    <!-- Conteúdo Principal / Telas -->
     <main class="main-content">
         <!-- Tela de Entrada -->
         <section id="login-screen" class="screen active-screen">
@@ -180,9 +68,7 @@
                 <img src="logo.png" alt="CFA Prosol Logo" class="login-logo">
                 <h1 class="login-title">CFA Prosol</h1>
                 <p class="login-subtitle">Sistema de Organização Metodológica</p>
-                <button class="btn-entrar" onclick="enterSystem()">
-                    <i class="fa-solid fa-right-to-bracket"></i> ENTRAR NO SISTEMA
-                </button>
+                <button class="btn-entrar" onclick="enterSystem()"><i class="fa-solid fa-right-to-bracket"></i> ENTRAR NO SISTEMA</button>
             </div>
         </section>
 
@@ -193,8 +79,6 @@
                     <img src="logo.png" alt="Logo CFA Prosol" class="shield-logo-img">
                 </div>
             </div>
-
-            <!-- Botão Flutuante para o Banco de Dados -->
             <button class="floating-db-btn" onclick="navigateTo('excel-db', event)" title="Abrir Banco de Dados Completo">
                 <i class="fa-solid fa-database"></i> Banco de Dados
             </button>
@@ -216,9 +100,7 @@
                 </div>
                 <div class="excel-table-wrapper">
                     <table id="excel-db-table">
-                        <thead>
-                            <tr id="excel-header-row"></tr>
-                        </thead>
+                        <thead><tr id="excel-header-row"></tr></thead>
                         <tbody id="excel-tbody"></tbody>
                     </table>
                 </div>
@@ -228,10 +110,7 @@
         <!-- Tela de Atletas Estilo VBA -->
         <section id="atletas-screen" class="screen">
             <div class="vba-atletas-container">
-                <div class="vba-atletas-title">
-                    Atletas - CFA Prosol
-                </div>
-
+                <div class="vba-atletas-title">Atletas - CFA Prosol</div>
                 <div class="vba-anos-filter">
                     <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                         <label><input type="checkbox" class="year-chk" value="2009" onchange="renderAtletasScreen()"> 2009</label>
@@ -243,9 +122,9 @@
                         <label><input type="checkbox" class="year-chk" value="2015" onchange="renderAtletasScreen()"> 2015</label>
                         <label><input type="checkbox" class="year-chk" value="2016" onchange="renderAtletasScreen()"> 2016</label>
                         <label><input type="checkbox" class="year-chk" value="2017" onchange="renderAtletasScreen()"> 2017</label>
+                        <label><input type="checkbox" class="year-chk" value="2018" onchange="renderAtletasScreen()"> 2018</label>
                     </div>
                 </div>
-
                 <div class="vba-content-grid">
                     <div class="vba-sidebar-btns">
                         <button class="vba-green-btn" onclick="openAddAthleteModal()">Adicionar Atleta</button>
@@ -253,7 +132,6 @@
                         <button class="vba-gray-btn" onclick="navigateTo('excel-db', event)">Todos Atletas</button>
                         <button class="vba-gray-btn" onclick="openFichaAtleta(selectedAthleteIndex)" style="background-color: #58111a; color: #d4af37;">Ver Ficha Atleta</button>
                     </div>
-
                     <div class="vba-positions-grid">
                         <div class="pos-box"><div class="pos-header">Goleiros</div><div class="pos-list" id="list-goleiros"></div></div>
                         <div class="pos-box"><div class="pos-header">Zagueiros</div><div class="pos-list" id="list-zagueiros"></div></div>
@@ -278,20 +156,13 @@
                     <button class="pf-tab" onclick="switchPfTab('agilidade')">Agilidade</button>
                     
                     <div class="pf-subtab-group">
-                        <select id="pf-eval-select" class="pf-select-control" onchange="renderPfTable()">
-                            <!-- As opções agora são inseridas dinamicamente pelo JS -->
-                        </select>
+                        <select id="pf-eval-select" class="pf-select-control" onchange="renderPfTable()"></select>
                         <select id="pf-year-select" class="pf-select-control" onchange="renderPfTable()">
                             <option value="todos">Todos os Anos</option>
-                            <option value="2009">2009</option>
-                            <option value="2010">2010</option>
-                            <option value="2011">2011</option>
-                            <option value="2012">2012</option>
-                            <option value="2013">2013</option>
-                            <option value="2014">2014</option>
-                            <option value="2015">2015</option>
-                            <option value="2016">2016</option>
-                            <option value="2017">2017</option>
+                            <option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option>
+                            <option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option>
+                            <option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option>
+                            <option value="2018">2018</option>
                         </select>
                         <button class="pf-btn-add-eval" onclick="addNewEvaluation()" title="Adicionar Nova Avaliação">Adicionar Avaliação</button>
                         <button class="pf-btn-del-eval" onclick="deleteCurrentEvaluation()" title="Apagar Avaliação Selecionada">Apagar Avaliação</button>
@@ -300,11 +171,7 @@
                     <button class="pf-btn-home" onclick="navigateTo('home', event)">Início</button>
                     <button class="pf-btn-close" onclick="navigateTo('home', event)">×</button>
                 </div>
-
-                <div class="pf-title-bar">
-                    CFA Prosol — Avaliação Corporal / Testes Físicos
-                </div>
-
+                <div class="pf-title-bar">CFA Prosol — Avaliação Corporal / Testes Físicos</div>
                 <div class="pf-table-wrapper">
                     <table id="pf-table">
                         <thead><tr id="pf-header-row"></tr></thead>
@@ -314,7 +181,169 @@
             </div>
         </section>
 
-        <!-- Telas Genéricas -->
+        <!-- NOVA TELA: Separação de Grupos -->
+        <!-- NOVA TELA: Separação de Grupos -->
+        <section id="grupos-screen" class="screen">
+            <div class="grupos-container">
+                <div class="pf-title-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 15px;">
+                    <span>Ficha de Separação de Grupos</span>
+                    <button class="pf-btn-home" onclick="navigateTo('testes', event)">Voltar para Testes</button>
+                </div>
+
+                <!-- Barra superior de filtros e médias -->
+                <div class="grupos-top-bar">
+                    <div class="grupos-filter-section">
+                        <strong>Filtrar Atletas (Anos):</strong>
+                        <div class="grupos-year-checkboxes" id="grupos-anos-filter">
+                            <!-- Inseridos via JS -->
+                        </div>
+                    </div>
+                    
+                    <div class="grupos-category-section">
+                        <div class="select-group">
+                            <label>Categoria:</label>
+                            <select id="grupo-categoria-select" onchange="calcularMediaCategoria()">
+                                <option value="">Selecione...</option>
+                                <option value="sub11">Sub 11 (2018, 2017, 2016, 2015)</option>
+                                <option value="sub12">Sub 12 (2014)</option>
+                                <option value="sub13">Sub 13 (2013)</option>
+                                <option value="sub16">Sub 16 (2012, 2011, 2010, 2009)</option>
+                            </select>
+                        </div>
+                        <!-- Dropdown de 'Grupo' foi removido pois os 6 grupos estarão visíveis simultaneamente -->
+                    </div>
+
+			<div class="grupos-category-section">
+   		 <div class="select-group">
+     		    <label>Quantidade de grupos:</label>
+      		   <select id="select-qtd-grupos" onchange="onQtdGruposChange()">
+       		      <option value="1">1</option>
+        		     <option value="2">2</option>
+        		     <option value="3">3</option>
+        		     <option value="4">4</option> <!-- "selected" agora no 4 -->
+        		     <option value="5">5</option>
+         		    <option value="6"selected>6</option>
+     		    </select>
+  		   </div>
+		 </div>
+
+
+
+
+
+
+                </div>
+
+                <!-- Painel de Médias -->
+                <div class="grupos-media-panel" id="grupos-media-panel">
+                    <span class="media-title">Média da Categoria:</span>
+                    <span id="media-resistencia">Resistência: -</span>
+                    <span id="media-gordura">% Gordura: -</span>
+                    <span id="media-aceleracao">Aceleração: -</span>
+                    <span id="media-velocidade">Velocidade: -</span>
+                    <span id="media-agilidade">Agilidade: -</span>
+                    <span id="media-potencia">Potência: -</span>
+                </div>
+
+                <div class="grupos-split-view">
+                    
+                    <!-- TOP: Lista de Atletas em Cards (2 a 3 colunas fluídas) -->
+                    <!-- TOP: Lista de Atletas com Botões de Ordenação -->
+                    <div class="grupos-list-panel">
+                        <div class="grupos-panel-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px;">
+                            <span>Atletas (Arraste para as Fichas abaixo)</span>
+                            <!-- Botões de Ordenação -->
+                            <div id="ordenacao-botoes" style="display: flex; gap: 4px; font-size: 11px;">
+                                
+                                
+                            </div>
+                        </div>
+
+    <div class="grupos-atletas-list" id="grupos-lista-container">
+        <!-- Inserido via JS -->
+    </div>
+</div>
+
+                    <!-- BOTTOM: Fichas dos Grupos (Grid 2 por linha) -->
+                    <div class="grupos-fichas-grid">
+                        
+                        <!-- Ficha Grupo 1 -->
+                        <div class="grupos-ficha-panel drop-zone" data-grupo="Grupo 1">
+                            <div class="grupos-panel-title">Ficha do Grupo 1</div>
+                            <div class="table-container">
+                                <table class="grupos-data-table ficha-table">
+                                    <thead><tr><th>Ação</th><th>Nome</th><th>Ano</th><th>Resist.</th><th>%Gord</th><th>Acel.</th><th>Veloc.</th><th>Agil.</th><th>Pot.</th></tr></thead>
+                                    <tbody id="tbody-Grupo 1"></tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 8px; text-align: right;"><button onclick="limparGrupo('Grupo 1')" style="background: #e53935; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Limpar</button></div>
+                        </div>
+
+                        <!-- Ficha Grupo 2 -->
+                        <div class="grupos-ficha-panel drop-zone" data-grupo="Grupo 2">
+                            <div class="grupos-panel-title">Ficha do Grupo 2</div>
+                            <div class="table-container">
+                                <table class="grupos-data-table ficha-table">
+                                    <thead><tr><th>Ação</th><th>Nome</th><th>Ano</th><th>Resist.</th><th>%Gord</th><th>Acel.</th><th>Veloc.</th><th>Agil.</th><th>Pot.</th></tr></thead>
+                                    <tbody id="tbody-Grupo 2"></tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 8px; text-align: right;"><button onclick="limparGrupo('Grupo 2')" style="background: #e53935; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Limpar</button></div>
+                        </div>
+
+                        <!-- Ficha Grupo 3 -->
+                        <div class="grupos-ficha-panel drop-zone" data-grupo="Grupo 3">
+                            <div class="grupos-panel-title">Ficha do Grupo 3</div>
+                            <div class="table-container">
+                                <table class="grupos-data-table ficha-table">
+                                    <thead><tr><th>Ação</th><th>Nome</th><th>Ano</th><th>Resist.</th><th>%Gord</th><th>Acel.</th><th>Veloc.</th><th>Agil.</th><th>Pot.</th></tr></thead>
+                                    <tbody id="tbody-Grupo 3"></tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 8px; text-align: right;"><button onclick="limparGrupo('Grupo 3')" style="background: #e53935; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Limpar</button></div>
+                        </div>
+
+                        <!-- Ficha Grupo 4 -->
+                        <div class="grupos-ficha-panel drop-zone" data-grupo="Grupo 4">
+                            <div class="grupos-panel-title">Ficha do Grupo 4</div>
+                            <div class="table-container">
+                                <table class="grupos-data-table ficha-table">
+                                    <thead><tr><th>Ação</th><th>Nome</th><th>Ano</th><th>Resist.</th><th>%Gord</th><th>Acel.</th><th>Veloc.</th><th>Agil.</th><th>Pot.</th></tr></thead>
+                                    <tbody id="tbody-Grupo 4"></tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 8px; text-align: right;"><button onclick="limparGrupo('Grupo 4')" style="background: #e53935; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Limpar</button></div>
+                        </div>
+
+                        <!-- Ficha Grupo 5 -->
+                        <div class="grupos-ficha-panel drop-zone" data-grupo="Grupo 5">
+                            <div class="grupos-panel-title">Ficha do Grupo 5</div>
+                            <div class="table-container">
+                                <table class="grupos-data-table ficha-table">
+                                    <thead><tr><th>Ação</th><th>Nome</th><th>Ano</th><th>Resist.</th><th>%Gord</th><th>Acel.</th><th>Veloc.</th><th>Agil.</th><th>Pot.</th></tr></thead>
+                                    <tbody id="tbody-Grupo 5"></tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 8px; text-align: right;"><button onclick="limparGrupo('Grupo 5')" style="background: #e53935; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Limpar</button></div>
+                        </div>
+
+                        <!-- Ficha Grupo 6 -->
+                        <div class="grupos-ficha-panel drop-zone" data-grupo="Grupo 6">
+                            <div class="grupos-panel-title">Ficha do Grupo 6</div>
+                            <div class="table-container">
+                                <table class="grupos-data-table ficha-table">
+                                    <thead><tr><th>Ação</th><th>Nome</th><th>Ano</th><th>Resist.</th><th>%Gord</th><th>Acel.</th><th>Veloc.</th><th>Agil.</th><th>Pot.</th></tr></thead>
+                                    <tbody id="tbody-Grupo 6"></tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 8px; text-align: right;"><button onclick="limparGrupo('Grupo 6')" style="background: #e53935; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Limpar</button></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <section id="generic-screen" class="screen">
             <div class="generic-container">
                 <h2 id="generic-title">Módulo em Desenvolvimento</h2>
@@ -325,6 +354,7 @@
 
     <!-- Modal Adicionar Atleta -->
     <div id="add-athlete-modal" class="vba-modal-overlay" style="display: none;">
+        <!-- ... (Mantido exatamente como estava) ... -->
         <div class="vba-modal-card">
             <div class="vba-modal-title">
                 <span>Adicionar Atletas - CFA Prosol</span>
@@ -340,7 +370,7 @@
                         <option value="2011">2011</option><option value="2012">2012</option>
                         <option value="2013">2013</option><option value="2014">2014</option>
                         <option value="2015">2015</option><option value="2016">2016</option>
-                        <option value="2017">2017</option>
+                        <option value="2017">2017</option><option value="2018">2018</option>
                     </select>
                 </div>
                 <div class="form-row"><label>Data de Nascimento:</label><input type="text" id="add-nascimento" placeholder="DD/MM/AAAA"></div>
@@ -371,17 +401,14 @@
         </div>
     </div>
 
-    <!-- Modal Pop-Up Ficha CFA Prosol -->
     <div id="fichaModal" class="modal-overlay">
+        <!-- Mantido como original -->
         <div class="modal-container">
             <div class="modal-header">
                 <span class="close-btn" onclick="closeModal()">&times;</span>
                 <h2>Ficha CFA Prosol</h2>
             </div>
-            
-            <div class="modal-body" id="fichaModalBody">
-                <!-- Preenchido dinamicamente pelo JS -->
-            </div>
+            <div class="modal-body" id="fichaModalBody"></div>
         </div>
     </div>
 
@@ -394,6 +421,26 @@
         <p class="footer-sub">Sistema de Organização Metodológica</p>
         <p class="footer-dev">Desenvolvido em Excel VBA / Web</p>
     </footer>
+
+	<!-- Modal Selecionar Grupo ao Clicar no Atleta -->
+    <div id="select-grupo-modal" class="vba-modal-overlay" style="display: none;">
+        <div class="vba-modal-card" style="width: 320px;">
+            <div class="vba-modal-title">
+                <span>Selecionar Grupo</span>
+                <span class="vba-modal-close" onclick="closeSelectGrupoModal()">&times;</span>
+            </div>
+            <div class="vba-form-grid" style="padding: 10px 0;">
+                <p id="modal-atleta-nome" style="font-weight: bold; font-size: 14px; margin-bottom: 12px; text-align: center;"></p>
+                <label style="margin-bottom: 8px; display: block; font-size: 13px;">Escolha o Grupo de Destino:</label>
+                
+                <!-- Container onde os botões dos grupos vão aparecer -->
+                <div id="modal-grupos-container" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Preenchido via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <script src="script.js"></script>
 </body>
