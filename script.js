@@ -10,14 +10,14 @@ const STORAGE_CONVOCACAO_KEY = 'prosol_cfa_convocacao_v1';
 let criterioOrdenacaoAtual = 'nome';
 let direcaoOrdenacaoAtual = 'asc'; // 'asc' (menor para maior / A-Z) ou 'desc' (maior para menor / Z-A)
 let defaultColumns = [
-    'Ano', 'NOME COMPLETO', 'APELIDO', 'Data de nascimento', 'Posição 1', 'Posição 2', 'CIDADE', 'Contato', 'RG', 'Foto', 
+    'Ano', 'NOME COMPLETO', 'APELIDO', 'Data de nascimento', 'Posição 1', 'Posição 2', 'CIDADE', 'Contato', 'RG', 'Foto', 'Anotacoes',
     'AVALIAÇÃO1', 'Data1', 'Altura1', 'alturasentado1', 'peso1', 'Dobras1_1', 'Dobras2_1', 'Dobras3_1', 'Dobras4_1', 'PercentualGordura1', 'alturapredita1', 'nivel1', 'distancia1', 'Salto1_1', 'Salto2_1', 'Salto3_1', 'MelhorSalto1', 'aceleração1_1', 'velocidade1_1', 'aceleração2_1', 'velocidade2_1', 'aceleração3_1', 'velocidade3_1', 'aceleração4_1', 'velocidade4_1', 'aceleração5_1', 'velocidade5_1', 'aceleração6_1', 'velocidade6_1', 'aceleração7_1', 'velocidade7_1', 'Aceleraçãofinal1', 'Velocidadefinal1', 'Volta1_1', 'Volta2_1', 'Agilidade1', 
     'AVALIAÇÃO2', 'Data2', 'Altura2', 'alturasentado2', 'peso2', 'Dobras1_2', 'Dobras2_2', 'Dobras3_2', 'Dobras4_2', 'PercentualGordura2', 'alturapredita2', 'nivel2', 'distancia2', 'Salto1_2', 'Salto2_2', 'Salto3_2', 'MelhorSalto2', 'aceleração1_2', 'velocidade1_2', 'aceleração2_2', 'velocidade2_2', 'aceleração3_2', 'velocidade3_2', 'aceleração4_2', 'velocidade4_2', 'aceleração5_2', 'velocidade5_2', 'aceleração6_2', 'velocidade6_2', 'aceleração7_2', 'velocidade7_2', 'Aceleraçãofinal2', 'Velocidadefinal2', 'Volta1_2', 'Volta2_2', 'Agilidade2'
 ];
 
 let defaultData = [
     {
-        'Ano': '2010', 'NOME COMPLETO': 'Bernardo Delgado Alaver Barroso', 'APELIDO': 'Bernardo', 'Data de nascimento': '23/02/2010', 'Posição 1': 'Volante', 'Posição 2': '1º volante', 'CIDADE': 'Londrina', 'Contato': '(43) 99999-0000', 'RG': '138052478', 'Foto': '',
+        'Ano': '2010', 'NOME COMPLETO': 'Bernardo Delgado Alaver Barroso', 'APELIDO': 'Bernardo', 'Data de nascimento': '23/02/2010', 'Posição 1': 'Volante', 'Posição 2': '1º volante', 'CIDADE': 'Londrina', 'Contato': '(43) 99999-0000', 'RG': '138052478', 'Foto': '', 'Anotacoes':'',
         'Data1': '02/02/2026', 'Altura1': '1,73', 'alturapredita1': '1,78', 'alturasentado1': '90', 'peso1': '66,6', 'Dobras1_1': '7', 'Dobras2_1': '6', 'Dobras3_1': '4,5', 'Dobras4_1': '9,5', 'PercentualGordura1': '0.10495',
         'nivel1': '18,4', 'distancia1': '1880', 'Salto1_1': '2,09', 'Salto2_1': '2,3', 'Salto3_1': '2,39', 'MelhorSalto1': '2,39',
         'Aceleraçãofinal1': '4.2', 'Velocidadefinal1': '21.5',
@@ -349,10 +349,36 @@ function renderAtletasScreen() {
         let targetBox = 'meias';
         if (posicao.includes('goleiro')) targetBox = 'goleiros'; else if (posicao.includes('zagueiro')) targetBox = 'zagueiros'; else if (posicao.includes('lateral')) targetBox = 'laterais'; else if (posicao.includes('volante')) targetBox = 'volantes'; else if (posicao.includes('atacante')) targetBox = 'atacantes'; else if (posicao.includes('extremo') || posicao.includes('ponta')) targetBox = 'extremos';
 
+        // 1. Verifica se existe anotação preenchida
+        let temAnotacao = row['Anotacoes'] && String(row['Anotacoes']).trim() !== '';
+        let iconeFicha = temAnotacao ? `
+            <svg width="13" height="15" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-2px; margin-left:35px;" title="Atleta possui anotações">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" fill="#ccc"></rect>
+                <line x1="9" y1="12" x2="15" y2="12"></line>
+                <line x1="9" y1="16" x2="13" y2="16"></line>
+            </svg>
+        ` : '';
+
+        // 2. NOVO: Verifica se o atleta está lesionado ('Lesao' igual a 'sim')
+        let chaveLesao = Object.keys(row).find(k => k.toLowerCase() === 'lesao');
+        let valorLesao = chaveLesao ? String(row[chaveLesao]).toLowerCase().trim() : '';
+        let estaLesionado = valorLesao === 'sim';
+
+        let iconeLesao = estaLesionado ? `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#d63031" style="display:inline-block; vertical-align:-2px; margin-left:4px;" title="Atleta Lesionado">
+                <rect x="9" y="2" width="6" height="20" rx="1" fill="#d63031"></rect>
+                <rect x="2" y="9" width="20" height="6" rx="1" fill="#d63031"></rect>
+            </svg>
+        ` : '';
+
         const itemDiv = document.createElement('div');
         itemDiv.className = 'athlete-item' + (selectedAthleteIndex === globalIndex ? ' selected' : '');
         if(selectedAthleteIndex === globalIndex) { itemDiv.style.backgroundColor = '#0984e3'; itemDiv.style.color = '#fff'; }
-        itemDiv.innerHTML = `<span>${nomeExibicao}</span> <span>${anoAtleta}</span>`;
+        
+        // 3. Insere o nome junto com os ícones (ficha e/ou cruz vermelha)
+        itemDiv.innerHTML = `<span>${nomeExibicao} ${iconeFicha} ${iconeLesao}</span> <span>${anoAtleta}</span>`;
+        
         itemDiv.onclick = () => { selectedAthleteIndex = globalIndex; renderAtletasScreen(); };
         if (posLists[targetBox]) posLists[targetBox].appendChild(itemDiv);
     });
@@ -488,6 +514,105 @@ function renderPfTable() {
         tbody.appendChild(tr);
     });
 }
+
+
+let atletaGlobalIndexAtual = null;
+
+// Abre o pop-up de anotações preenchendo os dados do atleta selecionado
+function openAnotacoesModal(globalIndex) {
+    atletaGlobalIndexAtual = globalIndex;
+    const row = excelData[globalIndex];
+    if (!row) return;
+
+    // Extração segura dos campos do atleta
+    let nome = getValorColuna(row, ['nome', 'atleta', 'nome completo']) || 'Sem Nome';
+    let apelido = getValorColuna(row, ['apelido']);
+    let nomeExibicao = apelido ? `${nome} (${apelido})` : nome;
+    
+    let posicao = getValorColuna(row, ['posicao', 'posição']) || '-';
+    let nascimento = getValorColuna(row, ['nascimento', 'data de nascimento', 'dt nasc']) || '-';
+    let cidade = getValorColuna(row, ['cidade', 'naturalidade']) || '-';
+    let foto = getValorColuna(row, ['foto', 'imagem', 'url_foto']) || '';
+
+    // Preenche os elementos visuais do modal
+    document.getElementById('anotacao-atleta-nome').textContent = nomeExibicao;
+    document.getElementById('anotacao-atleta-posicao').textContent = posicao;
+    document.getElementById('anotacao-atleta-nasc').textContent = nascimento;
+    document.getElementById('anotacao-atleta-cidade').textContent = cidade;
+    
+    const imgEl = document.getElementById('anotacao-atleta-foto');
+    if (foto) {
+        imgEl.src = foto;
+        imgEl.style.display = 'block';
+    } else {
+        imgEl.src = ''; 
+    }
+
+    // Carrega a anotação salva previamente
+    const textarea = document.getElementById('textarea-anotacoes-texto');
+    textarea.value = row['Anotacoes'] || '';
+
+    // Verifica o status de lesão na coluna 'Lesao' (com L maiúsculo)
+    const checkboxLesao = document.getElementById('checkbox-lesao');
+    if (checkboxLesao) {
+        // Procura pela chave exata ou de forma segura independente de variações
+        let chaveLesao = Object.keys(row).find(k => k.toLowerCase() === 'lesao');
+        let valorLesao = chaveLesao ? row[chaveLesao] : (row['Lesao'] || '');
+        checkboxLesao.checked = String(valorLesao).toLowerCase().trim() === 'sim';
+    }
+
+    // Exibe o modal
+    document.getElementById('modal-anotacoes').style.display = 'flex';
+}
+function closeAnotacoesModal() {
+    document.getElementById('modal-anotacoes').style.display = 'none';
+    atletaGlobalIndexAtual = null;
+}
+
+// Salva as anotações de forma segura
+function salvarAnotacoesAtleta() {
+    if (atletaGlobalIndexAtual === null || atletaGlobalIndexAtual === undefined || !excelData[atletaGlobalIndexAtual]) {
+        alert('Nenhum atleta selecionado.');
+        return;
+    }
+
+    // Pega o texto digitado do textarea
+    const textoDigitado = document.getElementById('textarea-anotacoes-texto').value;
+    excelData[atletaGlobalIndexAtual]['Anotacoes'] = textoDigitado;
+
+    // Pega o estado do checkbox de lesão e salva na coluna 'Lesao' exata
+    const checkboxLesao = document.getElementById('checkbox-lesao');
+    if (checkboxLesao) {
+        excelData[atletaGlobalIndexAtual]['Lesao'] = checkboxLesao.checked ? 'sim' : '';
+    }
+
+    // Salva no Supabase
+    saveToStorage(); 
+
+    // Atualiza a tabela visualmente caso esteja aberta
+    if (typeof renderExcelTable === 'function') {
+        renderExcelTable();
+    }
+    if (typeof renderAtletasScreen === 'function') {
+        renderAtletasScreen();
+    }
+
+    alert('Informações salvas com sucesso!');
+    closeAnotacoesModal(); 
+}
+// Função auxiliar genérica para buscar dados da linha independentemente de maiúsculas/minúsculas
+function getValorColuna(row, chavesPossiveis) {
+    const chaveEncontrada = Object.keys(row).find(k => 
+        chavesPossiveis.some(p => k.toLowerCase().trim() === p.toLowerCase().trim())
+    );
+    return chaveEncontrada ? row[chaveEncontrada] : '';
+}
+
+
+
+
+
+
 
 
 
