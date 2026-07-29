@@ -517,57 +517,182 @@ function renderPfTable() {
 
 
 let atletaGlobalIndexAtual = null;
-
+let documentosAtletaTemporarios = []; // Armazena os links dos documentos atuais da sessão do modal
 // Abre o pop-up de anotações preenchendo os dados do atleta selecionado
 function openAnotacoesModal(globalIndex) {
     atletaGlobalIndexAtual = globalIndex;
     const row = excelData[globalIndex];
     if (!row) return;
 
-    // Extração segura dos campos do atleta
     let nome = getValorColuna(row, ['nome', 'atleta', 'nome completo']) || 'Sem Nome';
     let apelido = getValorColuna(row, ['apelido']);
     let nomeExibicao = apelido ? `${nome} (${apelido})` : nome;
     
-    let posicao = getValorColuna(row, ['posicao', 'posição']) || '-';
-    let nascimento = getValorColuna(row, ['nascimento', 'data de nascimento', 'dt nasc']) || '-';
-    let cidade = getValorColuna(row, ['cidade', 'naturalidade']) || '-';
-    let foto = getValorColuna(row, ['foto', 'imagem', 'url_foto']) || '';
-
-    // Preenche os elementos visuais do modal
     document.getElementById('anotacao-atleta-nome').textContent = nomeExibicao;
-    document.getElementById('anotacao-atleta-posicao').textContent = posicao;
-    document.getElementById('anotacao-atleta-nasc').textContent = nascimento;
-    document.getElementById('anotacao-atleta-cidade').textContent = cidade;
+    document.getElementById('anotacao-atleta-posicao').textContent = getValorColuna(row, ['posicao', 'posição']) || '-';
+    document.getElementById('anotacao-atleta-nasc').textContent = getValorColuna(row, ['nascimento', 'data de nascimento']) || '-';
+    document.getElementById('anotacao-atleta-cidade').textContent = getValorColuna(row, ['cidade']) || '-';
     
     const imgEl = document.getElementById('anotacao-atleta-foto');
-    if (foto) {
-        imgEl.src = foto;
-        imgEl.style.display = 'block';
-    } else {
-        imgEl.src = ''; 
+    let foto = getValorColuna(row, ['foto', 'imagem']);
+    imgEl.src = (foto) ? foto : '';
+    imgEl.style.display = foto ? 'block' : 'none';
+
+    // Separa o texto da anotação dos links salvos na coluna 'Anotacoes'
+    let conteudoColuna = row['Anotacoes'] || '';
+    let partes = conteudoColuna.split('--- [DOCUMENTOS ANEXADOS] ---');
+    
+    document.getElementById('textarea-anotacoes-texto').value = partes[0] ? partes[0].trim() : '';
+    
+    document.getElementById('input-novos-documentos').value = '';
+    documentosAtletaTemporarios = []; // Array limpo corretamente aqui
+
+    if (partes[1]) {
+        try {
+            documentosAtletaTemporarios = JSON.parse(partes[1].trim());
+        } catch(e) {
+            documentosAtletaTemporarios = [];
+        }
     }
+    
+    renderizarListaDocumentosModal();
 
-    // Carrega a anotação salva previamente
-    const textarea = document.getElementById('textarea-anotacoes-texto');
-    textarea.value = row['Anotacoes'] || '';
+    // Checkbox de lesão
+    let chaveLesao = Object.keys(row).find(k => k.toLowerCase() === 'lesao');
+    document.getElementById('checkbox-lesao').checked = chaveLesao ? String(row[chaveLesao]).toLowerCase().trim() === 'sim' : false;
 
-    // Verifica o status de lesão na coluna 'Lesao' (com L maiúsculo)
-    const checkboxLesao = document.getElementById('checkbox-lesao');
-    if (checkboxLesao) {
-        // Procura pela chave exata ou de forma segura independente de variações
-        let chaveLesao = Object.keys(row).find(k => k.toLowerCase() === 'lesao');
-        let valorLesao = chaveLesao ? row[chaveLesao] : (row['Lesao'] || '');
-        checkboxLesao.checked = String(valorLesao).toLowerCase().trim() === 'sim';
-    }
-
-    // Exibe o modal
     document.getElementById('modal-anotacoes').style.display = 'flex';
 }
+
+// Faz o upload dos arquivos selecionados para o Supabase Storage em lote
+async function processarUploadDocumentos(input) {
+    if (!input.files || input.files.length === 0) return;
+
+    const files = Array.from(input.files);
+    alert('Fazendo upload de ' + files.length + ' arquivo(s) para o Supabase Storage...');
+
+    for (let file of files) {
+        try {
+            const nomeArquivoUnico = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+            
+            // Realiza o upload para o bucket 'documentos-atletas' criado no Supabase
+            const { data, error } = await _supabase.storage
+                .from('documentos-atletas')
+                .upload(nomeArquivoUnico, file);
+
+            if (error) {
+                console.error('Erro no upload:', error.message);
+                alert('Erro ao enviar o arquivo: ' + file.name);
+                continue;
+            }
+
+            // Pega a URL pública do arquivo enviado
+            const { data: publicUrlData } = _supabase.storage
+                .from('documentos-atletas')
+                .getPublicUrl(nomeArquivoUnico);
+
+            if (publicUrlData && publicUrlData.publicUrl) {
+                documentosAtletaTemporarios.push({
+                    nome: file.name,
+                    url: publicUrlData.publicUrl,
+                    path: nomeArquivoUnico // SALVANDO O CAMINHO PARA FACILITAR A EXCLUSÃO
+                });
+            }
+        } catch (err) {
+            console.error('Erro inesperado:', err);
+        }
+    }
+
+    input.value = ''; // Limpa o input file
+    renderizarListaDocumentosModal();
+    alert('Upload concluído com sucesso!');
+}
+// Fecha o modal de anotações
 function closeAnotacoesModal() {
     document.getElementById('modal-anotacoes').style.display = 'none';
-    atletaGlobalIndexAtual = null;
 }
+// Renderiza a lista de documentos dentro do modal com opção de abrir ou excluir
+function renderizarListaDocumentosModal() {
+    const container = document.getElementById('lista-documentos-anexados');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (documentosAtletaTemporarios.length === 0) {
+        container.innerHTML = '<span style="color: #777; font-style: italic;">Nenhum documento anexado.</span>';
+        return;
+    }
+
+    documentosAtletaTemporarios.forEach((doc, index) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 4px 8px; border: 1px solid #ddd; border-radius: 3px;';
+        
+        item.innerHTML = `
+            <a href="${doc.url}" target="_blank" style="color: #0984e3; text-decoration: none; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;" title="${doc.nome}">
+                📎 ${doc.nome}
+            </a>
+            <button type="button" onclick="removerDocumentoTemporario(${index})" style="background: #e53935; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 10px; font-weight: bold;">X</button>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// Remove o documento da lista e exclui definitivamente do Supabase Storage
+async function removerDocumentoTemporario(index) {
+    const doc = documentosAtletaTemporarios[index];
+
+    if (!confirm(`Tem certeza que deseja excluir o anexo "${doc.nome}"? Ele será apagado definitivamente do storage.`)) {
+        return;
+    }
+
+    // Identifica o caminho exato do arquivo
+    let filePath = doc.path;
+
+    // Se não houver 'path' direto, extrai o nome final a partir da URL
+    if (!filePath && doc.url) {
+        try {
+            const urlObj = new URL(doc.url);
+            const pathParts = urlObj.pathname.split('/documentos-atletas/');
+            if (pathParts.length > 1) {
+                filePath = decodeURIComponent(pathParts[1]);
+            }
+        } catch (e) {
+            console.error('Erro ao processar URL do arquivo:', e);
+        }
+    }
+
+    if (filePath) {
+        // Tenta remover do Supabase Storage
+        const { data, error } = await _supabase.storage
+            .from('documentos-atletas')
+            .remove([filePath]);
+
+        if (error) {
+            console.error('Erro ao excluir no Supabase Storage:', error);
+            alert('Falha ao excluir no Supabase: ' + error.message + '\nVerifique as políticas (RLS) do bucket.');
+            return; // Interrompe para não remover da tela se falhar na nuvem
+        }
+
+        // Se o Supabase responder sem erro mas não deletar nada
+        if (data && data.length === 0) {
+            console.warn('O Supabase não encontrou o arquivo com o caminho informado:', filePath);
+        }
+    }
+
+    // Remove do array local e atualiza a interface
+    documentosAtletaTemporarios.splice(index, 1);
+    renderizarListaDocumentosModal();
+    alert('Arquivo removido com sucesso!');
+}
+
+
+
+
+
+
+
+
+
+
 
 // Salva as anotações de forma segura
 function salvarAnotacoesAtleta() {
@@ -576,28 +701,27 @@ function salvarAnotacoesAtleta() {
         return;
     }
 
-    // Pega o texto digitado do textarea
-    const textoDigitado = document.getElementById('textarea-anotacoes-texto').value;
-    excelData[atletaGlobalIndexAtual]['Anotacoes'] = textoDigitado;
+    const textoDigitado = document.getElementById('textarea-anotacoes-texto').value.trim();
+    
+    // Combina o texto digitado e os links dos documentos JSON em uma única string na coluna Anotacoes
+    let stringFinal = textoDigitado;
+    if (documentosAtletaTemporarios.length > 0) {
+        stringFinal += '\n\n--- [DOCUMENTOS ANEXADOS] ---\n' + JSON.stringify(documentosAtletaTemporarios);
+    }
 
-    // Pega o estado do checkbox de lesão e salva na coluna 'Lesao' exata
+    excelData[atletaGlobalIndexAtual]['Anotacoes'] = stringFinal;
+
     const checkboxLesao = document.getElementById('checkbox-lesao');
     if (checkboxLesao) {
         excelData[atletaGlobalIndexAtual]['Lesao'] = checkboxLesao.checked ? 'sim' : '';
     }
 
-    // Salva no Supabase
     saveToStorage(); 
 
-    // Atualiza a tabela visualmente caso esteja aberta
-    if (typeof renderExcelTable === 'function') {
-        renderExcelTable();
-    }
-    if (typeof renderAtletasScreen === 'function') {
-        renderAtletasScreen();
-    }
+    if (typeof renderExcelTable === 'function') renderExcelTable();
+    if (typeof renderAtletasScreen === 'function') renderAtletasScreen();
 
-    alert('Informações salvas com sucesso!');
+    alert('Informações e documentos salvos com sucesso!');
     closeAnotacoesModal(); 
 }
 // Função auxiliar genérica para buscar dados da linha independentemente de maiúsculas/minúsculas
