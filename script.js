@@ -36,7 +36,8 @@ let selectedConvocados = new Set();
 let gruposData = {
     'Grupo 1': [], 'Grupo 2': [], 'Grupo 3': [], 'Grupo 4': [], 'Grupo 5': [], 'Grupo 6': []
 };
-
+// Variável global para armazenar os exercícios que vêm do banco de dados
+let exerciciosSalvosNaNuvem = {};
 async function loadFromStorage() {
     try {
         const { data, error } = await _supabase.from('sistema_config').select('colunas, dados').eq('id', 1).single();
@@ -688,11 +689,235 @@ async function removerDocumentoTemporario(index) {
 
 
 
+/* === GERAR FICHAS COM LAYOUT PERSONALIZADO (ATUALIZADO) === */
+function gerarFichasTreino() {
+    // 1. Pega apenas os painéis de grupos que estão visíveis na tela
+    const paineisGrupos = Array.from(document.querySelectorAll('#grupos-screen .grupos-ficha-panel'))
+                               .filter(panel => panel.style.display !== 'none');
 
+    if (paineisGrupos.length === 0) {
+        alert("Por favor, selecione a quantidade e monte os grupos na tela antes de gerar as fichas!");
+        return;
+    }
 
+    const container = document.getElementById('fichas-render-container');
+    container.innerHTML = '';
 
+    // 2. Captura o nome da categoria selecionada
+    const catSelect = document.getElementById('grupo-categoria-select');
+    let nomeCategoria = 'Categoria Indefinida';
+    if (catSelect && catSelect.selectedIndex > 0) {
+        nomeCategoria = catSelect.options[catSelect.selectedIndex].text.split(' (')[0];
+    }
 
+    // 3. Captura as médias globais corretas geradas na tela anterior
+    const getMediaVal = (id) => {
+        const el = document.getElementById(id);
+        return el && el.textContent.includes(': ') ? el.textContent.split(': ')[1] : '-';
+    };
+    
+    const medias = { 
+        yoyo: getMediaVal('media-resistencia'), 
+        gord: getMediaVal('media-gordura'), 
+        acel: getMediaVal('media-aceleracao'), 
+        vel: getMediaVal('media-velocidade'), 
+        agil: getMediaVal('media-agilidade'),
+        pot: getMediaVal('media-potencia')
+    };
 
+    // 4. Inicia o loop para gerar UMA ficha para cada Grupo
+        paineisGrupos.forEach((grupoElem) => {
+            const nomeGrupo = grupoElem.getAttribute('data-grupo'); 
+            const numeroGrupo = nomeGrupo.replace('Grupo ', '');
+            
+            const linhasAtletas = grupoElem.querySelectorAll('.ficha-table tbody tr');
+            let atletasData = [];
+
+            linhasAtletas.forEach((tr) => {
+                const cols = tr.querySelectorAll('td');
+                if (cols.length >= 9) { 
+                    let nome = cols[1]?.textContent || '';
+                    if (nome.trim() !== '') {
+                        
+                        const getVal = (index) => {
+                            const input = cols[index]?.querySelector('input');
+                            return input ? input.value : (cols[index]?.textContent?.trim() || '-');
+                        };
+
+                        atletasData.push({
+                            nome: nome.trim(),
+                            yoyo: getVal(3),
+                            gordura: getVal(4),
+                            aceleracao: getVal(5),
+                            velocidade: getVal(6),
+                            agilidade: getVal(7),
+                            potencia: getVal(8)
+                        });
+                    }
+                }
+            });
+
+            // 5. Monta a Ficha exibindo apenas a quantidade exata de atletas com linhas alternadas
+            const fichaHTML = `
+            <div class="ficha-grupo-card">
+                <div class="ficha-header-title">
+                    ${nomeCategoria} &nbsp;&nbsp;/&nbsp;&nbsp; Grupo ${numeroGrupo}
+                </div>
+
+                <table class="ficha-table">
+                    <thead>
+                        <tr style="background-color: #fff; font-weight: bold;">
+                            <th style="width: 35px;"></th>
+                            <th style="text-align: center; width: 220px;">NOME</th>
+                            <th>POTÊNCIA</th>
+                            <th>%GORDURA</th>
+                            <th>YOYO</th>
+                            <th>ACELERAÇÃO</th>
+                            <th>VELOCIDADE</th>
+                            <th>AGILIDADE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${atletasData.map((a, i) => {
+                            const bgStyle = i % 2 === 1 ? 'background-color: #e2e2e2;' : 'background-color: #ffffff;';
+                            return `
+                                <tr style="${bgStyle}">
+                                    <td style="text-align: center; font-weight: bold;">${i + 1}</td>
+                                    <td style="text-align: center; font-weight: bold;">${a.nome}</td>
+                                    <td style="text-align: center; font-weight: bold;">${a.potencia}</td>
+                                    <td style="text-align: center; font-weight: bold;">${a.gordura}</td>
+                                    <td style="text-align: center; font-weight: bold;">${a.yoyo}</td>
+                                    <td style="text-align: center; font-weight: bold;">${a.aceleracao}</td>
+                                    <td style="text-align: center; font-weight: bold;">${a.velocidade}</td>
+                                    <td style="text-align: center; font-weight: bold;">${a.agilidade}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                        
+                        <tr class="row-media">
+                            <td colspan="2" style="text-align: center; font-size: 13px;">MÉDIA DA CATEGORIA</td>
+                            <td>${medias.pot}</td>
+                            <td>${medias.gord}</td>
+                            <td>${medias.yoyo}</td>
+                            <td>${medias.acel}</td>
+                            <td>${medias.vel}</td>
+                            <td>${medias.agil}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- MMI -->
+                <table class="ficha-table" style="margin-top: 8px;">
+                    <tr>
+                        <td rowspan="3" class="side-label">MMI</td>
+                        <td class="mmi-header"><input type="text" value="Agachamento livre"></td>
+                        <td class="mmi-header"><input type="text" value="Agachamento lateral"></td>
+                        <td class="mmi-header"><input type="text" value="STIFF + Avanço"></td>
+                        <td class="mmi-header"><input type="text" value="Avanço Dinamico"></td>
+                        <td class="mmi-header"><input type="text" value="Terra + Salto"></td>
+                        <td class="mmi-header"><input type="text" value="Agachamento sumo abre e fecha com salto"></td>
+                        <td class="mmi-header"><input type="text" value="Ele. Pelvica"></td>
+                    </tr>
+                    <tr>
+                        <td class="mmi-reps"><input type="text" value="3X8"></td>
+                        <td class="mmi-reps"><input type="text" value="3X8"></td>
+                        <td class="mmi-reps"><input type="text" value="3X8"></td>
+                        <td class="mmi-reps"><input type="text" value="3x8"></td>
+                        <td class="mmi-reps"><input type="text" value="3x8"></td>
+                        <td class="mmi-reps"><input type="text" value="3x6"></td>
+                        <td class="mmi-reps"><input type="text" value="3x10"></td>
+                    </tr>
+                    <tr>
+                        <td class="mmi-weight"><input type="text" value="15kg"></td>
+                        <td class="mmi-weight"><input type="text" value="14kg"></td>
+                        <td class="mmi-weight"><input type="text" value="8kg"></td>
+                        <td class="mmi-weight"><input type="text" value="10kg"></td>
+                        <td class="mmi-weight"><input type="text" value="20kg"></td>
+                        <td class="mmi-weight"><input type="text" value="10kg"></td>
+                        <td class="mmi-weight"><input type="text" value="20kg"></td>
+                    </tr>
+                </table>
+
+                <!-- PROTOCOLO -->
+                <table class="ficha-table" style="margin-top: 8px;">
+                    <tr>
+                        <td rowspan="3" class="side-label">Protocolo</td>
+                        <td class="proto-header"><input type="text" value="Remada baixa"></td>
+                        <td class="proto-header"><input type="text" value="Supino com elevação pélvica"></td>
+                        <td class="proto-header"><input type="text" value="Remada serrote"></td>
+                        <td class="proto-header"><input type="text" value="Abd remador"></td>
+                        <td class="proto-header"><input type="text" value="Dumbbell Snatch"></td>
+                        <td class="proto-header"><input type="text" value="Flexão"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="6" class="proto-banner">
+                            Chegar ANTES ou ficar APÓS para realizar os PROTOCOLOS (Atletas marcados, deverão realizar)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="proto-weight"><input type="text" value="60kg"></td>
+                        <td class="proto-weight"><input type="text" value="6kg"></td>
+                        <td class="proto-weight"><input type="text" value="12kg"></td>
+                        <td class="proto-weight"><input type="text" value="10kg"></td>
+                        <td class="proto-weight"><input type="text" value="10kg"></td>
+                        <td class="proto-weight"><input type="text" value="-"></td>
+                    </tr>
+                </table>
+
+                <!-- HIIT -->
+                <table class="ficha-table" style="margin-top: 8px;">
+                    <tr>
+                        <td rowspan="2" class="side-label">HIIT</td>
+                        <td class="hiit-header"><input type="text" value="AGACHAMENTO COM SALTO"></td>
+                        <td class="hiit-header"><input type="text" value="AVANÇO COM SALTO"></td>
+                        <td class="hiit-header"><input type="text" value="POLICHINELO"></td>
+                        <td class="hiit-header"><input type="text" value="ABDOMINAL"></td>
+                        <td class="hiit-header"><input type="text" value="FLEXÃO"></td>
+                        <td class="hiit-header"><input type="text" value="BURPEE"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="6" class="hiit-footer">
+                            <input type="text" value="20 SEG. CADA EXERCÍCIO" style="font-weight: bold; text-align: center;">
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', fichaHTML);
+        });
+
+        // ==========================================
+        // NOVO: APLICA OS EXERCÍCIOS SALVOS ANTES DE EXIBIR A TELA
+        // ==========================================
+        if (Object.keys(exerciciosSalvosNaNuvem).length > 0) {
+            document.querySelectorAll('.ficha-grupo-card').forEach((card, index) => {
+                const inputs = card.querySelectorAll('input');
+                const valoresSalvos = exerciciosSalvosNaNuvem[index];
+                if (valoresSalvos && inputs) {
+                    inputs.forEach((input, i) => {
+                        if (valoresSalvos[i] !== undefined) {
+                            input.value = valoresSalvos[i];
+                            input.setAttribute('value', valoresSalvos[i]); // Fixa no HTML
+                        }
+                    });
+                }
+            });
+        }
+        // ==========================================
+
+        document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+        document.getElementById('fichas-treino-screen').style.display = 'block';
+        window.scrollTo(0, 0);
+
+        // -> SALVA AUTOMATICAMENTE NO SUPABASE APÓS GERAR AS FICHAS
+        salvarNoSupabase();
+}
+
+function voltarParaGrupos() {
+    document.getElementById('fichas-treino-screen').style.display = 'none';
+    document.getElementById('grupos-screen').style.display = 'block';
+}
 
 // Salva as anotações de forma segura
 function salvarAnotacoesAtleta() {
@@ -703,7 +928,6 @@ function salvarAnotacoesAtleta() {
 
     const textoDigitado = document.getElementById('textarea-anotacoes-texto').value.trim();
     
-    // Combina o texto digitado e os links dos documentos JSON em uma única string na coluna Anotacoes
     let stringFinal = textoDigitado;
     if (documentosAtletaTemporarios.length > 0) {
         stringFinal += '\n\n--- [DOCUMENTOS ANEXADOS] ---\n' + JSON.stringify(documentosAtletaTemporarios);
@@ -724,6 +948,8 @@ function salvarAnotacoesAtleta() {
     alert('Informações e documentos salvos com sucesso!');
     closeAnotacoesModal(); 
 }
+
+
 // Função auxiliar genérica para buscar dados da linha independentemente de maiúsculas/minúsculas
 function getValorColuna(row, chavesPossiveis) {
     const chaveEncontrada = Object.keys(row).find(k => 
@@ -732,7 +958,144 @@ function getValorColuna(row, chavesPossiveis) {
     return chaveEncontrada ? row[chaveEncontrada] : '';
 }
 
+async function salvarNoSupabase() {
+    const catSelect = document.getElementById('grupo-categoria-select');
+    if (!catSelect || catSelect.selectedIndex <= 0) {
+        alert("Selecione uma categoria primeiro!");
+        return;
+    }
+    
+    const categoriaId = catSelect.value;
 
+    // 1. Salva os grupos e atletas (que já funcionam perfeitamente)
+    const paineisGrupos = Array.from(document.querySelectorAll('#grupos-screen .grupos-ficha-panel'));
+    const gruposDataPayload = paineisGrupos.map(panel => {
+        const nomeGrupo = panel.getAttribute('data-grupo');
+        const isVisivel = panel.style.display !== 'none';
+        
+        const atletas = Array.from(panel.querySelectorAll('.ficha-table tbody tr')).map(tr => {
+            const cols = tr.querySelectorAll('td');
+            return cols.length >= 2 ? cols[1]?.textContent?.trim() : '';
+        }).filter(nome => nome !== '');
+
+        return { nomeGrupo, isVisivel, atletas };
+    });
+
+    // 2. Captura correta de todos os campos de exercícios (repetições, cargas) dos cards
+    const exerciciosData = {};
+    document.querySelectorAll('.ficha-grupo-card').forEach((card, index) => {
+        const inputs = Array.from(card.querySelectorAll('input')).map(input => input.value);
+        exerciciosData[index] = inputs;
+    });
+
+    // Atualiza a variável global com o que acabou de ser lido da tela
+    exerciciosSalvosNaNuvem = exerciciosData;
+
+    const payload = {
+        grupos: gruposDataPayload,
+        exercicios: exerciciosData
+    };
+
+    const { error } = await _supabase
+        .from('configuracoes_categorias')
+        .upsert({ 
+            categoria_id: categoriaId, 
+            dados: payload, 
+            atualizado_em: new Date() 
+        });
+
+    if (error) {
+        console.error("Erro ao salvar no Supabase:", error.message);
+        alert("Erro ao salvar alterações na nuvem.");
+    } else {
+        console.log("Ficha e exercícios salvos com sucesso!");
+        alert("Alterações salvas com sucesso!");
+    }
+}
+
+async function carregarDoSupabase() {
+    const catSelect = document.getElementById('grupo-categoria-select');
+    if (!catSelect || catSelect.selectedIndex <= 0) {
+        for (let g in gruposData) {
+            gruposData[g] = [];
+        }
+        if (typeof renderGruposScreen === 'function') renderGruposScreen();
+        return;
+    }
+
+    const categoriaId = catSelect.value;
+
+    const { data, error } = await _supabase
+        .from('configuracoes_categorias')
+        .select('dados')
+        .eq('categoria_id', categoriaId)
+        .maybeSingle();
+
+    if (error) {
+        console.error("Erro ao consultar o Supabase:", error.message);
+        return;
+    }
+
+    for (let g in gruposData) {
+        gruposData[g] = [];
+    }
+
+    if (!data || !data.dados) {
+        if (typeof renderGruposScreen === 'function') renderGruposScreen();
+        return;
+    }
+
+    const estado = data.dados;
+
+    if (estado && estado.grupos) {
+        estado.grupos.forEach(gData => {
+            const panel = document.querySelector(`#grupos-screen .grupos-ficha-panel[data-grupo="${gData.nomeGrupo}"]`);
+            if (panel) {
+                panel.style.display = gData.isVisivel ? 'block' : 'none';
+            }
+
+            if (gData.atletas && Array.isArray(gData.atletas)) {
+                gData.atletas.forEach(nomeAtleta => {
+                    const idx = excelData.findIndex(row => {
+                        let apelido = Object.keys(row).find(k => k.toLowerCase().includes('apelido'));
+                        let nome = Object.keys(row).find(k => k.toLowerCase().includes('nome'));
+                        let valApelido = apelido && row[apelido] ? String(row[apelido]).trim() : '';
+                        let valNome = nome && row[nome] ? String(row[nome]).trim() : '';
+                        return valApelido === nomeAtleta || valNome === nomeAtleta;
+                    });
+
+                    if (idx !== -1) {
+                        gruposData[gData.nomeGrupo].push({ index: idx, manualData: {} });
+                    }
+                });
+            }
+        });
+
+        if (typeof renderGruposScreen === 'function') {
+            renderGruposScreen();
+        }
+    }
+
+    // 3. Salva os dados de exercícios na variável global para quando a ficha for gerada
+    if (estado && estado.exercicios) {
+        exerciciosSalvosNaNuvem = estado.exercicios;
+        
+        // Tenta aplicar caso a tela de fichas já esteja aberta (re-render)
+        document.querySelectorAll('.ficha-grupo-card').forEach((card, index) => {
+            const inputs = card.querySelectorAll('input');
+            const valoresSalvos = exerciciosSalvosNaNuvem[index];
+            if (valoresSalvos && inputs) {
+                inputs.forEach((input, i) => {
+                    if (valoresSalvos[i] !== undefined) {
+                        input.value = valoresSalvos[i];
+                    }
+                });
+            }
+        });
+    } else {
+        exerciciosSalvosNaNuvem = {}; // Limpa caso não exista nada salvo na categoria
+    }
+}
 
 
 
@@ -832,6 +1195,35 @@ function renderGruposScreen() {
         };
     });
 }
+
+
+// 2. COLE O BLOCO ABAIXO LÁ NO FINAL DO SEU ARQUIVO JS:
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Ouvinte para o select de categoria (carregamento automático ao trocar a categoria)
+    const catSelect = document.getElementById('grupo-categoria-select');
+    if (catSelect) {
+        catSelect.addEventListener('change', async () => {
+            await carregarDoSupabase();
+        });
+    }
+
+    // 2. Ouvinte EXCLUSIVO para o botão de Salvar (Apenas Manual)
+    const btnSalvarFicha = document.getElementById('btn-salvar-ficha');
+    if (btnSalvarFicha) {
+        btnSalvarFicha.addEventListener('click', async () => {
+            // O salvamento agora só acontece quando este botão for clicado
+            await salvarNoSupabase();
+            
+            // Opcional: Se a sua função salvarNoSupabase() já tiver um alert() dentro dela, 
+            // não precisa colocar nada aqui. Se não tiver, você pode adicionar:
+            // alert('Ficha salva com sucesso!');
+       });
+    }
+});
+
+    
+
+
 
 function isAtletaEmAlgumGrupo(globalIndex) {
     for (let grupo in gruposData) {
@@ -1309,6 +1701,126 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (e.clientY < rect.top + edgeSize) {
                 screenScroll.scrollTop -= scrollSpeed;
             }
+        });
+    }
+});
+/* === FUNÇÃO PARA IMPRIMIR OS GRUPOS EM A4 PAISAGEM (MÉTODO IFRAME ISOLADO) === */
+function imprimirGrupos() {
+    // 1. Captura os painéis de grupos montados na tela
+    const paineisGrupos = document.querySelectorAll('#grupos-screen .grupos-split-view');
+
+    if (paineisGrupos.length === 0) {
+        alert("Não há grupos visíveis para imprimir. Certifique-se de formar os grupos primeiro.");
+        return;
+    }
+
+    // 2. Cria uma janela invisível (iframe) para isolar a impressão do resto do site
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write('<html><head><title>Impressão de Grupos</title>');
+
+    // 3. Copia o seu CSS original para o iframe (para manter as cores, fontes e formatos)
+    const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
+    styles.forEach(style => {
+        doc.write(style.outerHTML);
+    });
+
+    // 4. Injeta as regras EXCLUSIVAS de impressão (A4, Paisagem, 1 por página)
+    doc.write(`
+        <style>
+            @page { size: A4 landscape; margin: 10mm; }
+            body { 
+                background: #fff !important; 
+                margin: 0; 
+                padding: 0; 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
+            .print-grupo-page { 
+                page-break-after: always; 
+                width: 100%; 
+                margin-bottom: 20px;
+            }
+            .print-grupo-page:last-child { page-break-after: auto; }
+            
+            /* Limpa sobras visuais indesejadas para o papel */
+            .grupos-split-view, .grupos-ficha-panel, .grupos-list-panel { 
+                box-shadow: none !important; 
+            }
+            .grupos-panel-title { 
+                background-color: #e50000 !important; 
+                color: #fff !important; 
+                border-bottom: 2px solid #000 !important; 
+            }
+            .grupos-data-table th { background-color: #f2f2f2 !important; color: #000 !important; }
+            .grupos-data-table th, .grupos-data-table td { border: 1px solid #000 !important; color: #000 !important; }
+        </style>
+    `);
+    doc.write('</head><body>');
+    doc.write('<div class="grupos-container">'); // Mantém o container para garantir o alinhamento
+
+    // 5. Clona cada grupo e transforma os inputs em texto puro
+    paineisGrupos.forEach(painel => {
+        let wrapper = document.createElement('div');
+        wrapper.className = 'print-grupo-page';
+        
+        let clone = painel.cloneNode(true);
+        
+        let origInputs = painel.querySelectorAll('input');
+        let cloneInputs = clone.querySelectorAll('input');
+        
+        origInputs.forEach((inp, i) => {
+            let span = document.createElement('span');
+            span.textContent = inp.value;
+            span.style.fontWeight = 'bold';
+            span.style.color = '#b30000';
+            span.style.textAlign = 'center';
+            span.style.display = 'block';
+            
+            if (cloneInputs[i] && cloneInputs[i].parentNode) {
+                cloneInputs[i].parentNode.replaceChild(span, cloneInputs[i]);
+            }
+        });
+
+        wrapper.appendChild(clone);
+        doc.write(wrapper.outerHTML);
+    });
+
+    doc.write('</div></body></html>');
+    doc.close();
+
+    // 6. Aguarda 1 segundo para o navegador carregar o CSS no iframe invisível e aciona a impressão
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        
+        // Remove o iframe da memória após a impressão
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }, 1000); 
+}
+document.addEventListener('DOMContentLoaded', () => {
+    // Carrega automaticamente ao mudar a categoria
+    const catSelect = document.getElementById('grupo-categoria-select');
+    if (catSelect) {
+        catSelect.addEventListener('change', async () => {
+            await carregarDoSupabase();
+        });
+    }
+
+    // Salva ao clicar no botão "Salvar Ficha"
+    const btnSalvar = document.getElementById('btn-salvar-ficha');
+    if (btnSalvar) {
+        btnSalvar.addEventListener('click', async () => {
+            await salvarNoSupabase();
         });
     }
 });
