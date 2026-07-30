@@ -1132,22 +1132,18 @@ body {
     body > *:not(#fichas-treino-screen) {
         display: none !important;
     }
-
     #fichas-treino-screen {
         display: block !important;
         padding: 0 !important;
         background: #fff !important;
     }
-
     .no-print {
         display: none !important;
     }
-
     @page {
         size: A4 landscape;
         margin: 6mm;
     }
-
     .ficha-grupo-card {
         page-break-after: always;
         break-after: page;
@@ -1158,17 +1154,14 @@ body {
         width: 100% !important;
         max-width: 100% !important;
     }
-
     .ficha-grupo-card:last-child {
         page-break-after: auto;
         break-after: auto;
     }
-
     * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
-
     .ficha-table input {
         border: none !important;
         background: transparent !important;

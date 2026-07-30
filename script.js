@@ -78,8 +78,24 @@ function ensurePrintStyles() {
         style.id = 'dynamic-print-style';
         style.innerHTML = `
             @media print {
-                body > *:not(#fichaModal) { display: none !important; }
-                #fichaModal { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; background: #fff !important; display: block !important; z-index: 9999 !important; }
+                /* Oculta as demais telas, mas mantém o modal da ficha visível.
+                   O seletor body > #fichaModal é intencionalmente mais específico
+                   que a regra geral de impressão das fichas de treino. */
+                body.printing-athlete > *:not(#fichaModal) { display: none !important; }
+                body.printing-athlete > #fichaModal {
+                    display: flex !important;
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    height: auto !important;
+                    min-height: 0 !important;
+                    align-items: flex-start !important;
+                    justify-content: center !important;
+                    background: #fff !important;
+                    z-index: 9999 !important;
+                }
+                body.printing-athlete #fichaModal { display: flex !important; }
                 .modal-container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
                 .modal-header, .close-btn, .print-hide, button { display: none !important; }
                 #fichaExportContent { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
@@ -113,7 +129,16 @@ function shareFichaPDF() {
         });
     } else { window.print(); }
 }
-function printFicha() { window.print(); }
+function printFicha() {
+    document.body.classList.add('printing-athlete');
+    const cleanup = () => {
+        document.body.classList.remove('printing-athlete');
+        window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+    setTimeout(cleanup, 1500);
+}
 
 /* === NAVEGAÇÃO === */
 function enterSystem() {
@@ -757,7 +782,30 @@ function gerarFichasTreino() {
                 }
             });
 
-            // 5. Monta a Ficha exibindo apenas a quantidade exata de atletas com linhas alternadas
+            // 5. Define os valores de referência e marca em vermelho somente os testes
+            const numeroReferencia = (valor) => {
+                if (valor === undefined || valor === null) return NaN;
+                return parseFloat(String(valor).replace('%', '').replace(',', '.'));
+            };
+            const mediaPotencia = numeroReferencia(medias.pot);
+            const mediaYoyo = numeroReferencia(medias.yoyo);
+            const mediaAceleracao = numeroReferencia(medias.acel);
+            const mediaVelocidade = numeroReferencia(medias.vel);
+            const mediaAgilidade = numeroReferencia(medias.agil);
+            const corTeste = (tipo, valor) => {
+                const n = numeroReferencia(valor);
+                if (isNaN(n)) return '';
+                let alerta = false;
+                if (tipo === 'potencia') alerta = !isNaN(mediaPotencia) && n <= mediaPotencia;
+                if (tipo === 'gordura') alerta = n < 9.10 || n > 10.99;
+                if (tipo === 'yoyo') alerta = !isNaN(mediaYoyo) && n < mediaYoyo;
+                if (tipo === 'aceleracao') alerta = !isNaN(mediaAceleracao) && n > mediaAceleracao;
+                if (tipo === 'velocidade') alerta = !isNaN(mediaVelocidade) && n > mediaVelocidade;
+                if (tipo === 'agilidade') alerta = !isNaN(mediaAgilidade) && n > mediaAgilidade;
+                return alerta ? 'color: #d00000 !important;' : '';
+            };
+
+            // 6. Monta a ficha, deixando vermelho apenas o teste abaixo/acima da referência
             const fichaHTML = `
             <div class="ficha-grupo-card">
                 <div class="ficha-header-title">
@@ -784,12 +832,12 @@ function gerarFichasTreino() {
                                 <tr style="${bgStyle}">
                                     <td style="text-align: center; font-weight: bold;">${i + 1}</td>
                                     <td style="text-align: center; font-weight: bold;">${a.nome}</td>
-                                    <td style="text-align: center; font-weight: bold;">${a.potencia}</td>
-                                    <td style="text-align: center; font-weight: bold;">${a.gordura}</td>
-                                    <td style="text-align: center; font-weight: bold;">${a.yoyo}</td>
-                                    <td style="text-align: center; font-weight: bold;">${a.aceleracao}</td>
-                                    <td style="text-align: center; font-weight: bold;">${a.velocidade}</td>
-                                    <td style="text-align: center; font-weight: bold;">${a.agilidade}</td>
+                                    <td style="text-align: center; font-weight: bold; ${corTeste('potencia', a.potencia)}">${a.potencia}</td>
+                                    <td style="text-align: center; font-weight: bold; ${corTeste('gordura', a.gordura)}">${a.gordura}</td>
+                                    <td style="text-align: center; font-weight: bold; ${corTeste('yoyo', a.yoyo)}">${a.yoyo}</td>
+                                    <td style="text-align: center; font-weight: bold; ${corTeste('aceleracao', a.aceleracao)}">${a.aceleracao}</td>
+                                    <td style="text-align: center; font-weight: bold; ${corTeste('velocidade', a.velocidade)}">${a.velocidade}</td>
+                                    <td style="text-align: center; font-weight: bold; ${corTeste('agilidade', a.agilidade)}">${a.agilidade}</td>
                                 </tr>
                             `;
                         }).join('')}
@@ -1097,7 +1145,35 @@ async function carregarDoSupabase() {
     }
 }
 
-
+function imprimirFichaAtleta() {
+    var bodyContent = document.getElementById('fichaModalBody').innerHTML;
+    
+    var janela = window.open('', '_blank', 'width=800,height=600');
+    janela.document.write(`
+        <html>
+        <head>
+            <title>Ficha do Atleta - CFA Prosol</title>
+            <link rel="stylesheet" href="style.css">
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                .close-btn, .modal-footer, .modal-header { display: none !important; }
+                .modal-overlay { display: block !important; position: static !important; background: none !important; height: auto !important; }
+                .modal-container { width: 100% !important; max-width: 100% !important; border: none !important; box-shadow: none !important; }
+                .modal-body { padding: 10px !important; }
+                @page { size: A4 landscape; margin: 6mm; }
+                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            </style>
+        </head>
+        <body>
+            ${bodyContent}
+            <script>
+                window.onload = function() { window.print(); window.close(); };
+            <\/script>
+        </body>
+        </html>
+    `);
+    janela.document.close();
+}
 
 
 
@@ -1823,4 +1899,59 @@ document.addEventListener('DOMContentLoaded', () => {
             await salvarNoSupabase();
         });
     }
+});r('DOMContentLoaded', () => {
+    // Carrega automaticamente ao mudar a categoria
+    const catSelect = document.getElementById('grupo-categoria-select');
+    if (catSelect) {
+        catSelect.addEventListener('change', async () => {
+            await carregarDoSupabase();
+        });
+    }
+
+    // Salva ao clicar no botão "Salvar Ficha"
+    const btnSalvar = document.getElementById('btn-salvar-ficha');
+    if (btnSalvar) {
+        btnSalvar.addEventListener('click', async () => {
+            await salvarNoSupabase();
+        });
+    }
 });
+/* Impressão exclusiva das fichas de grupos - independente da ficha do atleta */
+function imprimirFichasTreino() {
+    const cards = Array.from(document.querySelectorAll('#fichas-render-container .ficha-grupo-card'));
+    if (!cards.length) { alert('Nenhuma ficha de grupo foi gerada.'); return; }
+
+    const janela = window.open('', '_blank', 'width=1200,height=800');
+    if (!janela) { alert('Permita pop-ups para imprimir as fichas.'); return; }
+
+    const paginas = cards.map(card => {
+        const clone = card.cloneNode(true);
+        clone.querySelectorAll('input').forEach(input => {
+            const span = document.createElement('span');
+            span.textContent = input.value;
+            span.style.fontWeight = 'bold';
+            input.replaceWith(span);
+        });
+        return clone.outerHTML;
+    }).join('');
+
+    janela.document.write(`<!doctype html><html><head><meta charset="UTF-8">
+    <title>Fichas de Grupos</title><style>
+    @page { size: A4 landscape; margin: 6mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    html,body { margin:0; padding:0; background:#fff; font-family:Arial,sans-serif; color:#000; }
+    .ficha-grupo-card { width:100%; max-width:none; margin:0 0 12px 0; padding:15px; background:#fff; border:2px solid #000; page-break-after:always; break-after:page; box-shadow:none; }
+    .ficha-grupo-card:last-child { page-break-after:auto; break-after:auto; }
+    .ficha-header-title { background:#d9d9d9; font-size:26px; font-weight:bold; text-align:center; padding:10px; border:2px solid #000; margin-bottom:-1px; }
+    .ficha-table { width:100%; border-collapse:collapse; font-size:12px; color:#000; text-align:center; }
+    .ficha-table th,.ficha-table td { border:1.5px solid #000; padding:4px; vertical-align:middle; }
+    .ficha-table input { width:100%; border:0; background:transparent; text-align:center; font-size:12px; font-weight:bold; color:inherit; }
+    .row-media { background:#000 !important; color:#fff !important; font-weight:bold; font-style:italic; }
+    .side-label { writing-mode:vertical-rl; transform:rotate(180deg); font-weight:bold; font-size:14px; text-align:center; background:#e0e0e0; width:32px; }
+    .mmi-header { background:#c5d9f1; font-weight:bold; } .mmi-reps { background:#000; color:#fff; font-weight:bold; } .mmi-weight { background:#b8cce4; font-weight:bold; }
+    .proto-header { background:#d9d9d9; font-weight:bold; } .proto-banner { background:#000; color:#fff; font-weight:bold; font-size:11px; } .proto-weight { background:#f2f2f2; font-weight:bold; }
+    .hiit-header { background:#fde9d9; font-weight:bold; } .hiit-footer { background:#fcd5b4; font-weight:bold; font-size:13px; }
+    </style></head><body>${paginas}</body></html>`);
+    janela.document.close();
+    janela.onload = () => setTimeout(() => { janela.focus(); janela.print(); }, 400);
+}
