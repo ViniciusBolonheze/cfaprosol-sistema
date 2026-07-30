@@ -1311,3 +1311,71 @@ body {
 .campo-layout aside .campo-reservas div{font-size:12px!important;line-height:21px!important;height:21px!important}
 .comissao-label{font-size:12px!important;height:28px!important;line-height:22px!important}
 .comissao-label .campo-edit{font-size:12px!important;height:25px!important}
+.campo-top{display:flex;align-items:center;justify-content:space-between}.campo-acoes{display:flex;gap:6px;align-items:center}.campo-acoes button{border:1px solid #aaa;background:#fff;padding:6px 10px;font-weight:bold;cursor:pointer}.campo-acoes button:first-child{background:#0984e3;color:#fff}.campo-acoes button:nth-child(2){background:#20a65a;color:#fff}.campo-acoes button:last-child{background:transparent;color:#fff;border:0;font-size:22px}
+.campo-acoes button{padding:3px 6px!important;font-size:10px!important;line-height:1.1!important}
+.campo-acoes button{padding:6px 10px!important;font-size:12px!important;line-height:1.2!important}
+@media print{
+ body.imprimindo-campo>*{display:none!important}
+ body.imprimindo-campo>#campo-convocacao-modal{display:flex!important;position:static!important;background:#fff!important;width:100%!important;height:auto!important}
+ body.imprimindo-campo .campo-card{display:flex!important;width:100vw!important;height:100vh!important;max-height:none!important;border:0!important;box-shadow:none!important}
+ body.imprimindo-campo .campo-acoes{display:none!important}
+ @page{size:A4 landscape;margin:0}
+}
+@media print{
+ @page{size:landscape;margin:0!important}
+ body.imprimindo-campo>#campo-convocacao-modal{width:100%!important;height:100%!important;display:flex!important;align-items:center!important}
+ body.imprimindo-campo .campo-card{width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:1568/1109!important;transform:none!important}
+}
+@media print{@page{size:297mm 210mm!important;margin:0!important}}
+/* Impressão sem forçar orientação ou escala */
+@media print{@page{size:auto!important;margin:10mm!important}.campo-card{width:auto!important;height:auto!important;min-height:0!important;aspect-ratio:auto!important;transform:none!important}}
+@media print{
+ @page{size:landscape;margin:0}
+ body.imprimindo-campo .campo-card{width:297mm!important;height:210mm!important;min-height:210mm!important;max-height:210mm!important;aspect-ratio:1568/1109!important;background-size:cover!important;background-position:center!important;transform:none!important}
+}
+/* Impressão simples da convocação sem redimensionar a arte */
+@media print{
+ body.imprimir-convocacao > *{display:none!important}
+ body.imprimir-convocacao > #campo-convocacao-modal{display:flex!important;position:static!important;visibility:visible!important;background:#fff!important;width:auto!important;height:auto!important}
+ body.imprimir-convocacao .campo-card{display:block!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;transform:none!important;background-size:100% 100%!important;box-shadow:none!important}
+ body.imprimir-convocacao .campo-acoes{display:none!important}
+ @page{size:auto;margin:10mm}
+}
+@media print{
+ html body.imprimir-convocacao #campo-convocacao-modal{display:flex!important;visibility:visible!important;opacity:1!important;position:fixed!important;inset:0!important;z-index:999999!important;background:#fff!important}
+ html body.imprimir-convocacao #campo-convocacao-modal .campo-card{display:block!important;visibility:visible!important;opacity:1!important;position:relative!important;overflow:visible!important}
+ html body.imprimir-convocacao #campo-convocacao-modal .campo-card *{visibility:visible!important}
+}
+/* Impressão exclusiva da convocação, sem janela auxiliar */
+#impressao-convocacao-unica{display:none}
+@media print{
+ body.print-convocacao>*{display:none!important}
+ body.print-convocacao>#impressao-convocacao-unica{display:block!important;visibility:visible!important;position:static!important;width:100%!important;height:auto!important;background:#fff!important}
+ body.print-convocacao>#impressao-convocacao-unica *{visibility:visible!important}
+ body.print-convocacao>#impressao-convocacao-unica .campo-card{display:block!important;visibility:visible!important;width:100%!important;height:auto!important;max-height:none!important;transform:none!important;background-size:100% 100%!important}
+ @page{size:auto;margin:10mm}
+}
+/* Impressão da convocação pelo próprio pop-up */
+@media print{
+ body.imprimindo-campo > *:not(#campo-convocacao-modal){display:none!important}
+ body.imprimindo-campo>#campo-convocacao-modal{display:flex!important;position:static!important;visibility:visible!important;opacity:1!important;background:#fff!important;width:100%!important;height:auto!important;overflow:visible!important}
+ body.imprimindo-campo>#campo-convocacao-modal .campo-card{display:block!important;visibility:visible!important;opacity:1!important;width:100%!important;height:auto!important;max-height:none!important;transform:none!important}
+ body.imprimindo-campo .campo-acoes{display:none!important}
+ body.imprimindo-campo #campo-convocacao-modal *{visibility:visible!important}
+ @page{size:A4 landscape;margin:0}
+}
+@media print{
+ body.imprimindo-campo>#campo-convocacao-modal .campo-card{width:297mm!important;height:210mm!important;min-height:210mm!important;max-height:210mm!important;aspect-ratio:297/210!important;background-size:cover!important;background-position:center top!important}
+}
+@media print{
+ body.imprimindo-campo>#campo-convocacao-modal .campo-card{width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;background-size:contain!important;background-repeat:no-repeat!important;background-position:center top!important}
+}
+.excluir-card{background:#fff;padding:20px;border-radius:8px;width:min(420px,90vw);box-shadow:0 8px 30px #0008}.excluir-card h3{margin:0 0 12px;color:#58111a}.excluir-card select{width:100%;padding:8px;margin-bottom:15px}.excluir-card button{padding:8px 16px;margin-right:8px;border:0;border-radius:4px;cursor:pointer}.excluir-card button:first-child{background:#d63031;color:#fff}
+.carregar-btn{background:#0984e3!important;color:#fff!important}
+.excluir-card p{font-size:13px;color:#596575;margin:6px 0 10px}
+.salvar-card{width:min(460px,92vw)}.nome-convocacao-input{width:100%;box-sizing:border-box;padding:9px;margin:8px 0;border:1px solid #aeb9c7;border-radius:4px}.salvar-card select{width:100%;box-sizing:border-box;padding:6px;margin-bottom:14px}
+/* Pop-ups de salvar/carregar/excluir acima do campo da convocação */
+#salvar-convocacao-modal,#carregar-convocacao-modal,#excluir-convocacao-modal{z-index:15000!important}
+.calc-altura-card{background:#fff;width:min(380px,92vw);padding:18px;border-radius:10px;box-shadow:0 8px 30px #0008}.calc-altura-card h3{margin:0 0 12px;color:#58111a}.calc-altura-card label{display:flex;justify-content:space-between;align-items:center;margin:7px 0;font-size:12px;font-weight:bold}.calc-altura-card input{width:150px;padding:6px}.calc-altura-card button{padding:8px 14px;margin:12px 5px 0 0;border:0;border-radius:5px;background:#0984e3;color:#fff;cursor:pointer}.calc-altura-card button:last-child{background:#777}.calc-altura-card #calc-resultado{background:#eef5fb;padding:10px;margin-top:12px;line-height:1.6}
+#btn-calculadora-estatico{position:fixed;bottom:180px;right:30px;width:65px;height:65px;border-radius:50%;background:#f39c12;color:#fff;border:0;display:none;align-items:center;justify-content:center;box-shadow:0 4px 12px #0006;cursor:pointer;font-weight:bold;font-size:11px;z-index:9998;text-align:center}
+#testes-screen.active-screen #btn-calculadora-estatico{display:flex}

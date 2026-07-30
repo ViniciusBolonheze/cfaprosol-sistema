@@ -55,6 +55,7 @@ async function loadFromStorage() {
     initExcelTable();
     populateEvalSelect(); 
     ensureTestAddButton();
+    ensureCalculadoraButton();
     ensureGruposButton(); // Inicializa o novo botão flutuante
     ensureConvocacaoModalDom();
     ensurePrintStyles();
@@ -167,6 +168,8 @@ function navigateTo(screenId, event) {
         fichasTreinoScreen.style.display = 'none';
     }
 
+    const fabCalc = document.getElementById('btn-calculadora-fab');
+    if (fabCalc) fabCalc.style.display = (screenId === 'testes') ? 'flex' : 'none';
     const fabAdd = document.getElementById('btn-add-athlete-pf-fab');
     const fabGrupos = document.getElementById('btn-grupos-pf-fab');
     if (fabAdd) fabAdd.style.display = (screenId === 'testes') ? 'flex' : 'none';
@@ -454,6 +457,10 @@ function switchPfTab(tabName, eventObj) {
     renderPfTable();
 }
 
+function ensureCalculadoraButton(){let b=document.getElementById('btn-calculadora-fab');if(!b){b=document.createElement('div');b.id='btn-calculadora-fab';b.textContent='Calculadora';b.style.cssText='position:fixed;bottom:180px;right:30px;width:65px;height:65px;border-radius:50%;background:#f39c12;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 4px 12px #0006;cursor:pointer;font-weight:bold;font-size:11px;z-index:9999;text-align:center';b.onclick=abrirCalculadoraAltura;document.body.appendChild(b);}}
+function abrirCalculadoraAltura(){let m=document.getElementById('calculadora-altura-modal');if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='calculadora-altura-modal';document.body.appendChild(m)}m.innerHTML='<div class="calc-altura-card"><h3>Calculadora de Altura Predita</h3><label>Peso (kg)<input id="calc-peso" type="number" step="0.1"></label><label>Altura (m)<input id="calc-altura" type="number" step="0.01"></label><label>Data de nascimento<input id="calc-nasc" type="date"></label><label>Data da avaliação<input id="calc-aval" type="date"></label><label>Altura sentado (cm)<input id="calc-sentado" type="number" step="0.1"></label><div id="calc-resultado">Preencha os dados para calcular.</div><button onclick="calcularAlturaCalculadora()">Calcular</button><button onclick="document.getElementById(\'calculadora-altura-modal\').style.display=\'none\'">Fechar</button></div>';m.style.display='flex';document.getElementById('calc-aval').value=new Date().toISOString().slice(0,10)}
+function calcularAlturaCalculadora(){const p=parseFloat(document.getElementById('calc-peso').value),h=parseFloat(document.getElementById('calc-altura').value),s=parseFloat(document.getElementById('calc-sentado').value),n=new Date(document.getElementById('calc-nasc').value),a=new Date(document.getElementById('calc-aval').value);if(!p||!h||!s||isNaN(n)||isNaN(a))return alert('Preencha todos os campos.');const idade=(a-n)/86400000/365;const r=alturaPreditaCalculada(idade,p,h,s);document.getElementById('calc-resultado').innerHTML=`MO: ${r.mo.toFixed(2).replace('.',',')}<br>Categoria: ${r.categoria.toUpperCase()}<br><strong>Altura predita: ${(Math.floor(r.valor)/100).toFixed(2).replace('.',',')} m</strong>`}
+
 function ensureTestAddButton() {
     let fab = document.getElementById('btn-add-athlete-pf-fab');
     if (!fab) {
@@ -535,6 +542,18 @@ function calcularIdadeAvaliacao(nascimento, avaliacao) {
     if (!nasc || !aval) return '-';
     return ((aval - nasc) / 86400000 / 365).toFixed(1).replace('.', ',');
 }
+const tabelaAlturaCrescer = {
+ tardio:[[-2,25.77],[-1.8,25.77],[-1.6,23.74],[-1.4,23.74],[-1.2,22.63],[-1,20.22],[-.8,19.06],[-.6,17.68],[-.4,16.31],[-.2,14.76],[0,13.05],[.2,11.32],[.4,9.71],[.6,8.27],[.8,6.94],[1,5.7],[1.2,4.54],[1.4,3.51],[1.6,2.64],[1.8,1.82],[2,1.35],[2.2,.91],[2.4,.58],[2.6,.32],[2.8,.13],[3,0]],
+ medio:[[-2,30.06],[-1.8,29.03],[-1.6,27.95],[-1.4,26.83],[-1.2,25.63],[-1,24.33],[-.8,22.99],[-.6,21.51],[-.4,19.88],[-.2,18.09],[0,16.16],[.2,14.12],[.4,12.35],[.6,10.65],[.8,9.12],[1,7.79],[1.2,6.59],[1.4,5.58],[1.6,4.62],[1.8,3.8],[2,3.08],[2.2,2.48],[2.4,1.96],[2.6,1.52],[2.8,1.16],[3,.87]],
+ cedo:[[-2,33.8],[-1.8,32.62],[-1.6,31.44],[-1.4,30.23],[-1.2,29.05],[-1,27.66],[-.8,26.24],[-.6,24.68],[-.4,22.96],[-.2,21.07],[0,19.04],[.2,16.96],[.4,14.92],[.6,13.01],[.8,11.26],[1,9.7],[1.2,8.33],[1.4,7.11],[1.6,6.04],[1.8,5.1],[2,4.26],[2.2,3.52],[2.4,2.86],[2.6,2.29],[2.8,1.78],[3,1.34]]
+};
+function alturaPreditaCalculada(idade,peso,alturaM,sentadoCm){
+ const alturaCm=alturaM*100, pernas=alturaCm-sentadoCm;
+ const mo=-9.236+(0.0002708*pernas*sentadoCm)-(0.001663*idade*pernas)+(0.007216*idade*sentadoCm)+(0.02292*(peso/alturaCm));
+ const maturidade=idade-mo; const categoria=maturidade<=13?'cedo':maturidade<=14.9?'medio':'tardio'; const tabela=tabelaAlturaCrescer[categoria];
+ let a=tabela[0],b=tabela[tabela.length-1]; for(let i=1;i<tabela.length;i++){if(mo<=tabela[i][0]){a=tabela[i-1];b=tabela[i];break;}}
+ const crescer=a[1]+(mo-a[0])*(b[1]-a[1])/(b[0]-a[0]); return {mo,maturidade,categoria,valor:alturaCm+crescer};
+}
 function renderTabelaAntropometrica(evalNum, selectedYear, headerRow, tbody) {
     const colunas = [
         ['Ano','ano'], ['NOME COMPLETO','nome'], ['DATA NASCIMENTO','nascimento'],
@@ -554,7 +573,7 @@ function renderTabelaAntropometrica(evalNum, selectedYear, headerRow, tbody) {
         const gorduraTexto=(gordura*100).toFixed(2).replace('.',',')+'%';
         const gorduraKey='PercentualGordura'+evalNum;
         if (row[gorduraKey] !== gordura) { row[gorduraKey]=gordura; }
-        const valores={ano,nome:valorColunaExata(row,'NOME COMPLETO'),nascimento,data:dataAval,idade:calcularIdadeAvaliacao(nascimento,dataAval),altura:valorAvaliacao(row,'Altura',evalNum),sentado:valorAvaliacao(row,'alturasentado',evalNum),predita:valorAvaliacao(row,'alturapredita',evalNum),peso:valorAvaliacao(row,'peso',evalNum),sbe:nums[0]||'',tri:nums[1]||'',spi:nums[2]||'',abd:nums[3]||'',soma:soma ? soma.toFixed(1).replace('.',',') : '',gordura:gorduraTexto};
+        const valores={ano,nome:valorColunaExata(row,'NOME COMPLETO'),nascimento,data:dataAval,idade:calcularIdadeAvaliacao(nascimento,dataAval),altura:valorAvaliacao(row,'Altura',evalNum),sentado:valorAvaliacao(row,'alturasentado',evalNum),predita:(()=>{const r=alturaPreditaCalculada(calcularIdadeAvaliacao(nascimento,dataAval).replace(',','.'),parseFloat(String(valorAvaliacao(row,'peso',evalNum)).replace(',','.'))||0,parseFloat(String(valorAvaliacao(row,'Altura',evalNum)).replace(',','.'))||0,parseFloat(String(valorAvaliacao(row,'alturasentado',evalNum)).replace(',','.'))||0);return r.valor?(Math.floor(r.valor)/100).toFixed(2).replace('.',',')+' m':'-'})(),peso:valorAvaliacao(row,'peso',evalNum),sbe:nums[0]||'',tri:nums[1]||'',spi:nums[2]||'',abd:nums[3]||'',soma:soma ? soma.toFixed(1).replace('.',',') : '',gordura:gorduraTexto};
         const tr=document.createElement('tr');
         colunas.forEach((c,i)=>{const td=document.createElement('td'), key=c[1], fixed=['idade','predita','soma','gordura'].includes(key); if(key==='ano'||key==='nome'||key==='nascimento'){td.textContent=valores[key];td.style.background='#f4f6f7';}else if(fixed){td.textContent=valores[key];td.style.background='#e8f5e9';td.style.fontWeight='bold';}else{const input=document.createElement('input');input.type='text';input.value=valores[key];input.onchange=e=>{let base={data:'Data',altura:'Altura',sentado:'alturasentado',peso:'peso',sbe:'Dobras1_',tri:'Dobras2_',spi:'Dobras3_',abd:'Dobras4_'}[key];if(base){const k=base+evalNum;excelData[rowIndex][k]=e.target.value;saveToStorage();renderPfTable();}};td.appendChild(input);}tr.appendChild(td);}); tbody.appendChild(tr);
     });
@@ -1721,7 +1740,7 @@ function ensureConvocacaoModalDom() {
                 </div>
                 <div style="background: #f1f1f1; padding: 15px 20px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; gap: 10px;">
-                        <button onclick="carregarConvocacaoSalva()" style="padding: 8px 15px; border: 1px solid #b2bec3; background: #fff; border-radius: 4px; cursor: pointer; font-weight: 600;">Carregar Convocacões</button>
+                        <button onclick="carregarConvocacaoSalva()" style="padding: 8px 15px; border: 1px solid #b2bec3; background: #fff; border-radius: 4px; cursor: pointer; font-weight: 600;">Carregar Convocações</button><button onclick="abrirExcluirConvocacaoModal()" style="padding: 8px 15px; border: 1px solid #d32f2f; background: #fff; color: #b30000; border-radius: 4px; cursor: pointer; font-weight: 600;">Excluir Convocação</button>
                         <button onclick="limparConvocacao()" style="padding: 8px 15px; border: 1px solid #b2bec3; background: #fff; border-radius: 4px; cursor: pointer; font-weight: 600;">Limpar Convocação</button>
                         <button onclick="excluirAtletasSelecionadosConvocacao()" style="padding: 8px 15px; border: 1px solid #d32f2f; background: #ff5252; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">Excluir Atletas Selecionados</button>
                     </div>
@@ -1836,7 +1855,7 @@ function abrirEscalacaoConvocacao() {
         const ordem = ordemPosicoes.findIndex(p => posicao.includes(p));
         return { index, nome: nomeKey && row[nomeKey] ? row[nomeKey] : 'Sem Nome', ordem: ordem < 0 ? 99 : ordem };
     }).sort((a,b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, 'pt-BR'));
-    modal.innerHTML = `<div class="escalacao-card"><div class="escalacao-header"><span>ESCALAÇÃO DA CONVOCAÇÃO</span><button onclick="fecharEscalacaoConvocacao()">×</button></div><p class="escalacao-help">Defina o número e indique se cada atleta é titular ou reserva.</p><div class="escalacao-list">${atletas.map((a,i) => { const v=salvo[a.index]||{}; return `<div class="escalacao-row posicao-${a.ordem}"><span class="escalacao-name">${a.nome}</span><input class="escalacao-numero" data-index="${a.index}" value="${v.numero||''}" placeholder="#" type="number" min="1" max="99"><label><input type="radio" name="status-${a.index}" value="titular" ${v.status!=='reserva'?'checked':''}> Titular</label><label><input type="radio" name="status-${a.index}" value="reserva" ${v.status==='reserva'?'checked':''}> Reserva</label></div>`; }).join('')}</div><div class="escalacao-footer"><span id="escalacao-status"></span><button class="escalacao-save" onclick="salvarEscalacaoConvocacao()">Salvar escalação</button><button class="escalacao-field" onclick="salvarEscalacaoConvocacao(); abrirCampoConvocacao()">Confirmar e abrir campo</button></div></div>`;
+    modal.innerHTML = `<div class="escalacao-card"><div class="escalacao-header"><span>ESCALAÇÃO DA CONVOCAÇÃO</span><button onclick="fecharEscalacaoConvocacao()">×</button></div><p class="escalacao-help">Defina o número e indique se cada atleta é titular ou reserva.</p><div class="escalacao-list">${atletas.map((a,i) => { const v=salvo[a.index]||{}; return `<div class="escalacao-row posicao-${a.ordem}"><span class="escalacao-name">${a.nome}</span><input class="escalacao-numero" data-index="${a.index}" value="${v.numero||''}" placeholder="#" type="number" min="1" max="99"><label><input type="radio" name="status-${a.index}" value="titular" ${v.status!=='reserva'?'checked':''}> Titular</label><label><input type="radio" name="status-${a.index}" value="reserva" ${v.status==='reserva'?'checked':''}> Reserva</label></div>`; }).join('')}</div><div class="escalacao-footer"><span id="escalacao-status"></span><button class="escalacao-field" onclick="salvarEscalacaoConvocacao(); abrirCampoConvocacao()">Confirmar e abrir campo</button></div></div>`;
     modal.style.display = 'flex';
     atualizarStatusEscalacao();
 }
@@ -1854,10 +1873,12 @@ function salvarEscalacaoConvocacao() {
     alert('Escalação salva com sucesso!');
 }
 function fecharEscalacaoConvocacao(){const m=document.getElementById('escalacao-convocacao-modal');if(m)m.style.display='none';}
-function carregarConvocacaoSalva() {
-    const saved = localStorage.getItem(STORAGE_CONVOCACAO_KEY);
-    if (saved) { try { selectedConvocados = new Set(JSON.parse(saved)); renderConvocacaoLists(); alert('Convocação carregada!'); } catch(e) { alert('Erro ao carregar.'); } } 
-    else { alert('Nenhuma convocação salva encontrada.'); }
+async function carregarConvocacaoSalva(){
+ const {data,error}=await _supabase.from('convocacoes').select('nome,dados').order('nome');
+ if(error){alert('Erro ao carregar convocações.');return;} if(!data||!data.length){alert('Nenhuma convocação salva.');return;}
+ let m=document.getElementById('carregar-convocacao-modal');if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='carregar-convocacao-modal';document.body.appendChild(m);}
+ m.innerHTML=`<div class="excluir-card"><h3>Carregar convocação</h3><p>Selecione uma convocação salva:</p><select id="convocacao-para-carregar" size="9">${data.map(x=>`<option value="${x.nome.replace(/"/g,'&quot;')}">${x.nome}</option>`).join('')}</select><div><button class="carregar-btn" onclick="confirmarCarregamentoConvocacao()">Carregar</button><button onclick="document.getElementById('carregar-convocacao-modal').style.display='none'">Cancelar</button></div></div>`;
+ m.style.display='flex';
 }
 function excluirAtletasSelecionadosConvocacao() {
     if (selectedConvocados.size === 0) { alert('Nenhum atleta selecionado.'); return; }
@@ -2110,8 +2131,12 @@ function abrirCampoConvocacao(){
  const titulares=Object.keys(salvo).filter(i=>salvo[i].status!=='reserva').map(i=>{const r=excelData[i]||{};const nk=Object.keys(r).find(k=>k.toLowerCase().includes('apelido'))||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));const pk=Object.keys(r).find(k=>k.toLowerCase().includes('posição')||k.toLowerCase().includes('posicao'));const pos=String(pk?r[pk]:'').toLowerCase();const dataKey=Object.keys(r).find(k=>k.toLowerCase().includes('nascimento')); const nascimento=dataKey?convertExcelDate(r[dataKey]):''; return {nome:nk&&r[nk]||'Sem Nome',num:salvo[i].numero||'',pos,nascimento};});
  const ordem=['goleiro','zagueiro','lateral','volante','meia','atacante','extremo'];titulares.sort((a,b)=>ordem.findIndex(x=>a.pos.includes(x))-ordem.findIndex(x=>b.pos.includes(x)));
  const reservas=Object.keys(salvo).filter(i=>salvo[i].status==='reserva').sort((a,b)=>(Number(salvo[a].numero)||999)-(Number(salvo[b].numero)||999));
- modal.innerHTML=`<div class="campo-card"><div class="campo-top"><b>CONVOCAÇÃO — ESCALAÇÃO</b><button onclick="fecharCampoConvocacao()">×</button></div><div class="campo-layout"><aside><h3>SUPLENTES</h3><div class="campo-reservas">${reservas.map(i=>{const r=excelData[i]||{};const nk=Object.keys(r).find(k=>k.toLowerCase().includes('apelido'))||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));const dataKey=Object.keys(r).find(k=>k.toLowerCase().includes('nascimento')); const nascimento=dataKey?convertExcelDate(r[dataKey]):''; return `<div class="reserva-item"><span>${salvo[i].numero||''} - ${nk&&r[nk]||'Sem Nome'}</span><span class="reserva-data">${nascimento}</span></div>`}).join('')}</div><h3>COMISSÃO TÉCNICA</h3><label class="comissao-label">Técnico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Aux. Técnico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Prep. Físico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Trein. Goleiros:<input class="campo-edit" placeholder=""></label></aside><main><div class="campo-futebol"><div class="linha-meio"></div><div class="circulo-meio"></div>${titulares.map((a,i)=>`<div class="jogador-campo" style="left:${posicaoInicialCampo(a.num,i)[0]}%;top:${posicaoInicialCampo(a.num,i)[1]}%" data-x=""><img src="${a.pos.includes('goleiro')?'camiseta_goleiro.png':'camiseta_linha.png'}"><span>${a.num} ${a.nome}<small>${a.nascimento}</small></span></div>`).join('')}</div><div class="campo-detalhes"><div class="campo-faixa"><input placeholder="Horário"><span> - </span><input placeholder="Local"><span> - </span><input placeholder="Data"></div><div class="campo-info-jogo"><div class="campo-adversario"><img src="logo.png"><b>×</b><input placeholder="Nome do adversário"></div><div class="campo-horarios"><label>Apresentação: <input placeholder=""></label><label>Preleção: <input placeholder=""></label><label>Aquecimento: <input placeholder=""></label></div></div></div></main></div></div>`;
- modal.style.display='flex';modal.querySelectorAll('.jogador-campo').forEach(makeCampoDraggable);
+ modal.innerHTML=`<div class="campo-card"><div class="campo-top"><b>CONVOCAÇÃO — ESCALAÇÃO</b><div class="campo-acoes"><button onclick="salvarConvocacaoNuvem()">💾 Salvar Convocação</button><button onclick="imprimirConvocacaoCampo()">🖨 Imprimir</button><button onclick="exportarConvocacaoPDF()">📄 Exportar PDF</button><button onclick="fecharCampoConvocacao()">×</button></div></div><div class="campo-layout"><aside><h3>SUPLENTES</h3><div class="campo-reservas">${reservas.map(i=>{const r=excelData[i]||{};const nk=Object.keys(r).find(k=>k.toLowerCase().includes('apelido'))||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));const dataKey=Object.keys(r).find(k=>k.toLowerCase().includes('nascimento')); const nascimento=dataKey?convertExcelDate(r[dataKey]):''; return `<div class="reserva-item"><span>${salvo[i].numero||''} - ${nk&&r[nk]||'Sem Nome'}</span><span class="reserva-data">${nascimento}</span></div>`}).join('')}</div><h3>COMISSÃO TÉCNICA</h3><label class="comissao-label">Técnico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Aux. Técnico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Prep. Físico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Trein. Goleiros:<input class="campo-edit" placeholder=""></label></aside><main><div class="campo-futebol"><div class="linha-meio"></div><div class="circulo-meio"></div>${titulares.map((a,i)=>`<div class="jogador-campo" style="left:${posicaoInicialCampo(a.num,i)[0]}%;top:${posicaoInicialCampo(a.num,i)[1]}%" data-x=""><img src="${a.pos.includes('goleiro')?'camiseta_goleiro.png':'camiseta_linha.png'}"><span>${a.num} ${a.nome}<small>${a.nascimento}</small></span></div>`).join('')}</div><div class="campo-detalhes"><div class="campo-faixa"><input placeholder="Horário"><span> - </span><input placeholder="Local"><span> - </span><input placeholder="Data"></div><div class="campo-info-jogo"><div class="campo-adversario"><img src="logo.png"><b>×</b><input placeholder="Nome do adversário"></div><div class="campo-horarios"><label>Apresentação: <input placeholder=""></label><label>Preleção: <input placeholder=""></label><label>Aquecimento: <input placeholder=""></label></div></div></div></main></div></div>`;
+ modal.style.display='flex';
+ const carregada=window.__convocacaoCarregada;if(carregada){const faixa=[...modal.querySelectorAll('.campo-faixa input')];[carregada.horario,carregada.local,carregada.data].forEach((v,i)=>{if(faixa[i])faixa[i].value=v||''});const adv=modal.querySelector('.campo-adversario input');if(adv)adv.value=carregada.adversario||'';const hs=[...modal.querySelectorAll('.campo-horarios input')];[carregada.apresentacao,carregada.prelecao,carregada.aquecimento].forEach((v,i)=>{if(hs[i])hs[i].value=v||''});const cs=[...modal.querySelectorAll('.comissao-label input')];(carregada.comissao||[]).forEach((v,i)=>{if(cs[i])cs[i].value=v});
+  const ps=carregada.jogadores||[];modal.querySelectorAll('.jogador-campo').forEach(el=>{const t=el.querySelector('span')?.innerText||'';const p=ps.find(x=>x.texto===t);if(p){el.style.left=p.left;el.style.top=p.top}});
+ }
+ modal.querySelectorAll('.jogador-campo').forEach(makeCampoDraggable);
 }
 function makeCampoDraggable(el){
  let dragging=false,dx=0,dy=0;
@@ -2121,3 +2146,42 @@ function makeCampoDraggable(el){
  el.addEventListener('pointercancel',()=>{dragging=false;el.classList.remove('arrastando');});
 }
 function fecharCampoConvocacao(){const m=document.getElementById('campo-convocacao-modal');if(m)m.style.display='none';}
+
+/* Impressão e PDF exclusivos da convocação */
+function imprimirConvocacaoCampo(){
+ const modal=document.getElementById('campo-convocacao-modal');if(!modal)return;
+ document.body.classList.add('imprimindo-campo');
+ const limpar=()=>{document.body.classList.remove('imprimindo-campo');window.removeEventListener('afterprint',limpar)};
+ window.addEventListener('afterprint',limpar);window.print();setTimeout(limpar,1500);
+}
+
+async function salvarConvocacaoNuvem(){
+ const {data,error}=await _supabase.from('convocacoes').select('nome').order('nome');
+ if(error){alert('Erro ao consultar convocações.');return;}
+ let m=document.getElementById('salvar-convocacao-modal');if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='salvar-convocacao-modal';document.body.appendChild(m);}
+ m.innerHTML=`<div class="excluir-card salvar-card"><h3>Salvar convocação</h3><p>Digite um nome novo ou selecione uma convocação para substituir.</p><input id="nome-nova-convocacao" class="nome-convocacao-input" placeholder="Nome da convocação"><select id="convocacao-para-substituir" size="7"><option value="">— Nova convocação —</option>${(data||[]).map(x=>`<option value="${x.nome.replace(/"/g,'&quot;')}">${x.nome}</option>`).join('')}</select><div><button class="carregar-btn" onclick="confirmarSalvarConvocacao()">Salvar</button><button onclick="document.getElementById('salvar-convocacao-modal').style.display='none'">Cancelar</button></div></div>`;
+ m.querySelector('#convocacao-para-substituir').onchange=e=>{if(e.target.value)m.querySelector('#nome-nova-convocacao').value=e.target.value;};m.style.display='flex';
+}
+async function confirmarSalvarConvocacao(){
+ const nome=document.getElementById('nome-nova-convocacao')?.value.trim();if(!nome)return alert('Digite ou selecione um nome.');
+ const salvo=JSON.parse(localStorage.getItem('prosol_cfa_escalacao_v1')||'{}');const faixa=[...document.querySelectorAll('#campo-convocacao-modal .campo-faixa input')].map(x=>x.value);const horarios=[...document.querySelectorAll('#campo-convocacao-modal .campo-horarios input')].map(x=>x.value);const comissao=[...document.querySelectorAll('#campo-convocacao-modal .comissao-label input')].map(x=>x.value);const jogadores=[...document.querySelectorAll('#campo-convocacao-modal .jogador-campo')].map(el=>({texto:el.querySelector('span')?.innerText||'',left:el.style.left,top:el.style.top}));const anos=[...document.querySelectorAll('.conv-year-chk:checked')].map(x=>x.value);
+ const dados={nome,anos,selecionados:[...selectedConvocados],escalacao:salvo,jogadores,comissao,horario:faixa[0]||'',local:faixa[1]||'',data:faixa[2]||'',adversario:document.querySelector('#campo-convocacao-modal .campo-adversario input')?.value||'',apresentacao:horarios[0]||'',prelecao:horarios[1]||'',aquecimento:horarios[2]||''};
+ const {error}=await _supabase.from('convocacoes').upsert({nome,dados,atualizado_em:new Date().toISOString()},{onConflict:'nome'});if(error){alert('Erro ao salvar convocação.');console.error(error);return;}document.getElementById('salvar-convocacao-modal').style.display='none';alert('Convocação salva com sucesso!');
+}
+
+
+async function confirmarCarregamentoConvocacao(){
+ const select=document.getElementById('convocacao-para-carregar');if(!select||!select.value)return alert('Selecione uma convocação.');
+ const {data,error}=await _supabase.from('convocacoes').select('nome,dados').eq('nome',select.value).single();
+ if(error||!data){alert('Não foi possível carregar a convocação.');return;}
+ const d=data.dados||{};window.__convocacaoCarregada=d;selectedConvocados=new Set(d.selecionados||[]);localStorage.setItem(STORAGE_CONVOCACAO_KEY,JSON.stringify([...selectedConvocados]));localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(d.escalacao||{}));
+ document.querySelectorAll('.conv-year-chk').forEach(c=>c.checked=(d.anos||[]).includes(c.value));renderConvocacaoLists();document.getElementById('carregar-convocacao-modal').style.display='none';abrirEscalacaoConvocacao();
+}
+
+async function abrirExcluirConvocacaoModal(){
+ const {data,error}=await _supabase.from('convocacoes').select('nome').order('nome');
+ if(error){alert('Erro ao consultar convocações.');return;} if(!data||!data.length){alert('Nenhuma convocação salva.');return;}
+ let m=document.getElementById('excluir-convocacao-modal');if(!m){m=document.createElement('div');m.id='excluir-convocacao-modal';m.className='escalacao-overlay';document.body.appendChild(m);}
+ m.innerHTML=`<div class="excluir-card"><h3>Excluir convocação</h3><select id="convocacao-para-excluir" size="8">${data.map(x=>`<option value="${x.nome.replace(/"/g,'&quot;')}">${x.nome}</option>`).join('')}</select><div><button onclick="excluirConvocacaoSelecionada()">Excluir</button><button onclick="document.getElementById('excluir-convocacao-modal').style.display='none'">Cancelar</button></div></div>`;m.style.display='flex';
+}
+async function excluirConvocacaoSelecionada(){const s=document.getElementById('convocacao-para-excluir');if(!s||!s.value)return alert('Selecione uma convocação.');if(!confirm('Excluir '+s.value+' permanentemente?'))return;const {error}=await _supabase.from('convocacoes').delete().eq('nome',s.value);if(error){alert('Erro ao excluir.');return;}document.getElementById('excluir-convocacao-modal').style.display='none';alert('Convocação excluída.');}
