@@ -152,7 +152,20 @@ function navigateTo(screenId, event) {
     if (screenId === 'convocacao') { openConvocacaoModal(); return; }
 
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active-screen'));
+    document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active-screen');
+        // O GERAR FICHAS coloca display:none inline em todas as telas.
+        // Limpamos esse estilo para que a classe active-screen volte a funcionar.
+        screen.style.display = '';
+    });
+
+    // A tela de fichas é exibida com display inline pelo GERAR FICHAS.
+    // Ao navegar pelo menu, ela precisa ser escondida explicitamente;
+    // caso contrário, permanece sobre as outras telas e bloqueia os cliques.
+    const fichasTreinoScreen = document.getElementById('fichas-treino-screen');
+    if (fichasTreinoScreen) {
+        fichasTreinoScreen.style.display = 'none';
+    }
 
     const fabAdd = document.getElementById('btn-add-athlete-pf-fab');
     const fabGrupos = document.getElementById('btn-grupos-pf-fab');
@@ -176,7 +189,13 @@ function navigateTo(screenId, event) {
         document.getElementById('grupos-screen').classList.add('active-screen');
         renderGruposScreen();
     } else {
-        document.getElementById('generic-screen').classList.add('active-screen');
+        if (screenId === 'prancheta') {
+            openPranchetaModal();
+            return;
+        }
+        const genericScreen = document.getElementById('generic-screen');
+        genericScreen.style.display = 'flex';
+        genericScreen.classList.add('active-screen');
         const titles = { 'prancheta': 'Prancheta Tática Virtual', 'relatorios': 'Relatórios de Desempenho', 'jogos': 'Controle de Jogos' };
         document.getElementById('generic-title').innerText = titles[screenId] || 'Módulo em Desenvolvimento';
         if (event && event.target && event.target.classList.contains('nav-btn')) event.target.classList.add('active');
@@ -496,11 +515,58 @@ function deleteCurrentEvaluation() {
     }
 }
 
+function valorColunaExata(row, nome) {
+    const chave = Object.keys(row).find(k => k.toLowerCase() === nome.toLowerCase());
+    return chave ? row[chave] : '';
+}
+function valorAvaliacao(row, base, evalNum) {
+    const nomes = [base + evalNum, base + '_' + evalNum];
+    const chave = Object.keys(row).find(k => nomes.some(n => k.toLowerCase() === n.toLowerCase()));
+    return chave ? row[chave] : '';
+}
+function calcularIdadeAvaliacao(nascimento, avaliacao) {
+    const parseData = v => {
+        if (!v) return null;
+        const m = String(v).match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+        if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+        const d = new Date(v); return isNaN(d) ? null : d;
+    };
+    const nasc = parseData(nascimento), aval = parseData(avaliacao);
+    if (!nasc || !aval) return '-';
+    return ((aval - nasc) / 86400000 / 365).toFixed(1).replace('.', ',');
+}
+function renderTabelaAntropometrica(evalNum, selectedYear, headerRow, tbody) {
+    const colunas = [
+        ['Ano','ano'], ['NOME COMPLETO','nome'], ['DATA NASCIMENTO','nascimento'],
+        ['DATA AVALIAÇÃO','data'], ['IDADE','idade'], ['ALTURA','altura'],
+        ['ALT. SENTADO','sentado'], ['ALTURA PREDITA','predita'], ['PESO','peso'],
+        ['SBE','sbe'], ['TRI','tri'], ['SPI','spi'], ['ABD','abd'],
+        ['SOMA DOBRAS','soma'], ['% DE GORDURA','gordura']
+    ];
+    colunas.forEach(c => { const th=document.createElement('th'); th.textContent=c[0]; if(c[1]==='predita'||c[1]==='idade'||c[1]==='soma'||c[1]==='gordura') th.style.color='#168a32'; headerRow.appendChild(th); });
+    excelData.forEach((row,rowIndex)=>{
+        const ano=String(valorColunaExata(row,'Ano')||'').trim(); if(selectedYear!=='todos'&&ano!==selectedYear)return;
+        const nascimento=convertExcelDate(valorColunaExata(row,'Data de nascimento'));
+        const dataAval=convertExcelDate(valorAvaliacao(row,'Data',evalNum));
+        const nums=['Dobras1_','Dobras2_','Dobras3_','Dobras4_'].map(b=>parseFloat(String(valorAvaliacao(row,b,evalNum)).replace(',','.'))||0);
+        const soma=nums.reduce((a,b)=>a+b,0);
+        const gordura=((soma*0.153+5.783)/100);
+        const gorduraTexto=(gordura*100).toFixed(2).replace('.',',')+'%';
+        const gorduraKey='PercentualGordura'+evalNum;
+        if (row[gorduraKey] !== gordura) { row[gorduraKey]=gordura; }
+        const valores={ano,nome:valorColunaExata(row,'NOME COMPLETO'),nascimento,data:dataAval,idade:calcularIdadeAvaliacao(nascimento,dataAval),altura:valorAvaliacao(row,'Altura',evalNum),sentado:valorAvaliacao(row,'alturasentado',evalNum),predita:valorAvaliacao(row,'alturapredita',evalNum),peso:valorAvaliacao(row,'peso',evalNum),sbe:nums[0]||'',tri:nums[1]||'',spi:nums[2]||'',abd:nums[3]||'',soma:soma ? soma.toFixed(1).replace('.',',') : '',gordura:gorduraTexto};
+        const tr=document.createElement('tr');
+        colunas.forEach((c,i)=>{const td=document.createElement('td'), key=c[1], fixed=['idade','predita','soma','gordura'].includes(key); if(key==='ano'||key==='nome'||key==='nascimento'){td.textContent=valores[key];td.style.background='#f4f6f7';}else if(fixed){td.textContent=valores[key];td.style.background='#e8f5e9';td.style.fontWeight='bold';}else{const input=document.createElement('input');input.type='text';input.value=valores[key];input.onchange=e=>{let base={data:'Data',altura:'Altura',sentado:'alturasentado',peso:'peso',sbe:'Dobras1_',tri:'Dobras2_',spi:'Dobras3_',abd:'Dobras4_'}[key];if(base){const k=base+evalNum;excelData[rowIndex][k]=e.target.value;saveToStorage();renderPfTable();}};td.appendChild(input);}tr.appendChild(td);}); tbody.appendChild(tr);
+    });
+    saveToStorage();
+}
+
 function renderPfTable() {
     const headerRow = document.getElementById('pf-header-row'); const tbody = document.getElementById('pf-tbody');
     if (!headerRow || !tbody) return; headerRow.innerHTML = ''; tbody.innerHTML = '';
     const evalNum = document.getElementById('pf-eval-select') ? document.getElementById('pf-eval-select').value : '1';
     const selectedYear = document.getElementById('pf-year-select') ? document.getElementById('pf-year-select').value : 'todos';
+    if (currentPfTab === 'antropometricas') { renderTabelaAntropometrica(evalNum, selectedYear, headerRow, tbody); return; }
 
     let baseCols = [];
     if (currentPfTab === 'antropometricas') baseCols = ['Altura', 'alturapredita', 'alturasentado', 'peso', 'Dobras1_', 'Dobras2_', 'Dobras3_', 'Dobras4_'];
@@ -1954,4 +2020,43 @@ function imprimirFichasTreino() {
     </style></head><body>${paginas}</body></html>`);
     janela.document.close();
     janela.onload = () => setTimeout(() => { janela.focus(); janela.print(); }, 400);
+}
+
+/* === PRANCHETA TÁTICA VIRTUAL === */
+const sistemasTaticos = {
+ '4-3-3': [[8,50],[24,18],[24,39],[24,61],[24,82],[48,25],[48,50],[48,75],[76,18],[82,50],[76,82]],
+ '4-4-2': [[8,50],[24,18],[24,39],[24,61],[24,82],[48,15],[48,38],[48,62],[48,85],[78,38],[78,62]],
+ '4-2-3-1': [[8,50],[24,18],[24,39],[24,61],[24,82],[43,35],[43,65],[62,18],[62,50],[62,82],[82,50]],
+ '3-5-2': [[8,50],[25,28],[25,50],[25,72],[48,12],[48,32],[48,50],[48,68],[48,88],[78,38],[78,62]],
+ '3-4-3': [[8,50],[25,28],[25,50],[25,72],[48,20],[48,40],[48,60],[48,80],[78,18],[82,50],[78,82]],
+ '5-3-2': [[8,50],[24,12],[24,31],[24,50],[24,69],[24,88],[50,28],[50,50],[50,72],[80,38],[80,62]],
+ '4-1-4-1': [[8,50],[24,18],[24,39],[24,61],[24,82],[42,50],[61,15],[61,38],[61,62],[61,85],[82,50]]
+};
+function renderPranchetaVirtual() {
+ const box=document.getElementById('prancheta-content') || document.getElementById('generic-content'); if(!box)return;
+ box.innerHTML=`<div class="board-toolbar"><strong>PRANCHETA TÁTICA</strong><label>Sistema: <select id="tactical-system">${Object.keys(sistemasTaticos).map(s=>`<option>${s}</option>`).join('')}</select></label><button onclick="resetPrancheta()">Restaurar</button><button onclick="clearPrancheta()">Limpar</button><button onclick="closePranchetaModal();navigateTo('home',event)">Voltar</button></div><div class="board-wrap"><div id="football-board"><div class="half-line"></div><div class="center-circle"></div><div class="goal top"></div><div class="goal bottom"></div><div id="board-players"></div></div></div><p class="board-tip">Arraste os jogadores para montar sua estratégia. Clique duas vezes no botão para renomeá-lo.</p>`;
+ document.getElementById('tactical-system').onchange=resetPrancheta; resetPrancheta();
+}
+function resetPrancheta(){const area=document.getElementById('board-players'), sel=document.getElementById('tactical-system');if(!area||!sel)return;area.innerHTML='';(sistemasTaticos[sel.value]||[]).forEach((p,i)=>{const b=document.createElement('button');b.className='tactical-player';b.textContent=i===0?'G':String(i);b.title='Arraste para mover';b.style.left=p[0]+'%';b.style.top=p[1]+'%';makeTacticalDraggable(b);b.ondblclick=()=>{const n=prompt('Nome ou função do jogador:',b.textContent);if(n)b.textContent=n};area.appendChild(b)});}
+function clearPrancheta(){const a=document.getElementById('board-players');if(a)a.innerHTML='';}
+function makeTacticalDraggable(el){let drag=false;const move=e=>{if(!drag)return;const r=el.parentElement.getBoundingClientRect();let x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100;el.style.left=Math.max(3,Math.min(97,x))+'%';el.style.top=Math.max(3,Math.min(97,y))+'%'};el.onpointerdown=e=>{drag=true;el.setPointerCapture(e.pointerId);el.classList.add('dragging')};el.onpointermove=move;el.onpointerup=()=>{drag=false;el.classList.remove('dragging')};}
+
+
+/* Prancheta virtual em janela modal independente */
+function openPranchetaModal() {
+    let modal = document.getElementById('prancheta-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'prancheta-modal';
+        modal.className = 'prancheta-modal-overlay';
+        modal.innerHTML = '<div class="prancheta-modal-box"><div id="prancheta-content"></div></div>';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(e) { if (e.target === modal) closePranchetaModal(); });
+    }
+    modal.style.display = 'flex';
+    renderPranchetaVirtual();
+}
+function closePranchetaModal() {
+    const modal = document.getElementById('prancheta-modal');
+    if (modal) modal.style.display = 'none';
 }
