@@ -1181,3 +1181,133 @@ body {
 .prancheta-modal-box .board-toolbar{border-radius:8px 8px 0 0}
 .prancheta-modal-box .board-wrap{padding:18px}
 .prancheta-modal-box .board-tip{margin-bottom:0}
+
+/* Escalação da convocação */
+.escalacao-overlay{position:fixed;inset:0;background:rgba(12,18,28,.72);display:none;align-items:center;justify-content:center;z-index:12000;padding:20px}
+.escalacao-card{width:min(900px,96vw);max-height:90vh;overflow:auto;background:#f7f9fc;border-radius:12px;box-shadow:0 15px 45px #0008;border:1px solid #d9e0ea}
+.escalacao-header{display:flex;justify-content:space-between;align-items:center;background:#58111a;color:#f9c614;padding:16px 20px;font-weight:bold;font-size:18px}.escalacao-header button{background:none;border:0;color:#fff;font-size:28px;cursor:pointer}.escalacao-help{padding:12px 20px;margin:0;color:#56606d;font-size:13px}.escalacao-list{padding:0 20px 15px}.escalacao-row{display:grid;grid-template-columns:minmax(220px,1fr) 80px 105px 105px;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid #e1e6ed;background:#fff}.escalacao-row:nth-child(even){background:#f0f4f8}.escalacao-name{font-weight:bold;color:#273444}.escalacao-numero{width:70px;padding:8px;border:1px solid #aeb9c7;border-radius:5px;text-align:center}.escalacao-row label{font-size:12px;white-space:nowrap}.escalacao-footer{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#eef2f6;border-top:1px solid #d9e0ea;color:#4b5968;font-weight:bold}.escalacao-save{background:#20a65a;color:#fff;border:0;border-radius:6px;padding:10px 18px;font-weight:bold;cursor:pointer}@media(max-width:650px){.escalacao-row{grid-template-columns:1fr 65px 1fr 1fr}.escalacao-name{grid-column:1/-1}}
+
+/* Lista compacta da escalação */
+.escalacao-card{max-height:96vh}
+.escalacao-header{padding:10px 16px;font-size:15px}
+.escalacao-help{padding:7px 16px;font-size:11px}
+.escalacao-list{padding:0 16px 8px}
+.escalacao-row{grid-template-columns:minmax(180px,1fr) 58px 88px 88px;gap:6px;padding:4px 6px;font-size:11px;min-height:28px}
+.escalacao-name{font-size:11px}
+.escalacao-numero{width:54px;padding:4px;font-size:11px}
+.escalacao-row label{font-size:10px}
+.escalacao-footer{padding:8px 16px;font-size:11px}.escalacao-save{padding:7px 12px;font-size:11px}
+
+/* Identificação visual por grupo de posição na escalação */
+.escalacao-row.posicao-0,
+.escalacao-row.posicao-2,
+.escalacao-row.posicao-4,
+.escalacao-row.posicao-6 { background:#ffffff; }
+.escalacao-row.posicao-1,
+.escalacao-row.posicao-3,
+.escalacao-row.posicao-5,
+.escalacao-row.posicao-7 { background:#e5f0fb; }
+/* Atletas sem posição conhecida ficam neutros */
+.escalacao-row.posicao-99 { background:#f4f4f4; }
+.escalacao-field{background:#0984e3;color:#fff;border:0;border-radius:6px;padding:7px 12px;font-size:11px;font-weight:bold;cursor:pointer}
+.campo-overlay{position:fixed;inset:0;z-index:13000;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:12px}.campo-card{width:min(1200px,98vw);max-height:96vh;overflow:auto;background:#e7e7e7;border:2px solid #555}.campo-top{background:#58111a;color:#f9c614;padding:10px 16px;display:flex;justify-content:space-between}.campo-top button{background:none;border:0;color:white;font-size:24px}.campo-layout{display:grid;grid-template-columns:260px 1fr;gap:10px;padding:10px}.campo-layout aside{background:#ddd;border:1px solid #444;padding:10px}.campo-layout aside h3{background:#800000;color:white;text-align:center;padding:6px;font-size:12px;margin:0 0 8px}.campo-reservas div{background:white;border:1px solid #aaa;padding:4px;font-size:11px}.campo-edit,.campo-detalhes input{display:block;width:100%;padding:7px;margin:6px 0;border:1px solid #999}.campo-futebol{position:relative;aspect-ratio:1.7;background:repeating-linear-gradient(90deg,#386800 0,#386800 8%,#477b00 8%,#477b00 16%);border:3px solid white;overflow:hidden}.linha-meio{position:absolute;top:50%;left:0;right:0;border-top:2px solid #ddd}.circulo-meio{position:absolute;width:22%;aspect-ratio:1;left:39%;top:39%;border:2px solid #ddd;border-radius:50%}.jogador-campo{position:absolute;transform:translate(-50%,-50%);text-align:center;color:white;font-size:11px;font-weight:bold;cursor:grab;z-index:2;touch-action:none}.jogador-campo img{width:48px;display:block;margin:auto;filter:drop-shadow(1px 2px 2px #000)}.campo-detalhes{display:flex;gap:6px}.campo-detalhes input{flex:1}
+/* Layout compacto do campo: tudo visível na mesma janela */
+.campo-overlay{padding:8px;overflow:hidden}
+.campo-card{height:94vh;max-height:94vh;width:min(1240px,98vw);overflow:hidden;display:flex;flex-direction:column}
+.campo-top{flex:0 0 auto;padding:7px 14px;font-size:14px}
+.campo-layout{flex:1;min-height:0;grid-template-columns:225px minmax(0,1fr);gap:8px;padding:8px}
+.campo-layout aside{overflow:auto;padding:7px}.campo-layout aside h3{padding:4px;margin-bottom:5px;font-size:11px}.campo-reservas div{padding:3px;font-size:10px}.campo-edit{padding:5px;margin:4px 0;font-size:11px}
+.campo-layout main{min-width:0;display:flex;flex-direction:column;min-height:0}.campo-futebol{flex:1;min-height:0;aspect-ratio:auto;width:100%}.jogador-campo{font-size:10px}.jogador-campo img{width:42px}.campo-detalhes{flex:0 0 auto}.campo-detalhes input{padding:5px;margin:4px 0;font-size:11px}
+@media(max-width:700px){.campo-layout{grid-template-columns:150px minmax(0,1fr);padding:4px}.campo-layout aside{font-size:9px}.jogador-campo img{width:32px}.jogador-campo{font-size:8px}}
+/* Base visual enviada pelo usuário */
+.campo-card{background:#fff url('BASE%20limpa%20.png') center top/100% 100% no-repeat;border:0;position:relative}
+.campo-top{background:transparent;color:#fff;position:absolute;top:8px;right:10px;z-index:10}
+.campo-layout{position:absolute;inset:0;padding:0;display:block}
+.campo-layout aside{position:absolute;left:1%;top:16%;width:27%;height:69%;background:transparent;border:0;padding:12px;overflow:auto}
+.campo-layout main{position:absolute;left:29%;top:10%;width:69%;height:66%;display:block}
+.campo-futebol{position:absolute;inset:0;background:transparent;border:0}
+.campo-layout aside h3{background:#800000;color:#fff}.campo-reservas div{background:rgba(255,255,255,.88)}
+.campo-detalhes{position:absolute;left:17%;top:79%;width:65%;display:flex;background:rgba(255,255,255,.92);padding:8px}
+.jogador-campo{user-select:none;touch-action:none}.jogador-campo span{display:block;text-shadow:1px 1px 2px #000}
+.jogador-campo.arrastando{cursor:grabbing;transform:translate(-50%,-50%) scale(1.08);z-index:20}
+/* Campos de informações posicionados abaixo do campo, nunca sobre ele */
+.campo-layout main{overflow:visible}
+.campo-detalhes{left:-18%;top:calc(100% + 10px);width:136%;height:auto;min-height:54px;z-index:5}
+.campo-detalhes input{margin:0 3px}
+/* Usa somente o campo da imagem-base; não desenha um segundo campo */
+.campo-futebol{background:transparent!important;border:0!important}
+.campo-futebol .linha-meio,.campo-futebol .circulo-meio,.campo-futebol .goal{display:none!important}
+/* O painel inferior também pertence à imagem-base */
+.campo-detalhes{background:transparent!important;border:0!important;box-shadow:none!important;padding:7px 12px!important}
+.campo-detalhes input{background:rgba(255,255,255,.92);border:1px solid #666!important}
+/* Painéis laterais totalmente visíveis, sem rolagem */
+.campo-layout aside{overflow:hidden!important;scrollbar-width:none}
+.campo-layout aside::-webkit-scrollbar{display:none}
+.campo-reservas{max-height:none!important;overflow:hidden!important}
+.campo-layout aside .campo-edit{font-size:10px;padding:4px;margin:3px 0}
+/* Painel inferior alinhado com a base da imagem */
+.campo-detalhes{top:calc(100% + 8px)!important;left:-18%!important;width:136%!important;display:grid!important;grid-template-columns:repeat(3,1fr);gap:5px;background:transparent!important;padding:6px 12px!important}
+.campo-detalhes input{height:27px;margin:0!important;font-size:10px;padding:4px 7px;background:rgba(255,255,255,.94)!important}
+/* Campos Data, Adversário e Observações dentro do retângulo branco inferior */
+.campo-detalhes{left:13%!important;top:calc(100% + 22px)!important;width:76%!important;grid-template-columns:1fr 1fr 1fr!important;padding:5px 8px!important;background:transparent!important;z-index:20}
+.campo-detalhes input{height:28px!important;background:rgba(255,255,255,.96)!important;border:1px solid #777!important}
+/* Painel inferior completo dentro do retângulo branco da base */
+.campo-layout aside{height:69%!important;font-size:10px}
+.campo-layout aside .campo-reservas div{line-height:18px;padding:1px 4px}
+.campo-layout aside h3{margin:3px 0;padding:4px}
+.campo-layout aside .campo-edit{height:22px;line-height:14px}
+.campo-detalhes{display:block!important;left:13%!important;top:calc(100% + 8px)!important;width:76%!important;padding:6px 10px!important}
+.campo-faixa{height:29px;background:#c60000;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;padding:3px 8px;gap:3px}
+.campo-faixa input{background:transparent!important;border:0!important;color:#fff!important;text-align:center;font-weight:bold;width:30%;height:22px!important}.campo-faixa input::placeholder{color:#fff;opacity:1}.campo-faixa span{color:#fff}
+.campo-info-jogo{display:flex;gap:10px;padding-top:7px;align-items:flex-start}
+.campo-adversario{display:flex;align-items:center;gap:7px;flex:1}.campo-adversario img{width:42px;height:42px;object-fit:contain}.campo-adversario b{font-size:22px}.campo-adversario input{height:30px!important;flex:1}
+.campo-horarios{width:43%;display:flex;flex-direction:column;gap:4px}.campo-horarios input{height:25px!important;margin:0!important}
+/* Alinhamento final dos painéis sobre as áreas brancas da imagem */
+.campo-layout aside{top:16%!important;height:65%!important;padding:8px!important}
+.campo-detalhes{top:calc(100% + 20px)!important}
+.campo-horarios{gap:4px}.campo-horarios label{display:flex;align-items:center;height:25px;border:1px solid #777;background:#fff;font-size:10px;padding-left:5px;white-space:nowrap}.campo-horarios label input{border:0!important;outline:0;width:100%;height:23px!important;margin-left:4px!important;background:#fff!important}
+.comissao-label{display:flex;align-items:center;background:#fff;border:1px solid #777;height:24px;padding-left:5px;font-size:10px;white-space:nowrap;margin:3px 0}.comissao-label .campo-edit{border:0!important;margin:0!important;height:21px!important;flex:1;min-width:0;background:#fff!important;padding:2px 4px!important}
+/* Garante que o quarto campo da comissão técnica fique visível */
+.campo-layout aside{height:72%!important;overflow:visible!important;padding-bottom:4px!important}
+.campo-layout aside .campo-reservas div{line-height:16px!important;height:16px!important;font-size:9px!important}
+.comissao-label{height:21px!important;line-height:17px!important;margin:2px 0!important;font-size:9px!important}
+.comissao-label .campo-edit{height:18px!important;font-size:9px!important}
+/* Tamanho legível da comissão técnica e suplentes */
+.campo-layout aside .campo-reservas div{line-height:20px!important;height:20px!important;font-size:11px!important;padding:1px 5px!important}
+.comissao-label{height:27px!important;line-height:21px!important;margin:3px 0!important;font-size:11px!important;padding-left:6px!important}
+.comissao-label .campo-edit{height:24px!important;font-size:11px!important;padding:3px 5px!important}
+.campo-layout aside h3{font-size:12px!important;padding:6px!important;margin:4px 0!important}
+/* Compactação do painel inferior para acomodar o Aquecimento */
+.campo-detalhes{top:calc(100% + 4px)!important;padding:3px 8px!important}
+.campo-faixa{height:24px!important;padding:2px 6px!important;font-size:10px!important}
+.campo-info-jogo{padding-top:4px!important;gap:7px!important}
+.campo-adversario img{width:34px!important;height:34px!important}.campo-adversario b{font-size:18px!important}.campo-adversario input{height:25px!important}
+.campo-horarios{gap:2px!important}.campo-horarios label{height:22px!important;font-size:9px!important}.campo-horarios label input{height:20px!important}
+/* Retorno ao tamanho anterior, apenas ligeiramente mais acima */
+.campo-detalhes{top:calc(100% + 16px)!important;padding:6px 10px!important}
+.campo-faixa{height:29px!important;padding:3px 8px!important;font-size:inherit!important}
+.campo-info-jogo{padding-top:7px!important;gap:10px!important}
+.campo-adversario img{width:42px!important;height:42px!important}.campo-adversario b{font-size:22px!important}.campo-adversario input{height:30px!important}
+.campo-horarios{gap:4px!important}.campo-horarios label{height:25px!important;font-size:10px!important}.campo-horarios label input{height:23px!important}
+/* Alinhamento final: faixa vermelha no início do retângulo branco */
+.campo-detalhes{top:calc(100% + 14px)!important}
+.reserva-item{display:grid!important;grid-template-columns:1fr 92px;align-items:center}.reserva-data{text-align:left;white-space:nowrap}.jogador-campo span small{display:block;font-size:10px;margin-top:3px;font-weight:normal}
+/* Aumento moderado da tipografia da escalação */
+.jogador-campo{font-size:12px!important}.jogador-campo span small{font-size:11px!important}
+.campo-faixa{font-size:12px!important}.campo-faixa input{font-size:12px!important}
+.campo-horarios label{font-size:11px!important}.campo-horarios label input{font-size:11px!important}
+.campo-adversario input{font-size:11px!important}
+/* Tipografia ampliada dos dados da partida */
+.campo-faixa{font-size:14px!important}.campo-faixa input{font-size:14px!important}
+.campo-horarios label{font-size:12px!important}.campo-horarios label input{font-size:12px!important}
+.campo-adversario input{font-size:12px!important}
+/* Alinhamento uniforme dos nomes da comissão técnica */
+.comissao-label{display:grid!important;grid-template-columns:92px minmax(0,1fr)!important;gap:3px!important;padding-left:6px!important}
+.comissao-label .campo-edit{width:100%!important;margin:0!important}
+/* Último ajuste de legibilidade */
+.campo-faixa{font-size:16px!important}.campo-faixa input{font-size:16px!important}
+.campo-horarios label{font-size:14px!important}.campo-horarios label input{font-size:14px!important}
+.campo-adversario input{font-size:14px!important}
+.campo-layout aside .campo-reservas div{font-size:12px!important;line-height:21px!important;height:21px!important}
+.comissao-label{font-size:12px!important;height:28px!important;line-height:22px!important}
+.comissao-label .campo-edit{font-size:12px!important;height:25px!important}
