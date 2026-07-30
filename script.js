@@ -1108,8 +1108,15 @@ async function salvarNoSupabase() {
         
         const atletas = Array.from(panel.querySelectorAll('.ficha-table tbody tr')).map(tr => {
             const cols = tr.querySelectorAll('td');
-            return cols.length >= 2 ? cols[1]?.textContent?.trim() : '';
-        }).filter(nome => nome !== '');
+            const index = Number(tr.dataset.globalIndex);
+            if (Number.isInteger(index) && excelData[index]) {
+                const row = excelData[index];
+                const anoKey = Object.keys(row).find(k => k.toLowerCase() === 'ano');
+                const nomeKey = Object.keys(row).find(k => k.toLowerCase().includes('apelido')) || Object.keys(row).find(k => k.toLowerCase().includes('nome'));
+                return { index, ano: anoKey ? String(row[anoKey]).trim() : '', nome: nomeKey ? String(row[nomeKey]).trim() : '' };
+            }
+            return null;
+        }).filter(atleta => atleta && atleta.nome);
 
         return { nomeGrupo, isVisivel, atletas };
     });
@@ -1188,18 +1195,25 @@ async function carregarDoSupabase() {
             }
 
             if (gData.atletas && Array.isArray(gData.atletas)) {
-                gData.atletas.forEach(nomeAtleta => {
-                    const idx = excelData.findIndex(row => {
-                        let apelido = Object.keys(row).find(k => k.toLowerCase().includes('apelido'));
-                        let nome = Object.keys(row).find(k => k.toLowerCase().includes('nome'));
-                        let valApelido = apelido && row[apelido] ? String(row[apelido]).trim() : '';
-                        let valNome = nome && row[nome] ? String(row[nome]).trim() : '';
-                        return valApelido === nomeAtleta || valNome === nomeAtleta;
-                    });
-
-                    if (idx !== -1) {
-                        gruposData[gData.nomeGrupo].push({ index: idx, manualData: {} });
+                gData.atletas.forEach(atletaSalvo => {
+                    // Formato novo: salva o índice único do atleta.
+                    // Formato antigo: continua aceitando apenas o nome.
+                    let idx = -1;
+                    if (typeof atletaSalvo === 'object' && atletaSalvo !== null && Number.isInteger(atletaSalvo.index)) {
+                        idx = atletaSalvo.index;
+                    } else {
+                        const nomeAtleta = String(atletaSalvo).trim();
+                        idx = excelData.findIndex(row => {
+                            const anoKey = Object.keys(row).find(k => k.toLowerCase() === 'ano');
+                            const apelido = Object.keys(row).find(k => k.toLowerCase().includes('apelido'));
+                            const nome = Object.keys(row).find(k => k.toLowerCase().includes('nome'));
+                            const valApelido = apelido && row[apelido] ? String(row[apelido]).trim() : '';
+                            const valNome = nome && row[nome] ? String(row[nome]).trim() : '';
+                            const valAno = anoKey ? String(row[anoKey]).trim() : '';
+                            return (valApelido === nomeAtleta || valNome === nomeAtleta) && (!atletaSalvo.ano || valAno === atletaSalvo.ano);
+                        });
                     }
+                    if (idx >= 0 && idx < excelData.length) gruposData[gData.nomeGrupo].push({ index: idx, manualData: {} });
                 });
             }
         });
@@ -1516,6 +1530,7 @@ function renderFichaGrupo() {
             const valPotencia = item.manualData.potencia !== undefined ? item.manualData.potencia : defaultStats.potencia;
 
             const tr = document.createElement('tr');
+            tr.dataset.globalIndex = item.index;
             
             const tdAction = document.createElement('td');
             tdAction.innerHTML = `<button style="background:none; border:none; color:#e53935; cursor:pointer;" onclick="removerAtletaDoGrupo('${grupoNome}', ${item.index})"><i class="fa-solid fa-trash"></i></button>`;
