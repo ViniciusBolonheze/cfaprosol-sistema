@@ -1379,3 +1379,8 @@ body {
 .calc-altura-card{background:#fff;width:min(380px,92vw);padding:18px;border-radius:10px;box-shadow:0 8px 30px #0008}.calc-altura-card h3{margin:0 0 12px;color:#58111a}.calc-altura-card label{display:flex;justify-content:space-between;align-items:center;margin:7px 0;font-size:12px;font-weight:bold}.calc-altura-card input{width:150px;padding:6px}.calc-altura-card button{padding:8px 14px;margin:12px 5px 0 0;border:0;border-radius:5px;background:#0984e3;color:#fff;cursor:pointer}.calc-altura-card button:last-child{background:#777}.calc-altura-card #calc-resultado{background:#eef5fb;padding:10px;margin-top:12px;line-height:1.6}
 #btn-calculadora-estatico{position:fixed;bottom:180px;right:30px;width:65px;height:65px;border-radius:50%;background:#f39c12;color:#fff;border:0;display:none;align-items:center;justify-content:center;box-shadow:0 4px 12px #0006;cursor:pointer;font-weight:bold;font-size:11px;z-index:9998;text-align:center}
 #testes-screen.active-screen #btn-calculadora-estatico{display:flex}
+/* Barras horizontais visíveis nas telas de Testes Físicos e Banco de Dados */
+.pf-table-wrapper,.excel-table-wrapper{overflow-x:scroll!important;overflow-y:auto!important;scrollbar-width:auto}
+.pf-table-wrapper::-webkit-scrollbar,.excel-table-wrapper::-webkit-scrollbar{height:16px;width:12px}
+.pf-table-wrapper::-webkit-scrollbar-track,.excel-table-wrapper::-webkit-scrollbar-track{background:#d8d8d8;border:1px solid #aaa}
+.pf-table-wrapper::-webkit-scrollbar-thumb,.excel-table-wrapper::-webkit-scrollbar-thumb{background:#777;border-radius:4px;border:2px solid #d8d8d8}

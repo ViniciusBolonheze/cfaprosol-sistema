@@ -40,7 +40,7 @@ let gruposData = {
 let exerciciosSalvosNaNuvem = {};
 async function loadFromStorage() {
     try {
-        const { data, error } = await _supabase.from('sistema_config').select('colunas, dados').eq('id', 1).single();
+        const { data, error } = await _supabase.from('sistema_config').select('colunas, dados').eq('chave', 'principal').single();
         if (!error && data) {
             if (data.colunas && data.colunas.length > 0) excelColumns = data.colunas;
             if (data.dados && data.dados.length > 0) excelData = data.dados;
@@ -62,12 +62,15 @@ async function loadFromStorage() {
     initGruposFilter(); // Inicializa checkboxes da aba de grupos
 }
 
+let saveQueue = Promise.resolve();
 async function saveToStorage() {
-    try {
-        await _supabase.from('sistema_config').update({
-            colunas: excelColumns, dados: excelData, atualizado_em: new Date()
-        }).eq('id', 1);
-    } catch (err) { console.error('Erro ao salvar:', err); }
+    const payload = { chave: 'principal', colunas: excelColumns, dados: excelData, atualizado_em: new Date().toISOString() };
+    saveQueue = saveQueue.then(async () => {
+        const { error } = await _supabase.from('sistema_config').upsert(payload, { onConflict: 'chave' });
+        if (error) { console.error('Erro ao salvar no Supabase:', error); alert('Não foi possível salvar os dados no banco.'); return false; }
+        return true;
+    });
+    return saveQueue;
 }
 
 document.addEventListener("DOMContentLoaded", () => { loadFromStorage(); });
@@ -572,13 +575,32 @@ function renderTabelaAntropometrica(evalNum, selectedYear, headerRow, tbody) {
         const gordura=((soma*0.153+5.783)/100);
         const gorduraTexto=(gordura*100).toFixed(2).replace('.',',')+'%';
         const gorduraKey='PercentualGordura'+evalNum;
-        if (row[gorduraKey] !== gordura) { row[gorduraKey]=gordura; }
+        const alturaPreditaKey='alturapredita'+evalNum;
+        const calculoPredita=alturaPreditaCalculada(
+            parseFloat(calcularIdadeAvaliacao(nascimento,dataAval).replace(',','.')) || 0,
+            parseFloat(String(valorAvaliacao(row,'peso',evalNum)).replace(',','.')) || 0,
+            parseFloat(String(valorAvaliacao(row,'Altura',evalNum)).replace(',','.')) || 0,
+            parseFloat(String(valorAvaliacao(row,'alturasentado',evalNum)).replace(',','.')) || 0
+        );
+        if (calculoPredita.valor) row[alturaPreditaKey]=(Math.floor(calculoPredita.valor)/100).toFixed(2);
+        row[gorduraKey]=gordura;
+        if (!excelColumns.includes(gorduraKey)) excelColumns.push(gorduraKey);
+        if (!excelColumns.includes(alturaPreditaKey)) excelColumns.push(alturaPreditaKey);
         const valores={ano,nome:valorColunaExata(row,'NOME COMPLETO'),nascimento,data:dataAval,idade:calcularIdadeAvaliacao(nascimento,dataAval),altura:valorAvaliacao(row,'Altura',evalNum),sentado:valorAvaliacao(row,'alturasentado',evalNum),predita:(()=>{const r=alturaPreditaCalculada(calcularIdadeAvaliacao(nascimento,dataAval).replace(',','.'),parseFloat(String(valorAvaliacao(row,'peso',evalNum)).replace(',','.'))||0,parseFloat(String(valorAvaliacao(row,'Altura',evalNum)).replace(',','.'))||0,parseFloat(String(valorAvaliacao(row,'alturasentado',evalNum)).replace(',','.'))||0);return r.valor?(Math.floor(r.valor)/100).toFixed(2).replace('.',',')+' m':'-'})(),peso:valorAvaliacao(row,'peso',evalNum),sbe:nums[0]||'',tri:nums[1]||'',spi:nums[2]||'',abd:nums[3]||'',soma:soma ? soma.toFixed(1).replace('.',',') : '',gordura:gorduraTexto};
         const tr=document.createElement('tr');
         colunas.forEach((c,i)=>{const td=document.createElement('td'), key=c[1], fixed=['idade','predita','soma','gordura'].includes(key); if(key==='ano'||key==='nome'||key==='nascimento'){td.textContent=valores[key];td.style.background='#f4f6f7';}else if(fixed){td.textContent=valores[key];td.style.background='#e8f5e9';td.style.fontWeight='bold';}else{const input=document.createElement('input');input.type='text';input.value=valores[key];input.onchange=e=>{let base={data:'Data',altura:'Altura',sentado:'alturasentado',peso:'peso',sbe:'Dobras1_',tri:'Dobras2_',spi:'Dobras3_',abd:'Dobras4_'}[key];if(base){const k=base+evalNum;excelData[rowIndex][k]=e.target.value;saveToStorage();renderPfTable();}};td.appendChild(input);}tr.appendChild(td);}); tbody.appendChild(tr);
     });
     saveToStorage();
+    renderExcelTable();
 }
+
+function distanciaNivelResistencia(valor){
+ const n=parseFloat(String(valor).replace(',', '.')); if(isNaN(n)) return '';
+ const tabela={9.1:80,11.1:120,11.2:160,12.1:200,12.2:240,12.3:280,13.1:320,13.2:360,13.3:400,14.1:480,14.3:560,14.4:600,14.5:640,14.6:680,14.7:720,14.8:760,15.1:800,15.2:840,15.3:880,15.4:920,15.5:960,15.6:1000,15.7:1040,15.8:1080,16.1:1120,16.2:1160,16.3:1200,16.4:1240,16.5:1280,16.6:1320,16.7:1360,16.8:1400,17.1:1440,17.2:1480,17.3:1520,17.4:1560,17.5:1600,17.6:1640,17.7:1680,17.8:1720,18.1:1760,18.2:1800,18.3:1840,18.4:1880,18.5:1920,18.6:1960,18.7:2000,18.8:2040,19.1:2080,19.2:2120,19.3:2160,19.4:2200,19.5:2240,19.6:2280,19.7:2320,19.8:2360,20.1:2400,20.2:2440,20.3:2480,20.4:2520,20.5:2560,20.6:2600,20.7:2640,20.8:2680,21.1:2720,21.2:2760,21.3:2800,21.4:2840,21.5:2880,21.6:2920,21.7:2960,21.8:3000,22.1:3040,22.2:3080,22.3:3120,22.4:3160,22.5:3200,22.6:3240,22.7:3280,22.8:3320,23.1:3360,23.2:3400,23.3:3440,23.4:3480,23.5:3520,23.6:3560,23.7:3600,23.8:3640}; return tabela[Math.round(n*10)/10] ?? '';
+}
+function renderTabelaResistencia(evalNum, selectedYear, headerRow, tbody){
+ ['Ano','NOME COMPLETO','DATA NASCIMENTO','DATA AVALIAÇÃO','NÍVEL','DISTÂNCIA'].forEach(x=>{const th=document.createElement('th');th.textContent=x;headerRow.appendChild(th)});
+ excelData.forEach((row,rowIndex)=>{let ano=String(valorColunaExata(row,'Ano')||'').trim();if(selectedYear!=='todos'&&ano!==selectedYear)return;const tr=document.createElement('tr');const vals=[ano,valorColunaExata(row,'NOME COMPLETO'),convertExcelDate(valorColunaExata(row,'Data de nascimento')),convertExcelDate(valorAvaliacao(row,'Data',evalNum)),valorAvaliacao(row,'nivel',evalNum),''];vals[5]=distanciaNivelResistencia(vals[4]);vals.forEach((v,i)=>{const td=document.createElement('td');if(i<4)td.textContent=v;else if(i===4){const inp=document.createElement('input');inp.value=v;inp.onchange=e=>{row['nivel'+evalNum]=e.target.value;row['distancia'+evalNum]=distanciaNivelResistencia(e.target.value);saveToStorage();renderPfTable()};td.appendChild(inp)}else{td.textContent=v;td.style.background='#e8f5e9';td.style.fontWeight='bold'}tr.appendChild(td)});tbody.appendChild(tr)})}
 
 function renderPfTable() {
     const headerRow = document.getElementById('pf-header-row'); const tbody = document.getElementById('pf-tbody');
@@ -586,6 +608,7 @@ function renderPfTable() {
     const evalNum = document.getElementById('pf-eval-select') ? document.getElementById('pf-eval-select').value : '1';
     const selectedYear = document.getElementById('pf-year-select') ? document.getElementById('pf-year-select').value : 'todos';
     if (currentPfTab === 'antropometricas') { renderTabelaAntropometrica(evalNum, selectedYear, headerRow, tbody); return; }
+    if (currentPfTab === 'resistencia') { renderTabelaResistencia(evalNum, selectedYear, headerRow, tbody); return; }
 
     let baseCols = [];
     if (currentPfTab === 'antropometricas') baseCols = ['Altura', 'alturapredita', 'alturasentado', 'peso', 'Dobras1_', 'Dobras2_', 'Dobras3_', 'Dobras4_'];
@@ -608,6 +631,17 @@ function renderPfTable() {
     excelData.forEach((row, rowIndex) => {
         let anoAtleta = Object.keys(row).find(k => k.toLowerCase() === 'ano'); anoAtleta = anoAtleta ? String(row[anoAtleta]).trim() : '';
         if (selectedYear !== 'todos' && anoAtleta !== selectedYear) return;
+        // Campos calculados e fixos das abas de desempenho
+        if (currentPfTab === 'potencia') {
+            const vals=['Salto1_','Salto2_','Salto3_'].map(b=>parseFloat(String(valorAvaliacao(row,b,evalNum)).replace(',','.'))).filter(v=>!isNaN(v));
+            row['MelhorSalto'+evalNum]=vals.length?Math.max(...vals):'';
+        } else if (currentPfTab === 'velocidade') {
+            const media=(base)=>{const vals=[];for(let i=1;i<=7;i++){const v=parseFloat(String(valorAvaliacao(row,base+i,evalNum)).replace(',','.'));if(!isNaN(v))vals.push(v)}return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):''};
+            row['Aceleraçãofinal'+evalNum]=media('aceleração'); row['Velocidadefinal'+evalNum]=media('velocidade');
+        } else if (currentPfTab === 'agilidade') {
+            const vals=['Volta1_','Volta2_'].map(b=>parseFloat(String(valorAvaliacao(row,b,evalNum)).replace(',','.'))).filter(v=>!isNaN(v));
+            row['Agilidade'+evalNum]=vals.length?Math.min(...vals):'';
+        }
         const tr = document.createElement('tr');
         colsToDisplay.forEach(col => {
             const td = document.createElement('td');
@@ -615,15 +649,17 @@ function renderPfTable() {
             if (col.toLowerCase().includes('data') || col.toLowerCase().includes('nascimento')) val = convertExcelDate(val);
             if (['Ano', 'NOME COMPLETO', 'Data de nascimento'].includes(col)) { td.textContent = val; td.style.backgroundColor = '#f4f6f7'; td.style.fontWeight = '600'; }
             else {
-                const input = document.createElement('input'); input.type = 'text'; input.value = val;
-                input.onchange = (e) => { excelData[rowIndex][Object.keys(row).find(k => k.toLowerCase() === col.toLowerCase()) || col] = e.target.value; saveToStorage(); };
-                td.appendChild(input);
+                const cleanBase=col.replace(evalNum,'').replace('_','');
+                const fixed=(currentPfTab==='potencia'&&cleanBase==='MelhorSalto') || (currentPfTab==='velocidade'&&(cleanBase==='Aceleraçãofinal'||cleanBase==='Velocidadefinal')) || (currentPfTab==='agilidade'&&cleanBase==='Agilidade');
+                if(fixed){td.textContent=val;td.style.backgroundColor='#e8f5e9';td.style.fontWeight='bold';}
+                else { const input=document.createElement('input'); input.type='text'; input.value=val; input.onchange=(e)=>{excelData[rowIndex][Object.keys(row).find(k=>k.toLowerCase()===col.toLowerCase())||col]=e.target.value;saveToStorage();renderPfTable();}; td.appendChild(input); }
             }
             if (col === 'Ano' || col === 'NOME COMPLETO') { td.style.position = 'sticky'; td.style.left = col === 'Ano' ? '0px' : '60px'; td.style.zIndex = '2'; td.style.backgroundColor = '#f4f6f7'; td.style.minWidth = col === 'Ano' ? '60px' : '220px'; }
             tr.appendChild(td);
         });
         tbody.appendChild(tr);
     });
+    saveToStorage();
 }
 
 
@@ -1113,7 +1149,7 @@ async function salvarNoSupabase() {
                 const row = excelData[index];
                 const anoKey = Object.keys(row).find(k => k.toLowerCase() === 'ano');
                 const nomeKey = Object.keys(row).find(k => k.toLowerCase().includes('apelido')) || Object.keys(row).find(k => k.toLowerCase().includes('nome'));
-                return { index, ano: anoKey ? String(row[anoKey]).trim() : '', nome: nomeKey ? String(row[nomeKey]).trim() : '' };
+                return { nome: nomeKey ? String(row[nomeKey]).trim() : '', nascimento: Object.keys(row).find(k => k.toLowerCase().includes('nascimento')) ? String(row[Object.keys(row).find(k => k.toLowerCase().includes('nascimento'))] || '').trim() : '' };
             }
             return null;
         }).filter(atleta => atleta && atleta.nome);
@@ -1199,8 +1235,11 @@ async function carregarDoSupabase() {
                     // Formato novo: salva o índice único do atleta.
                     // Formato antigo: continua aceitando apenas o nome.
                     let idx = -1;
-                    if (typeof atletaSalvo === 'object' && atletaSalvo !== null && Number.isInteger(atletaSalvo.index)) {
-                        idx = atletaSalvo.index;
+                    if (typeof atletaSalvo === 'object' && atletaSalvo !== null) {
+                        idx = excelData.findIndex(row => {
+                            const id = identidadeAtleta(excelData.indexOf(row));
+                            return id.nome === atletaSalvo.nome && id.nascimento === atletaSalvo.nascimento;
+                        });
                     } else {
                         const nomeAtleta = String(atletaSalvo).trim();
                         idx = excelData.findIndex(row => {
@@ -1543,9 +1582,8 @@ function renderFichaGrupo() {
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.value = value;
-                input.onchange = (e) => {
-                    gruposData[grupoNome][arrIndex].manualData[field] = e.target.value;
-                };
+                input.readOnly = true;
+                input.tabIndex = -1;
                 td.appendChild(input);
                 return td;
             };
@@ -1849,6 +1887,7 @@ function limparConvocacao() { selectedConvocados.clear(); renderConvocacaoLists(
 function confirmarConvocacao() {
     if (selectedConvocados.size === 0) { alert('Nenhum atleta selecionado.'); return; }
     localStorage.setItem(STORAGE_CONVOCACAO_KEY, JSON.stringify(Array.from(selectedConvocados)));
+    localStorage.removeItem('prosol_cfa_escalacao_v1');
     abrirEscalacaoConvocacao();
 }
 
@@ -1872,14 +1911,10 @@ function abrirEscalacaoConvocacao() {
     }).sort((a,b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, 'pt-BR'));
     modal.innerHTML = `<div class="escalacao-card"><div class="escalacao-header"><span>ESCALAÇÃO DA CONVOCAÇÃO</span><button onclick="fecharEscalacaoConvocacao()">×</button></div><p class="escalacao-help">Defina o número e indique se cada atleta é titular ou reserva.</p><div class="escalacao-list">${atletas.map((a,i) => { const v=salvo[a.index]||{}; return `<div class="escalacao-row posicao-${a.ordem}"><span class="escalacao-name">${a.nome}</span><input class="escalacao-numero" data-index="${a.index}" value="${v.numero||''}" placeholder="#" type="number" min="1" max="99"><label><input type="radio" name="status-${a.index}" value="titular" ${v.status!=='reserva'?'checked':''}> Titular</label><label><input type="radio" name="status-${a.index}" value="reserva" ${v.status==='reserva'?'checked':''}> Reserva</label></div>`; }).join('')}</div><div class="escalacao-footer"><span id="escalacao-status"></span><button class="escalacao-field" onclick="salvarEscalacaoConvocacao(); abrirCampoConvocacao()">Confirmar e abrir campo</button></div></div>`;
     modal.style.display = 'flex';
+    modal.querySelectorAll('input[type="radio"]').forEach(r=>r.addEventListener('change', atualizarStatusEscalacao));
     atualizarStatusEscalacao();
 }
-function atualizarStatusEscalacao() {
-    const el=document.getElementById('escalacao-status'); if(!el)return;
-    const titulares=document.querySelectorAll('#escalacao-convocacao-modal input[type="radio"][value="titular"]:checked').length;
-    const reservas=document.querySelectorAll('#escalacao-convocacao-modal input[type="radio"][value="reserva"]:checked').length;
-    el.textContent=`Titulares: ${titulares}  |  Reservas: ${reservas}`;
-}
+function atualizarStatusEscalacao(){const el=document.getElementById('escalacao-status');if(!el)return;let titulares=0,reservas=0;document.querySelectorAll('#escalacao-convocacao-modal .escalacao-row').forEach(row=>{const r=row.querySelector('input[type="radio"]:checked');if(r?.value==='reserva')reservas++;else if(r?.value==='titular')titulares++;});el.textContent=`Titulares: ${titulares} | Reservas: ${reservas}`;}
 function salvarEscalacaoConvocacao() {
     const dados={};
     document.querySelectorAll('#escalacao-convocacao-modal .escalacao-row').forEach(row=>{const input=row.querySelector('.escalacao-numero');const idx=input.dataset.index;const radio=row.querySelector('input[type="radio"]:checked');dados[idx]={numero:input.value,status:radio?radio.value:'titular'};});
@@ -2170,6 +2205,9 @@ function imprimirConvocacaoCampo(){
  window.addEventListener('afterprint',limpar);window.print();setTimeout(limpar,1500);
 }
 
+function identidadeAtleta(index){const r=excelData[index]||{};const nk=Object.keys(r).find(k=>k.toLowerCase().includes('nome completo'))||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));const dk=Object.keys(r).find(k=>k.toLowerCase().includes('data de nascimento')||k.toLowerCase().includes('nascimento'));const ak=Object.keys(r).find(k=>k.toLowerCase()==='ano');return {nome:nk?String(r[nk]||'').trim():'',nascimento:dk?String(r[dk]||'').trim():'',ano:ak?String(r[ak]||'').trim():''};}
+function localizarAtletaPorIdentidade(id){return excelData.findIndex(r=>{const x=identidadeAtleta(excelData.indexOf(r));return x.nome===id.nome&&x.nascimento===id.nascimento});}
+
 async function salvarConvocacaoNuvem(){
  const {data,error}=await _supabase.from('convocacoes').select('nome').order('nome');
  if(error){alert('Erro ao consultar convocações.');return;}
@@ -2180,7 +2218,7 @@ async function salvarConvocacaoNuvem(){
 async function confirmarSalvarConvocacao(){
  const nome=document.getElementById('nome-nova-convocacao')?.value.trim();if(!nome)return alert('Digite ou selecione um nome.');
  const salvo=JSON.parse(localStorage.getItem('prosol_cfa_escalacao_v1')||'{}');const faixa=[...document.querySelectorAll('#campo-convocacao-modal .campo-faixa input')].map(x=>x.value);const horarios=[...document.querySelectorAll('#campo-convocacao-modal .campo-horarios input')].map(x=>x.value);const comissao=[...document.querySelectorAll('#campo-convocacao-modal .comissao-label input')].map(x=>x.value);const jogadores=[...document.querySelectorAll('#campo-convocacao-modal .jogador-campo')].map(el=>({texto:el.querySelector('span')?.innerText||'',left:el.style.left,top:el.style.top}));const anos=[...document.querySelectorAll('.conv-year-chk:checked')].map(x=>x.value);
- const dados={nome,anos,selecionados:[...selectedConvocados],escalacao:salvo,jogadores,comissao,horario:faixa[0]||'',local:faixa[1]||'',data:faixa[2]||'',adversario:document.querySelector('#campo-convocacao-modal .campo-adversario input')?.value||'',apresentacao:horarios[0]||'',prelecao:horarios[1]||'',aquecimento:horarios[2]||''};
+ const dados={nome,anos,selecionados:[...selectedConvocados],selecionadosDetalhes:[...selectedConvocados].map(identidadeAtleta),escalacao:salvo,jogadores,comissao,horario:faixa[0]||'',local:faixa[1]||'',data:faixa[2]||'',adversario:document.querySelector('#campo-convocacao-modal .campo-adversario input')?.value||'',apresentacao:horarios[0]||'',prelecao:horarios[1]||'',aquecimento:horarios[2]||''};
  const {error}=await _supabase.from('convocacoes').upsert({nome,dados,atualizado_em:new Date().toISOString()},{onConflict:'nome'});if(error){alert('Erro ao salvar convocação.');console.error(error);return;}document.getElementById('salvar-convocacao-modal').style.display='none';alert('Convocação salva com sucesso!');
 }
 
@@ -2189,7 +2227,7 @@ async function confirmarCarregamentoConvocacao(){
  const select=document.getElementById('convocacao-para-carregar');if(!select||!select.value)return alert('Selecione uma convocação.');
  const {data,error}=await _supabase.from('convocacoes').select('nome,dados').eq('nome',select.value).single();
  if(error||!data){alert('Não foi possível carregar a convocação.');return;}
- const d=data.dados||{};window.__convocacaoCarregada=d;selectedConvocados=new Set(d.selecionados||[]);localStorage.setItem(STORAGE_CONVOCACAO_KEY,JSON.stringify([...selectedConvocados]));localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(d.escalacao||{}));
+ const d=data.dados||{};window.__convocacaoCarregada=d;const indices=(d.selecionadosDetalhes||[]).map(localizarAtletaPorIdentidade).filter(i=>i>=0);selectedConvocados=new Set(indices.length?indices:(d.selecionados||[]));localStorage.setItem(STORAGE_CONVOCACAO_KEY,JSON.stringify([...selectedConvocados]));localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(d.escalacao||{}));
  document.querySelectorAll('.conv-year-chk').forEach(c=>c.checked=(d.anos||[]).includes(c.value));renderConvocacaoLists();document.getElementById('carregar-convocacao-modal').style.display='none';abrirEscalacaoConvocacao();
 }
 
