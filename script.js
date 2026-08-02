@@ -199,6 +199,7 @@ function navigateTo(screenId, event) {
         document.getElementById('grupos-screen').classList.add('active-screen');
         renderGruposScreen();
     } else {
+        if (screenId === 'relatorios') { openRelatoriosModal(); return; }
         if (screenId === 'jogos') { openJogosProfessorModal(); return; }
         if (screenId === 'prancheta') {
             openPranchetaModal();
@@ -587,6 +588,41 @@ function alturaPreditaCalculada(idade,peso,alturaM,sentadoCm){
  let a=tabela[0],b=tabela[tabela.length-1]; for(let i=1;i<tabela.length;i++){if(mo<=tabela[i][0]){a=tabela[i-1];b=tabela[i];break;}}
  const crescer=a[1]+(mo-a[0])*(b[1]-a[1])/(b[0]-a[0]); return {mo,maturidade,categoria,valor:alturaCm+crescer};
 }
+function normalizarTextoOrdenacaoPf(valor){
+    return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+function getPfAnoOrdenacao(row){
+    let ano = String(valorColunaExata(row, 'Ano') || '').trim();
+    if (!ano) {
+        const nasc = convertExcelDate(valorColunaExata(row, 'Data de nascimento') || '');
+        const m = String(nasc).match(/(\d{4})$/);
+        if (m) ano = m[1];
+    }
+    const n = parseInt(ano, 10);
+    return isNaN(n) ? 9999 : n;
+}
+function getPfNomeOrdenacao(row){
+    let nome = valorColunaExata(row, 'NOME COMPLETO') || valorColunaExata(row, 'APELIDO') || '';
+    if (!nome) {
+        const chaveNome = Object.keys(row || {}).find(k => k.toLowerCase().includes('nome'));
+        if (chaveNome) nome = row[chaveNome];
+    }
+    return normalizarTextoOrdenacaoPf(nome);
+}
+function getPfSortedEntries(selectedYear){
+    return (excelData || []).map((row, rowIndex) => ({ row, rowIndex }))
+        .filter(({ row }) => {
+            const ano = String(valorColunaExata(row, 'Ano') || '').trim();
+            return selectedYear === 'todos' || ano === selectedYear;
+        })
+        .sort((a, b) => {
+            const anoA = getPfAnoOrdenacao(a.row);
+            const anoB = getPfAnoOrdenacao(b.row);
+            if (anoA !== anoB) return anoA - anoB;
+            return getPfNomeOrdenacao(a.row).localeCompare(getPfNomeOrdenacao(b.row), 'pt-BR');
+        });
+}
+
 function renderTabelaAntropometrica(evalNum, selectedYear, headerRow, tbody) {
     const colunas = [
         ['Ano','ano'], ['NOME COMPLETO','nome'], ['DATA NASCIMENTO','nascimento'],
@@ -596,8 +632,8 @@ function renderTabelaAntropometrica(evalNum, selectedYear, headerRow, tbody) {
         ['SOMA DOBRAS','soma'], ['% DE GORDURA','gordura']
     ];
     colunas.forEach(c => { const th=document.createElement('th'); th.textContent=c[0]; if(c[1]==='predita'||c[1]==='idade'||c[1]==='soma'||c[1]==='gordura') th.style.color='#168a32'; headerRow.appendChild(th); });
-    excelData.forEach((row,rowIndex)=>{
-        const ano=String(valorColunaExata(row,'Ano')||'').trim(); if(selectedYear!=='todos'&&ano!==selectedYear)return;
+    getPfSortedEntries(selectedYear).forEach(({row,rowIndex})=>{
+        const ano=String(valorColunaExata(row,'Ano')||'').trim();
         const nascimento=convertExcelDate(valorColunaExata(row,'Data de nascimento'));
         const dataAval=convertExcelDate(valorAvaliacao(row,'Data',evalNum));
         const nums=['Dobras1_','Dobras2_','Dobras3_','Dobras4_'].map(b=>parseFloat(String(valorAvaliacao(row,b,evalNum)).replace(',','.'))||0);
@@ -628,7 +664,7 @@ function distanciaNivelResistencia(valor){
 }
 function renderTabelaResistencia(evalNum, selectedYear, headerRow, tbody){
  ['Ano','NOME COMPLETO','DATA NASCIMENTO','DATA AVALIAÇÃO','NÍVEL','DISTÂNCIA'].forEach(x=>{const th=document.createElement('th');th.textContent=x;headerRow.appendChild(th)});
- excelData.forEach((row,rowIndex)=>{let ano=String(valorColunaExata(row,'Ano')||'').trim();if(selectedYear!=='todos'&&ano!==selectedYear)return;const tr=document.createElement('tr');const vals=[ano,valorColunaExata(row,'NOME COMPLETO'),convertExcelDate(valorColunaExata(row,'Data de nascimento')),convertExcelDate(valorAvaliacao(row,'Data',evalNum)),valorAvaliacao(row,'nivel',evalNum),''];vals[5]=distanciaNivelResistencia(vals[4]);vals.forEach((v,i)=>{const td=document.createElement('td');if(i<4)td.textContent=v;else if(i===4){const inp=document.createElement('input');inp.value=v;inp.onchange=e=>{row['nivel'+evalNum]=e.target.value;row['distancia'+evalNum]=distanciaNivelResistencia(e.target.value);saveToStorage();renderPfTable()};td.appendChild(inp)}else{td.textContent=v;td.style.background='#e8f5e9';td.style.fontWeight='bold'}tr.appendChild(td)});tbody.appendChild(tr)})}
+ getPfSortedEntries(selectedYear).forEach(({row,rowIndex})=>{let ano=String(valorColunaExata(row,'Ano')||'').trim();const tr=document.createElement('tr');const vals=[ano,valorColunaExata(row,'NOME COMPLETO'),convertExcelDate(valorColunaExata(row,'Data de nascimento')),convertExcelDate(valorAvaliacao(row,'Data',evalNum)),valorAvaliacao(row,'nivel',evalNum),''];vals[5]=distanciaNivelResistencia(vals[4]);vals.forEach((v,i)=>{const td=document.createElement('td');if(i<4)td.textContent=v;else if(i===4){const inp=document.createElement('input');inp.value=v;inp.onchange=e=>{row['nivel'+evalNum]=e.target.value;row['distancia'+evalNum]=distanciaNivelResistencia(e.target.value);saveToStorage();renderPfTable()};td.appendChild(inp)}else{td.textContent=v;td.style.background='#e8f5e9';td.style.fontWeight='bold'}tr.appendChild(td)});tbody.appendChild(tr)})}
 
 function renderPfTable() {
     const headerRow = document.getElementById('pf-header-row'); const tbody = document.getElementById('pf-tbody');
@@ -656,9 +692,8 @@ function renderPfTable() {
         headerRow.appendChild(th);
     });
 
-    excelData.forEach((row, rowIndex) => {
+    getPfSortedEntries(selectedYear).forEach(({row, rowIndex}) => {
         let anoAtleta = Object.keys(row).find(k => k.toLowerCase() === 'ano'); anoAtleta = anoAtleta ? String(row[anoAtleta]).trim() : '';
-        if (selectedYear !== 'todos' && anoAtleta !== selectedYear) return;
         // Campos calculados e fixos das abas de desempenho
         if (currentPfTab === 'potencia') {
             const vals=['Salto1_','Salto2_','Salto3_'].map(b=>parseFloat(String(valorAvaliacao(row,b,evalNum)).replace(',','.'))).filter(v=>!isNaN(v));
@@ -1824,6 +1859,7 @@ function ensureConvocacaoModalDom() {
                         <button onclick="limparConvocacao()" style="padding: 8px 15px; border: 1px solid #b2bec3; background: #fff; border-radius: 4px; cursor: pointer; font-weight: 600;">Limpar Convocação</button>
                         <button onclick="excluirAtletasSelecionadosConvocacao()" style="padding: 8px 15px; border: 1px solid #d32f2f; background: #ff5252; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">Excluir Atletas Selecionados</button>
                     </div>
+                    <div id="convocacao-contador" style="font-weight: bold; font-size: 14px; color: #111; padding: 0 15px; white-space: nowrap;">Atletas convocados: 0</div>
                     <div>
                         <button onclick="confirmarConvocacao()" style="padding: 10px 25px; border: none; background: #2ed573; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">Confirmar Convocação</button>
                     </div>
@@ -1845,6 +1881,10 @@ function renderConvocacaoScreen() {
     });
     renderConvocacaoLists();
 }
+function atualizarContadorConvocados() {
+    const el = document.getElementById('convocacao-contador');
+    if (el) el.textContent = 'Atletas convocados: ' + selectedConvocados.size;
+}
 function renderConvocacaoLists() {
     const selectedYears = Array.from(document.querySelectorAll('.conv-year-chk:checked')).map(chk => chk.value);
     const posLists = { 'goleiros': document.getElementById('conv-list-goleiros'), 'zagueiros': document.getElementById('conv-list-zagueiros'), 'laterais': document.getElementById('conv-list-laterais'), 'volantes': document.getElementById('conv-list-volantes'), 'meias': document.getElementById('conv-list-meias'), 'atacantes': document.getElementById('conv-list-atacantes'), 'extremos': document.getElementById('conv-list-extremos') };
@@ -1856,7 +1896,7 @@ function renderConvocacaoLists() {
         box.ondrop = (e) => { e.preventDefault(); const globalIndex = parseInt(e.dataTransfer.getData('text/plain')); if (!isNaN(globalIndex)) handleAthleteDrop(globalIndex, cat); };
     });
 
-    if (selectedYears.length === 0) return;
+    if (selectedYears.length === 0) { atualizarContadorConvocados(); return; }
 
     excelData.forEach((row, globalIndex) => {
         let anoAtleta = Object.keys(row).find(k => k.toLowerCase() === 'ano'); anoAtleta = anoAtleta ? String(row[anoAtleta]).trim() : '';
@@ -1880,9 +1920,11 @@ function renderConvocacaoLists() {
             e.stopPropagation();
             if (selectedConvocados.has(globalIndex)) { selectedConvocados.delete(globalIndex); itemDiv.style.backgroundColor = 'transparent'; itemDiv.style.color = '#000'; }
             else { selectedConvocados.add(globalIndex); itemDiv.style.backgroundColor = '#0984e3'; itemDiv.style.color = '#fff'; }
+            atualizarContadorConvocados();
         };
         if (posLists[targetBox]) posLists[targetBox].appendChild(itemDiv);
     });
+    atualizarContadorConvocados();
 }
 function handleAthleteDrop(globalIndex, targetCategory) {
     if (targetCategory === 'goleiros') updateAthletePositionInDatabase(globalIndex, 'Goleiro'); else if (targetCategory === 'zagueiros') updateAthletePositionInDatabase(globalIndex, 'Zagueiro'); else if (targetCategory === 'meias') updateAthletePositionInDatabase(globalIndex, 'Meia'); else if (targetCategory === 'atacantes') updateAthletePositionInDatabase(globalIndex, 'Atacante');
@@ -2107,22 +2149,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await salvarNoSupabase();
         });
     }
-});r('DOMContentLoaded', () => {
-    // Carrega automaticamente ao mudar a categoria
-    const catSelect = document.getElementById('grupo-categoria-select');
-    if (catSelect) {
-        catSelect.addEventListener('change', async () => {
-            await carregarDoSupabase();
-        });
-    }
-
-    // Salva ao clicar no botão "Salvar Ficha"
-    const btnSalvar = document.getElementById('btn-salvar-ficha');
-    if (btnSalvar) {
-        btnSalvar.addEventListener('click', async () => {
-            await salvarNoSupabase();
-        });
-    }
 });
 /* Impressão exclusiva das fichas de grupos - independente da ficha do atleta */
 function imprimirFichasTreino() {
@@ -2246,6 +2272,51 @@ function imprimirConvocacaoCampo(){
 function identidadeAtleta(index){const r=excelData[index]||{};const nk=Object.keys(r).find(k=>k.toLowerCase().includes('nome completo'))||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));const dk=Object.keys(r).find(k=>k.toLowerCase().includes('data de nascimento')||k.toLowerCase().includes('nascimento'));const ak=Object.keys(r).find(k=>k.toLowerCase()==='ano');return {nome:nk?String(r[nk]||'').trim():'',nascimento:dk?String(r[dk]||'').trim():'',ano:ak?String(r[ak]||'').trim():''};}
 function localizarAtletaPorIdentidade(id){return excelData.findIndex(r=>{const x=identidadeAtleta(excelData.indexOf(r));return x.nome===id.nome&&x.nascimento===id.nascimento});}
 
+function normalizarTextoIdentidadeConvocacao(valor){
+ return String(valor||'').trim().replace(/\s+/g,' ');
+}
+function normalizarNascimentoIdentidadeConvocacao(valor){
+ return normalizarTextoIdentidadeConvocacao(convertExcelDate(valor)||valor);
+}
+function nomeCompletoAtletaConvocacao(index){
+ const r=excelData[index]||{};
+ const nk=Object.keys(r).find(k=>k.toLowerCase().includes('nome completo'))||Object.keys(r).find(k=>k.toLowerCase()==='nome')||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));
+ return normalizarTextoIdentidadeConvocacao(nk?r[nk]:'');
+}
+function nascimentoAtletaConvocacao(index){
+ const r=excelData[index]||{};
+ const dk=Object.keys(r).find(k=>k.toLowerCase().includes('data de nascimento')||k.toLowerCase().includes('nascimento'));
+ return normalizarNascimentoIdentidadeConvocacao(dk?r[dk]:'');
+}
+function identidadeAtletaConvocacao(index){
+ return { nomeCompleto: nomeCompletoAtletaConvocacao(index), nascimento: nascimentoAtletaConvocacao(index) };
+}
+function chaveIdentidadeConvocacao(id){
+ return normalizarTextoIdentidadeConvocacao(id?.nomeCompleto||id?.nome||'')+'||'+normalizarNascimentoIdentidadeConvocacao(id?.nascimento||'');
+}
+function localizarAtletaPorIdentidadeConvocacao(id){
+ const chave=chaveIdentidadeConvocacao(id);
+ if(!chave || chave==='||') return -1;
+ return excelData.findIndex((row,index)=>chaveIdentidadeConvocacao(identidadeAtletaConvocacao(index))===chave);
+}
+function escalacaoPorIdentidadeConvocacao(escalacaoPorIndice){
+ const out={};
+ Array.from(selectedConvocados).forEach(index=>{
+  const id=identidadeAtletaConvocacao(index);
+  const chave=chaveIdentidadeConvocacao(id);
+  if(chave && chave!=='||') out[chave]=escalacaoPorIndice?.[index]||{};
+ });
+ return out;
+}
+function restaurarEscalacaoPorIndiceConvocacao(escalacaoPorIdentidade, indices){
+ const out={};
+ (indices||[]).forEach(index=>{
+  const chave=chaveIdentidadeConvocacao(identidadeAtletaConvocacao(index));
+  if(escalacaoPorIdentidade && escalacaoPorIdentidade[chave]) out[index]=escalacaoPorIdentidade[chave];
+ });
+ return out;
+}
+
 async function salvarConvocacaoNuvem(){
  const {data,error}=await _supabase.from('convocacoes').select('nome').order('nome');
  if(error){alert('Erro ao consultar convocações.');return;}
@@ -2256,7 +2327,8 @@ async function salvarConvocacaoNuvem(){
 async function confirmarSalvarConvocacao(){
  const nome=document.getElementById('nome-nova-convocacao')?.value.trim();if(!nome)return alert('Digite ou selecione um nome.');
  const salvo=JSON.parse(localStorage.getItem('prosol_cfa_escalacao_v1')||'{}');const faixa=[...document.querySelectorAll('#campo-convocacao-modal .campo-faixa input')].map(x=>x.value);const horarios=[...document.querySelectorAll('#campo-convocacao-modal .campo-horarios input')].map(x=>x.value);const comissao=[...document.querySelectorAll('#campo-convocacao-modal .comissao-label input')].map(x=>x.value);const jogadores=[...document.querySelectorAll('#campo-convocacao-modal .jogador-campo')].map(el=>({texto:el.querySelector('span')?.innerText||'',left:el.style.left,top:el.style.top}));const anos=[...document.querySelectorAll('.conv-year-chk:checked')].map(x=>x.value);
- const dados={nome,anos,selecionados:[...selectedConvocados],selecionadosDetalhes:[...selectedConvocados].map(identidadeAtleta),escalacao:salvo,jogadores,comissao,horario:faixa[0]||'',local:faixa[1]||'',data:faixa[2]||'',adversario:document.querySelector('#campo-convocacao-modal .campo-adversario input')?.value||'',apresentacao:horarios[0]||'',prelecao:horarios[1]||'',aquecimento:horarios[2]||''};
+ const selecionadosDetalhes=[...selectedConvocados].map(identidadeAtletaConvocacao).filter(id=>id.nomeCompleto&&id.nascimento);
+ const dados={nome,anos,selecionadosDetalhes,escalacao:escalacaoPorIdentidadeConvocacao(salvo),jogadores,comissao,horario:faixa[0]||'',local:faixa[1]||'',data:faixa[2]||'',adversario:document.querySelector('#campo-convocacao-modal .campo-adversario input')?.value||'',apresentacao:horarios[0]||'',prelecao:horarios[1]||'',aquecimento:horarios[2]||''};
  const {error}=await _supabase.from('convocacoes').upsert({nome,dados,atualizado_em:new Date().toISOString()},{onConflict:'nome'});if(error){alert('Erro ao salvar convocação.');console.error(error);return;}document.getElementById('salvar-convocacao-modal').style.display='none';alert('Convocação salva com sucesso!');
 }
 
@@ -2265,7 +2337,7 @@ async function confirmarCarregamentoConvocacao(){
  const select=document.getElementById('convocacao-para-carregar');if(!select||!select.value)return alert('Selecione uma convocação.');
  const {data,error}=await _supabase.from('convocacoes').select('nome,dados').eq('nome',select.value).single();
  if(error||!data){alert('Não foi possível carregar a convocação.');return;}
- const d=data.dados||{};window.__convocacaoCarregada=d;convocacaoCarregadaNaSessao=true;const indices=(d.selecionadosDetalhes||[]).map(localizarAtletaPorIdentidade).filter(i=>i>=0);selectedConvocados=new Set(indices.length?indices:(d.selecionados||[]));localStorage.setItem(STORAGE_CONVOCACAO_KEY,JSON.stringify([...selectedConvocados]));localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(d.escalacao||{}));
+ const d=data.dados||{};window.__convocacaoCarregada=d;convocacaoCarregadaNaSessao=true;const indices=(d.selecionadosDetalhes||[]).map(localizarAtletaPorIdentidadeConvocacao).filter(i=>i>=0);if(!indices.length){alert('Nenhum atleta desta convocação foi localizado pelo Nome Completo + Data de Nascimento.');return;}selectedConvocados=new Set(indices);localStorage.setItem(STORAGE_CONVOCACAO_KEY,JSON.stringify([...selectedConvocados]));localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(restaurarEscalacaoPorIndiceConvocacao(d.escalacao||{},indices)));
  document.querySelectorAll('.conv-year-chk').forEach(c=>c.checked=(d.anos||[]).includes(c.value));renderConvocacaoLists();document.getElementById('carregar-convocacao-modal').style.display='none';abrirEscalacaoConvocacao();
 }
 
@@ -2336,7 +2408,7 @@ function selecionarProfessorJogos(professor){
 function renderJogosScreen(){
  const box=document.getElementById('generic-content');if(!box)return;
  const qtdAtivos=contarAtletasAtivosJogos();
- const modoAtivos=getJogosAtivosConfigRaw()===null?'Padrão atual: Ano 2013':`${qtdAtivos} atleta(s) ativo(s)`;
+ const modoAtivos=getJogosAtivosConfigRaw()===null?`${qtdAtivos} atleta(s) disponíveis`: `${qtdAtivos} atleta(s) ativo(s)`;
  box.innerHTML=`<div class="jogos-header"><h2>Jogos — ${professorJogosAtual||''}</h2><p>Banco de dados individual do professor<br><small>${modoAtivos}</small></p></div><div id="jogos-salvos-lista" class="jogos-salvos-lista"><p>Carregando jogos salvos...</p></div><button class="atletas-ativos-fab" onclick="abrirAtletasAtivosJogos()">Atletas Ativos <span>${qtdAtivos}</span></button><button class="novo-jogo-fab" onclick="novoJogo()">Novo Jogo</button>`;
  carregarJogosSalvosProfessor();
 }
@@ -2353,6 +2425,17 @@ function getJogosAtivosConfigRaw(){
  const raw=localStorage.getItem(chaveJogosAtivosProfessor());
  if(raw===null)return null;
  try{return JSON.parse(raw)||[]}catch(e){return []}
+}
+function normalizarTextoProfessorJogos(valor){
+ return String(valor||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+function anosPadraoJogosProfessor(professor=professorJogosAtual){
+ const nome=normalizarTextoProfessorJogos(professor);
+ if(nome.includes('christian')) return ['2015','2016','2017','2018'];
+ if(nome.includes('eric')) return ['2014'];
+ if(nome.includes('vinicius')) return ['2013'];
+ if(nome.includes('roberto')) return ['2009','2010','2011','2012'];
+ return ['2013'];
 }
 function nomeAtletaJogos(row){
  const nk=Object.keys(row).find(k=>k.toLowerCase().includes('apelido'))||Object.keys(row).find(k=>k.toLowerCase().includes('nome'));
@@ -2401,7 +2484,8 @@ function localizarAtletaAtivoJogos(id){
 function getJogosAtletasAtivosIndices(){
  const cfg=getJogosAtivosConfigRaw();
  if(cfg===null){
-  return excelData.map((r,i)=>({r,i})).filter(x=>anoAtletaJogos(x.r)==='2013').map(x=>x.i);
+  const anosPadrao=anosPadraoJogosProfessor();
+  return excelData.map((r,i)=>({r,i})).filter(x=>anosPadrao.includes(anoAtletaJogos(x.r))).map(x=>x.i);
  }
  const indices=cfg.map(item=>localizarAtletaAtivoJogos(item)).filter(i=>Number.isInteger(i)&&i>=0&&excelData[i]);
  return Array.from(new Set(indices));
@@ -2414,7 +2498,7 @@ function abrirAtletasAtivosJogos(){
  let m=document.getElementById('atletas-ativos-jogos-modal');
  if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='atletas-ativos-jogos-modal';document.body.appendChild(m)}
  const anos=['2009','2010','2011','2012','2013','2014','2015','2016','2017','2018'];
- m.innerHTML=`<div class="atletas-ativos-card"><div class="novo-jogo-title"><b>Atletas Ativos — ${professorJogosAtual||''}</b><button onclick="document.getElementById('atletas-ativos-jogos-modal').style.display='none'">×</button></div><div class="ativos-toolbar"><input id="busca-atleta-ativo-jogos" placeholder="Buscar atleta..." oninput="renderAtletasAtivosJogosLista()"><div class="ativos-anos">${anos.map(a=>`<label><input type="checkbox" class="jogo-ativo-ano" value="${a}" onchange="renderAtletasAtivosJogosLista()"> ${a}</label>`).join('')}</div><div class="ativos-acoes"><button onclick="marcarAtletasAtivosFiltrados(true)">Marcar filtrados</button><button onclick="marcarAtletasAtivosFiltrados(false)">Desmarcar filtrados</button><button onclick="getJogosAtivosTempSet().clear();renderAtletasAtivosJogosLista()">Limpar</button></div><p>Escolha os atletas que ficarão disponíveis em todos os jogos deste professor. Se nada for salvo, o padrão continua sendo o Ano 2013.</p></div><div id="jogos-atletas-ativos-lista"></div><div class="ativos-footer"><strong id="jogos-ativos-contador"></strong><div><button class="salvar-jogo" onclick="salvarAtletasAtivosJogos()">Salvar Ativos</button><button class="cancelar-ativos" onclick="document.getElementById('atletas-ativos-jogos-modal').style.display='none'">Cancelar</button></div></div></div>`;
+ m.innerHTML=`<div class="atletas-ativos-card"><div class="novo-jogo-title"><b>Atletas Ativos — ${professorJogosAtual||''}</b><button onclick="document.getElementById('atletas-ativos-jogos-modal').style.display='none'">×</button></div><div class="ativos-toolbar"><input id="busca-atleta-ativo-jogos" placeholder="Buscar atleta..." oninput="renderAtletasAtivosJogosLista()"><div class="ativos-anos">${anos.map(a=>`<label><input type="checkbox" class="jogo-ativo-ano" value="${a}" onchange="renderAtletasAtivosJogosLista()"> ${a}</label>`).join('')}</div><div class="ativos-acoes"><button onclick="marcarAtletasAtivosFiltrados(true)">Marcar filtrados</button><button onclick="marcarAtletasAtivosFiltrados(false)">Desmarcar filtrados</button><button onclick="getJogosAtivosTempSet().clear();renderAtletasAtivosJogosLista()">Limpar</button></div><p>Escolha os atletas que ficarão disponíveis em todos os jogos deste professor. Se nada for salvo, será usado o padrão de anos deste professor.</p></div><div id="jogos-atletas-ativos-lista"></div><div class="ativos-footer"><strong id="jogos-ativos-contador"></strong><div><button class="salvar-jogo" onclick="salvarAtletasAtivosJogos()">Salvar Ativos</button><button class="cancelar-ativos" onclick="document.getElementById('atletas-ativos-jogos-modal').style.display='none'">Cancelar</button></div></div></div>`;
  m.style.display='flex';
  renderAtletasAtivosJogosLista();
 }
@@ -2469,10 +2553,7 @@ function indicesConvocadosDoJogo(dados){
  const d=dados||{};
  let indices=[];
  if(Array.isArray(d.selecionadosDetalhes)&&d.selecionadosDetalhes.length){
-  indices=d.selecionadosDetalhes.map(id=>localizarAtletaAtivoJogos(id)).filter(i=>Number.isInteger(i)&&i>=0&&excelData[i]);
- }
- if(indices.length===0&&Array.isArray(d.selecionados)){
-  indices=d.selecionados.map(i=>parseInt(i)).filter(i=>Number.isInteger(i)&&i>=0&&excelData[i]);
+  indices=d.selecionadosDetalhes.map(id=>localizarAtletaPorIdentidadeConvocacao(id)).filter(i=>Number.isInteger(i)&&i>=0&&excelData[i]);
  }
  return Array.from(new Set(indices));
 }
@@ -2521,7 +2602,7 @@ function renderNovoJogoListaAtletas(){
  const titulo=document.getElementById('novo-jogo-atletas-titulo');
  const info=document.getElementById('jogo-convocacao-info');
  const convocadosSet=new Set(conv?indicesConvocadosDoJogo(conv.dados):Array.from(editConvSet));
- if(titulo)titulo.textContent=(conv||editando)?'Atletas do Jogo — Convocados Grifados':(cfgAtivosJogo===null?'Atletas — Ano 2013':'Atletas Ativos');
+ if(titulo)titulo.textContent=(conv||editando)?'Atletas do Jogo — Convocados Grifados':(cfgAtivosJogo===null?'Atletas disponíveis':'Atletas Ativos');
  if(info){
   if(conv) info.innerHTML=`Convocação carregada: <strong>${conv.nome}</strong>. Atletas convocados estão grifados em verde.`;
   else if(editando) info.innerHTML=`Editando: <strong>${editando.nome}</strong>${editando.convocacaoNome?` — Convocação: <strong>${editando.convocacaoNome}</strong>`:''}. Atletas convocados estão grifados em verde.`;
@@ -2582,7 +2663,7 @@ function novoJogo(){
  let m=document.getElementById('novo-jogo-modal');
  if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='novo-jogo-modal';document.body.appendChild(m)}
  const cfgAtivosJogo=getJogosAtivosConfigRaw();
- const tituloAtletasJogo=cfgAtivosJogo===null?'Atletas — Ano 2013':'Atletas Ativos';
+ const tituloAtletasJogo=cfgAtivosJogo===null?'Atletas disponíveis':'Atletas Ativos';
  m.innerHTML=`
   <div class="novo-jogo-card">
    <div class="novo-jogo-title">
@@ -2635,7 +2716,8 @@ function apelidoAtletaJogos(row){
 }
 function dadosAtletasJogo(){
  const conv=getConvocacaoJogoAtual();
- const convocadosSet=new Set(conv?indicesConvocadosDoJogo(conv.dados):[]);
+ const editConvSet=window.__jogoConvocadosEditSet instanceof Set?window.__jogoConvocadosEditSet:new Set();
+ const convocadosSet=new Set(conv?indicesConvocadosDoJogo(conv.dados):Array.from(editConvSet));
  return Array.from(document.querySelectorAll('#novo-jogo-atletas-lista .jogo-atleta-row')).map(row=>{
   const index=parseInt(row.dataset.index,10);
   const atleta=excelData[index]||{};
@@ -2674,8 +2756,9 @@ async function carregarJogosSalvosProfessor(){
   box.innerHTML='<div class="jogos-salvos-card"><strong>Banco de jogos ainda não configurado.</strong><br><small>Crie a tabela <b>jogos</b> no Supabase usando o SQL que combinamos.</small></div>';
   return;
  }
- if(!data||!data.length){box.innerHTML='<div class="jogos-salvos-card">Nenhum jogo salvo para este professor.</div>';return;}
- box.innerHTML=`<div class="jogos-salvos-card"><h3>Jogos salvos</h3>${data.map(j=>`<div class="jogo-salvo-item"><strong>${escapeHtmlJogos(j.nome)}</strong><div class="jogo-salvo-acoes"><button title="Editar jogo" onclick="editarJogoSalvoDireto('${j.id}')"><i class="fa-solid fa-pen"></i></button><button title="Ver detalhes" onclick="verDetalhesJogoSalvo('${j.id}')"><i class="fa-solid fa-magnifying-glass"></i></button><button title="Excluir jogo" class="excluir-jogo-salvo" onclick="excluirJogoSalvo('${j.id}')"><i class="fa-solid fa-xmark"></i></button></div></div>`).join('')}</div>`;
+ if(!data||!data.length){box.innerHTML='<div class="jogos-salvos-card">Nenhum jogo salvo para este professor.</div>'+renderEstatisticasJogosProfessor(calcularEstatisticasJogosProfessor([]));return;}
+ const stats=calcularEstatisticasJogosProfessor(data);
+ box.innerHTML=`<div class="jogos-salvos-card"><h3>Jogos salvos</h3>${data.map(j=>`<div class="jogo-salvo-item"><strong>${escapeHtmlJogos(j.nome)}</strong><div class="jogo-salvo-acoes"><button title="Editar jogo" onclick="editarJogoSalvoDireto('${j.id}')"><i class="fa-solid fa-pen"></i></button><button title="Ver detalhes" onclick="verDetalhesJogoSalvo('${j.id}')"><i class="fa-solid fa-magnifying-glass"></i></button><button title="Excluir jogo" class="excluir-jogo-salvo" onclick="excluirJogoSalvo('${j.id}')"><i class="fa-solid fa-xmark"></i></button></div></div>`).join('')}</div>${renderEstatisticasJogosProfessor(stats)}`;
 }
 async function editarJogoSalvoDireto(id){
  const jogo=await buscarJogoSalvoPorId(id);if(!jogo)return;
@@ -2706,6 +2789,70 @@ async function excluirJogoSalvo(id){
  if(error){console.error(error);alert('Erro ao excluir jogo. Verifique as permissões no Supabase.');return;}
  alert('Jogo excluído com sucesso.');
  carregarJogosSalvosProfessor();
+}
+function chaveAtletaEstatisticaJogos(atleta){
+ const nome=String(atleta.nomeCompleto||atleta.nome||'').trim();
+ const nascimento=String(atleta.nascimento||'').trim();
+ const ano=String(atleta.ano||'').trim();
+ return `${nome}|${nascimento}|${ano}`;
+}
+function nomeExibicaoEstatisticaJogos(atleta){
+ return atleta.apelido||atleta.nomeCompleto||'Atleta';
+}
+function calcularEstatisticasJogosProfessor(jogos){
+ const stats={total:0,vitorias:0,derrotas:0,empates:0,golsFeitos:0,golsSofridos:0,atletas:{},maisMinutos:[],menosMinutos:[],goleadores:[],cartoes:[]};
+ (jogos||[]).forEach(j=>{
+  const p=j.dados&&j.dados.placar?j.dados.placar:{};
+  const gf=parseInt(p.cfa_prosol??0,10)||0;
+  const gs=parseInt(p.adversario??0,10)||0;
+  stats.total++;
+  stats.golsFeitos+=gf;
+  stats.golsSofridos+=gs;
+  if(gf>gs)stats.vitorias++;
+  else if(gf<gs)stats.derrotas++;
+  else stats.empates++;
+  (j.dados?.atletas||[]).forEach(a=>{
+   const key=chaveAtletaEstatisticaJogos(a);
+   if(!stats.atletas[key]){
+    stats.atletas[key]={
+     nomeCompleto:a.nomeCompleto||'',
+     apelido:a.apelido||'',
+     ano:a.ano||'',
+     nascimento:a.nascimento||'',
+     minutos:0,
+     gols:0,
+     amarelo:0,
+     vermelho:0
+    };
+   }
+   const item=stats.atletas[key];
+   item.minutos+=parseInt(a.minutos??0,10)||0;
+   item.gols+=parseInt(a.gols??0,10)||0;
+   item.amarelo+=parseInt(a.amarelo??0,10)||0;
+   item.vermelho+=parseInt(a.vermelho??0,10)||0;
+  });
+ });
+ const atletas=Object.values(stats.atletas);
+ stats.maisMinutos=[...atletas].sort((a,b)=>b.minutos-a.minutos||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR')).slice(0,10);
+ stats.menosMinutos=[...atletas].sort((a,b)=>a.minutos-b.minutos||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR')).slice(0,10);
+ stats.goleadores=[...atletas].filter(a=>a.gols>0).sort((a,b)=>b.gols-a.gols||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR'));
+ stats.cartoes=[...atletas].filter(a=>a.amarelo>0||a.vermelho>0).sort((a,b)=>(b.amarelo+b.vermelho)-(a.amarelo+a.vermelho)||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR'));
+ return stats;
+}
+function renderListaMinutosJogos(lista,tipo){
+ if(!lista||!lista.length)return '<div class="estat-vazio">Sem dados.</div>';
+ return `<div class="estat-lista-atletas">${lista.map((a,i)=>`<div class="estat-atleta-row"><span>${i+1}. ${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))} <small>${escapeHtmlJogos(a.ano||'')}</small></span><strong>${a.minutos} min</strong></div>`).join('')}</div>`;
+}
+function renderListaGolsJogos(lista){
+ if(!lista||!lista.length)return '<div class="estat-vazio">Nenhum gol registrado.</div>';
+ return `<div class="estat-lista-atletas">${lista.map(a=>`<div class="estat-atleta-row"><span>${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))} <small>${escapeHtmlJogos(a.ano||'')}</small></span><strong>${a.gols} gol${a.gols>1?'s':''}</strong></div>`).join('')}</div>`;
+}
+function renderListaCartoesJogos(lista){
+ if(!lista||!lista.length)return '<div class="estat-vazio">Nenhum cartão registrado.</div>';
+ return `<div class="estat-lista-atletas">${lista.map(a=>`<div class="estat-atleta-row"><span>${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))} <small>${escapeHtmlJogos(a.ano||'')}</small></span><strong><em class="estat-ca">CA ${a.amarelo}</em> <em class="estat-cv">CV ${a.vermelho}</em></strong></div>`).join('')}</div>`;
+}
+function renderEstatisticasJogosProfessor(stats){
+ return `<div class="jogos-estatisticas-card"><h3>Estatísticas</h3><div class="jogos-estatisticas-grid"><div><strong>${stats.total}</strong><span>Total de jogos</span></div><div><strong>${stats.vitorias}</strong><span>Vitórias</span></div><div><strong>${stats.derrotas}</strong><span>Derrotas</span></div><div><strong>${stats.empates}</strong><span>Empates</span></div><div><strong>${stats.golsFeitos}</strong><span>Gols feitos</span></div><div><strong>${stats.golsSofridos}</strong><span>Gols sofridos</span></div></div><div class="jogos-estatisticas-detalhes"><div class="estat-detalhe-card"><h4>10 atletas com mais tempo</h4>${renderListaMinutosJogos(stats.maisMinutos,'mais')}</div><div class="estat-detalhe-card"><h4>10 atletas com menos tempo</h4>${renderListaMinutosJogos(stats.menosMinutos,'menos')}</div><div class="estat-detalhe-card"><h4>Atletas com gols</h4>${renderListaGolsJogos(stats.goleadores)}</div><div class="estat-detalhe-card"><h4>Cartões amarelos e vermelhos</h4>${renderListaCartoesJogos(stats.cartoes)}</div></div></div>`;
 }
 async function salvarJogoSupabase(){
  const professor=professorJogosAtual||'Geral';
@@ -2809,4 +2956,514 @@ function aplicarJogoSalvoParaEdicao(jogo){
  window.__jogoStatsEditMap=statsMap;
  window.__jogoConvocadosEditSet=convocadosSet;
  renderNovoJogoListaAtletas();
+}
+
+
+/* === MÓDULO RELATÓRIOS === */
+function relatoriosAnosDisponiveis(){return ['2009','2010','2011','2012','2013','2014','2015','2016','2017'];}
+function relatoriosTipos(){return {antropometricas:'Medidas Antropométricas',resistencia:'Resistência',potencia:'Potência',velocidade:'Velocidade',agilidade:'Agilidade',todos:'Todos'};}
+function relatoriosMaxAvaliacao(){
+ let max=1;
+ (excelColumns||[]).forEach(col=>{const m=String(col).match(/^Data(\d+)$/i);if(m)max=Math.max(max,parseInt(m[1],10)||1);});
+ return max;
+}
+function relatoriosValorColuna(row,termos){
+ const chave=Object.keys(row||{}).find(k=>termos.some(t=>String(k).toLowerCase().trim()===String(t).toLowerCase().trim()));
+ return chave?(row[chave]??''):'';
+}
+function relatoriosValorColunaFlex(row,termos){
+ const chave=Object.keys(row||{}).find(k=>termos.some(t=>String(k).toLowerCase().includes(String(t).toLowerCase())));
+ return chave?(row[chave]??''):'';
+}
+function relatoriosNomeAtleta(row){return relatoriosValorColunaFlex(row,['apelido'])||relatoriosValorColunaFlex(row,['nome completo','nome'])||'Sem Nome';}
+function relatoriosAnoAtleta(row){return String(relatoriosValorColuna(row,['Ano'])||'').trim();}
+function relatoriosNascimento(row){return convertExcelDate(relatoriosValorColunaFlex(row,['data de nascimento','nascimento']));}
+function relatoriosNum(valor){
+ if(valor===undefined||valor===null||valor==='-'||String(valor).trim()==='')return NaN;
+ let s=String(valor).replace('%','').replace(/\s/g,'').replace(',','.');
+ const n=parseFloat(s);
+ return isNaN(n)?NaN:n;
+}
+function relatoriosDataSort(valor){
+ const s=String(valor||'').trim();
+ const m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+ if(m)return new Date(+m[3],+m[2]-1,+m[1]).getTime();
+ const d=new Date(s);return isNaN(d)?0:d.getTime();
+}
+function relatoriosValorAvaliacao(row,base,evalNum){return valorAvaliacao(row,base,evalNum);}
+function relatoriosMediaCampo(row,prefixo,evalNum){
+ const vals=[];
+ for(let i=1;i<=7;i++){
+  const v=relatoriosNum(relatoriosValorAvaliacao(row,prefixo+i+'_',evalNum)||relatoriosValorAvaliacao(row,prefixo+i,evalNum));
+  if(!isNaN(v))vals.push(v);
+ }
+ if(!vals.length)return '';
+ return (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2).replace('.',',');
+}
+function relatoriosMelhorSalto(row,evalNum){
+ const salvo=relatoriosValorAvaliacao(row,'MelhorSalto',evalNum); if(String(salvo||'').trim())return salvo;
+ const vals=['Salto1_','Salto2_','Salto3_'].map(b=>relatoriosNum(relatoriosValorAvaliacao(row,b,evalNum))).filter(v=>!isNaN(v));
+ return vals.length?String(Math.max(...vals)).replace('.',','):'';
+}
+function relatoriosAgilidade(row,evalNum){
+ const salvo=relatoriosValorAvaliacao(row,'Agilidade',evalNum); if(String(salvo||'').trim())return salvo;
+ const vals=['Volta1_','Volta2_'].map(b=>relatoriosNum(relatoriosValorAvaliacao(row,b,evalNum))).filter(v=>!isNaN(v));
+ return vals.length?String(Math.min(...vals)).replace('.',','):'';
+}
+function relatoriosDistancia(row,evalNum){
+ const dist=relatoriosValorAvaliacao(row,'distancia',evalNum); if(String(dist||'').trim())return dist;
+ const nivel=relatoriosValorAvaliacao(row,'nivel',evalNum);
+ return distanciaNivelResistencia(nivel)||'';
+}
+function relatoriosGordura(row,evalNum){
+ const salvo=relatoriosValorAvaliacao(row,'PercentualGordura',evalNum); if(String(salvo||'').trim())return formatGordura(salvo);
+ const nums=['Dobras1_','Dobras2_','Dobras3_','Dobras4_'].map(b=>relatoriosNum(relatoriosValorAvaliacao(row,b,evalNum)));
+ if(nums.some(v=>isNaN(v)))return '';
+ const soma=nums.reduce((a,b)=>a+b,0);
+ return ((soma*0.153+5.783)).toFixed(2).replace('.',',')+'%';
+}
+function relatoriosAlturaPredita(row,evalNum){
+ const salvo=relatoriosValorAvaliacao(row,'alturapredita',evalNum); if(String(salvo||'').trim())return String(salvo).replace('.',',');
+ const nasc=relatoriosNascimento(row), dataAval=convertExcelDate(relatoriosValorAvaliacao(row,'Data',evalNum));
+ const idade=relatoriosNum(calcularIdadeAvaliacao(nasc,dataAval));
+ const peso=relatoriosNum(relatoriosValorAvaliacao(row,'peso',evalNum));
+ const altura=relatoriosNum(relatoriosValorAvaliacao(row,'Altura',evalNum));
+ const sentado=relatoriosNum(relatoriosValorAvaliacao(row,'alturasentado',evalNum));
+ if([idade,peso,altura,sentado].some(v=>isNaN(v)||v<=0))return '';
+ const r=alturaPreditaCalculada(idade,peso,altura,sentado);
+ return r&&r.valor?(Math.floor(r.valor)/100).toFixed(2).replace('.',','):'';
+}
+function relatoriosColunas(tipo){
+ const base=[{key:'nome',label:'Nome',type:'text'},{key:'nascimento',label:'Data de Nascimento',type:'date'}];
+ if(tipo==='antropometricas')return base.concat([{key:'altura',label:'Altura',type:'num'},{key:'peso',label:'Peso',type:'num'},{key:'predita',label:'Altura Predita',type:'num'},{key:'gordura',label:'% de gordura',type:'num'}]);
+ if(tipo==='resistencia')return base.concat([{key:'nivel',label:'Nível',type:'num'},{key:'distancia',label:'Distância',type:'num'}]);
+ if(tipo==='potencia')return base.concat([{key:'salto1',label:'Salto 1',type:'num'},{key:'salto2',label:'Salto 2',type:'num'},{key:'salto3',label:'Salto 3',type:'num'},{key:'melhorSalto',label:'Melhor Salto',type:'num'}]);
+ if(tipo==='velocidade')return base.concat([{key:'aceleracao',label:'Aceleração',type:'num'},{key:'velocidade',label:'Velocidade',type:'num'}]);
+ if(tipo==='agilidade')return base.concat([{key:'agilidade',label:'Agilidade',type:'num'}]);
+ return base.concat([{key:'peso',label:'Peso',type:'num'},{key:'altura',label:'Altura',type:'num'},{key:'predita',label:'Altura Predita',type:'num'},{key:'gordura',label:'% de Gordura',type:'num'},{key:'distancia',label:'Distância',type:'num'},{key:'melhorSalto',label:'Salto',type:'num'},{key:'aceleracao',label:'Aceleração',type:'num'},{key:'velocidade',label:'Velocidade',type:'num'},{key:'agilidade',label:'Agilidade',type:'num'}]);
+}
+function relatoriosLinha(row,evalNum){
+ const aceleracao=relatoriosValorAvaliacao(row,'Aceleraçãofinal',evalNum)||relatoriosMediaCampo(row,'aceleração',evalNum);
+ const velocidade=relatoriosValorAvaliacao(row,'Velocidadefinal',evalNum)||relatoriosMediaCampo(row,'velocidade',evalNum);
+ return {
+  ano:relatoriosAnoAtleta(row),
+  nome:relatoriosNomeAtleta(row),
+  nascimento:relatoriosNascimento(row),
+  altura:relatoriosValorAvaliacao(row,'Altura',evalNum),
+  peso:relatoriosValorAvaliacao(row,'peso',evalNum),
+  predita:relatoriosAlturaPredita(row,evalNum),
+  gordura:relatoriosGordura(row,evalNum),
+  nivel:relatoriosValorAvaliacao(row,'nivel',evalNum),
+  distancia:relatoriosDistancia(row,evalNum),
+  salto1:relatoriosValorAvaliacao(row,'Salto1_',evalNum),
+  salto2:relatoriosValorAvaliacao(row,'Salto2_',evalNum),
+  salto3:relatoriosValorAvaliacao(row,'Salto3_',evalNum),
+  melhorSalto:relatoriosMelhorSalto(row,evalNum),
+  aceleracao:aceleracao,
+  velocidade:velocidade,
+  agilidade:relatoriosAgilidade(row,evalNum)
+ };
+}
+function openRelatoriosModal(){
+ document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active-screen');s.style.display='';});
+ document.getElementById('home-screen')?.classList.add('active-screen');
+ let m=document.getElementById('relatorios-modal');
+ if(!m){m=document.createElement('div');m.className='relatorios-overlay';m.id='relatorios-modal';document.body.appendChild(m);}
+ const tipos=relatoriosTipos();
+ const maxEval=relatoriosMaxAvaliacao();
+ window.__relatoriosSort={key:'anoNome',dir:'asc'};
+ window.__relatorioAtletaSelecionadoIndex=null;
+ m.innerHTML=`<div class="relatorios-card"><div class="relatorios-top"><div class="relatorios-left"><select id="relatorio-tipo-select" onchange="relatoriosResetSort();renderRelatoriosTabela()">${Object.keys(tipos).map(k=>`<option value="${k}">${tipos[k]}</option>`).join('')}</select></div><h2 id="relatorios-titulo">Medidas Antropométricas</h2><div class="relatorios-anos">${relatoriosAnosDisponiveis().map(a=>`<label><input type="checkbox" class="relatorio-ano-chk" value="${a}" onchange="renderRelatoriosTabela()"> ${a}</label>`).join('')}</div><div class="relatorios-actions"><button onclick="closeRelatoriosModal()">Fechar</button><button onclick="exportarRelatorioPDF()">PDF</button></div></div><div class="relatorios-table-wrap"><table id="relatorios-table"><thead><tr id="relatorios-head"></tr></thead><tbody id="relatorios-body"></tbody></table></div><div class="relatorios-bottom"><select id="relatorio-eval-select" onchange="renderRelatoriosTabela()">${Array.from({length:maxEval},(_,i)=>i+1).map(n=>`<option value="${n}" ${n===maxEval?'selected':''}>Avaliação ${n}</option>`).join('')}</select><button id="btn-relatorio-individual" class="relatorio-individual-btn" onclick="gerarRelatorioFisicoIndividual()" disabled>Relatório Físico Individual</button></div></div>`;
+ m.style.display='flex';
+ renderRelatoriosTabela();
+}
+function closeRelatoriosModal(){const m=document.getElementById('relatorios-modal');if(m)m.style.display='none';}
+function relatoriosResetSort(){window.__relatoriosSort={key:'anoNome',dir:'asc'};window.__relatorioAtletaSelecionadoIndex=null;}
+function relatoriosSortBy(key){
+ const s=window.__relatoriosSort||{key:'nome',dir:'asc'};
+ if(s.key===key)s.dir=s.dir==='asc'?'desc':'asc'; else {s.key=key;s.dir='asc';}
+ window.__relatoriosSort=s;renderRelatoriosTabela();
+}
+function relatoriosDadosAtuais(){
+ const tipo=document.getElementById('relatorio-tipo-select')?.value||'antropometricas';
+ const evalNum=document.getElementById('relatorio-eval-select')?.value||relatoriosMaxAvaliacao();
+ const anosMarcados=Array.from(document.querySelectorAll('#relatorios-modal .relatorio-ano-chk:checked')).map(x=>x.value);
+ const anosFiltro=anosMarcados.length?anosMarcados:relatoriosAnosDisponiveis();
+ const cols=relatoriosColunas(tipo);
+ let dados=(excelData||[]).map((row,index)=>({row,index})).filter(item=>anosFiltro.includes(relatoriosAnoAtleta(item.row))).map(item=>{const linha=relatoriosLinha(item.row,evalNum);linha.__index=item.index;return linha;});
+ const sort=window.__relatoriosSort||{key:'anoNome',dir:'asc'};
+ const col=cols.find(c=>c.key===sort.key);
+ dados.sort((a,b)=>{
+  let r=0;
+  if(sort.key==='anoNome'||!col){
+   const aa=parseInt(a.ano||'9999',10)||9999;
+   const ab=parseInt(b.ano||'9999',10)||9999;
+   r=aa-ab;
+   if(r===0)r=String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR');
+   return r;
+  }
+  let va=a[col.key], vb=b[col.key];
+  if(col.type==='num'){
+   const na=relatoriosNum(va), nb=relatoriosNum(vb);
+   if(isNaN(na)&&isNaN(nb))r=0; else if(isNaN(na))r=1; else if(isNaN(nb))r=-1; else r=na-nb;
+  }else if(col.type==='date')r=relatoriosDataSort(va)-relatoriosDataSort(vb);
+  else r=String(va||'').localeCompare(String(vb||''),'pt-BR');
+  return sort.dir==='asc'?r:-r;
+ });
+ return {tipo,evalNum,cols,dados,sort,anosMarcados,anosFiltro};
+}
+function renderRelatoriosTabela(){
+ const state=relatoriosDadosAtuais();
+ const tipos=relatoriosTipos();
+ const titulo=document.getElementById('relatorios-titulo'); if(titulo)titulo.textContent=tipos[state.tipo]||'Relatórios';
+ const head=document.getElementById('relatorios-head'), body=document.getElementById('relatorios-body'); if(!head||!body)return;
+ head.innerHTML=state.cols.map(c=>`<th onclick="relatoriosSortBy('${c.key}')">${c.label}${state.sort.key===c.key?(state.sort.dir==='asc'?' ▲':' ▼'):''}</th>`).join('');
+ const selecionavel=state.tipo==='todos';
+ body.innerHTML=state.dados.map(row=>`<tr class="${selecionavel?'relatorio-row-selecionavel':''} ${window.__relatorioAtletaSelecionadoIndex===row.__index?'relatorio-row-selected':''}" ${selecionavel?`onclick="selecionarAtletaRelatorio(${row.__index})"`:''}>${state.cols.map(c=>`<td>${escapeHtmlJogos(row[c.key]||'')}</td>`).join('')}</tr>`).join('');
+ atualizarBotaoRelatorioIndividual(state);
+}
+function selecionarAtletaRelatorio(index){
+ window.__relatorioAtletaSelecionadoIndex=(window.__relatorioAtletaSelecionadoIndex===index)?null:index;
+ renderRelatoriosTabela();
+}
+function atualizarBotaoRelatorioIndividual(state){
+ const btn=document.getElementById('btn-relatorio-individual');
+ if(!btn)return;
+ const ativo=state&&state.tipo==='todos'&&window.__relatorioAtletaSelecionadoIndex!==null&&window.__relatorioAtletaSelecionadoIndex!==undefined;
+ btn.style.display=state&&state.tipo==='todos'?'block':'none';
+ btn.disabled=!ativo;
+}
+function relatoriosAnosTitulo(state){
+ const anos=(state.anosMarcados&&state.anosMarcados.length)?state.anosMarcados:[];
+ if(anos.length===0)return 'Todos os anos';
+ return anos.join(' / ');
+}
+function relatoriosValorComUnidade(valor,unidade){
+ if(valor===undefined||valor===null||String(valor).trim()==='')return '';
+ return `${valor} ${unidade}`;
+}
+function relatoriosClasseGordura(valor){
+ const n=relatoriosNum(valor);
+ if(isNaN(n))return '';
+ if(n<9)return 'gord-azul';
+ if(n>=9 && n<=9.09)return 'gord-amarelo';
+ if(n>=9.10 && n<=10.99)return 'gord-verde';
+ if(n>=11 && n<12)return 'gord-amarelo';
+ if(n>=12)return 'gord-vermelho';
+ return '';
+}
+function relatorioIndividualMetricasAtleta(index){
+ const row=excelData[index]||{};
+ const max=relatoriosMaxAvaliacao();
+ const avals=[];
+ for(let n=1;n<=max;n++){
+  const linha=relatoriosLinha(row,n);
+  const data=convertExcelDate(relatoriosValorAvaliacao(row,'Data',n));
+  const tem=['peso','altura','predita','gordura','distancia','melhorSalto','aceleracao','velocidade','agilidade'].some(k=>String(linha[k]||'').trim()!=='');
+  if(tem)avals.push({eval:n,label:data&&data!=='-'?data:`Aval. ${n}`,...linha});
+ }
+ return avals;
+}
+function relatorioIndividualGrupoRows(atletaIndex){
+ const atleta=excelData[atletaIndex]||{};
+ const anosMarcados=Array.from(document.querySelectorAll('#relatorios-modal .relatorio-ano-chk:checked')).map(x=>x.value);
+ const anos=anosMarcados.length?anosMarcados:[relatoriosAnoAtleta(atleta)];
+ return (excelData||[]).filter(row=>anos.includes(relatoriosAnoAtleta(row)));
+}
+function relatorioIndividualMediaGrupoPorAvaliacao(atletaIndex,evalNum,key){
+ const rows=relatorioIndividualGrupoRows(atletaIndex);
+ const vals=rows.map(row=>relatoriosNum(relatoriosLinha(row,evalNum)[key])).filter(v=>!isNaN(v));
+ if(!vals.length)return NaN;
+ return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+function relatorioIndividualCorPonto(key,valor,media){
+ if(key==='gordura'){
+  const cls=relatoriosClasseGordura(valor);
+  if(cls==='gord-azul')return '#00b0f0';
+  if(cls==='gord-amarelo')return '#ffff00';
+  if(cls==='gord-verde')return '#00ff38';
+  if(cls==='gord-vermelho')return '#ff0000';
+  return '#999';
+ }
+ const tolerancia=key==='distancia'?100:0.10;
+ const menorMelhor=['aceleracao','velocidade','agilidade'].includes(key);
+ const cls=relatoriosClassePorMedia(valor,media,tolerancia,menorMelhor);
+ if(cls==='media-verde')return '#00b050';
+ if(cls==='media-amarelo')return '#ffff00';
+ if(cls==='media-vermelho')return '#ff0000';
+ return '#999';
+}
+function relatorioIndividualChartSVG(titulo,avals,key,unidade){
+ const pontos=avals.map(a=>({label:`${a.eval}`,valor:relatoriosNum(a[key]),media:relatorioIndividualMediaGrupoPorAvaliacao(window.__relatorioAtletaSelecionadoIndex,a.eval,key)})).filter(p=>!isNaN(p.valor));
+ if(!pontos.length)return `<div class="grafico-vazio"><h3>${titulo}</h3><p>Sem dados suficientes.</p></div>`;
+ const w=430,h=185,padL=38,padR=14,padT=26,padB=36;
+ let vals=pontos.flatMap(p=>[p.valor,isNaN(p.media)?p.valor:p.media]);
+ if(key==='gordura')vals=vals.concat([8,14]);
+ let min=Math.min(...vals),max=Math.max(...vals); if(min===max){min-=1;max+=1;}
+ const margem=(max-min)*0.08; min-=margem; max+=margem;
+ if(key==='gordura'){min=Math.min(min,8);max=Math.max(max,14);}
+ const x=i=>padL+(pontos.length===1?(w-padL-padR)/2:i*(w-padL-padR)/(pontos.length-1));
+ const y=v=>padT+(max-v)*(h-padT-padB)/(max-min);
+ const fmtValor=(v)=>{
+  if(isNaN(v))return '-';
+  const casas=key==='distancia'?0:2;
+  return v.toFixed(casas).replace('.',',')+(unidade||'');
+ };
+ const linha=pontos.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.valor).toFixed(1)}`).join(' ');
+ let bg='';
+ if(key==='gordura'){
+  const band=(low,high,color)=>{
+   const a=Math.max(low,min), b=Math.min(high,max);
+   if(b<=a)return '';
+   return `<rect x="${padL}" y="${y(b)}" width="${w-padL-padR}" height="${Math.max(0,y(a)-y(b))}" fill="${color}" opacity="0.62"/>`;
+  };
+  bg=[
+   band(min,9,'#8fd3ff'),
+   band(9,9.10,'#fff176'),
+   band(9.10,11,'#83f29b'),
+   band(11,12,'#fff176'),
+   band(12,max,'#ff8a80')
+  ].join('');
+ }
+ const circles=pontos.map((p,i)=>{const cor=relatorioIndividualCorPonto(key,p.valor,p.media);return `<circle cx="${x(i)}" cy="${y(p.valor)}" r="5" fill="${cor}" stroke="#fff" stroke-width="1.5"/><text x="${x(i)}" y="${y(p.valor)-8}" text-anchor="middle" font-size="8" font-weight="700">${fmtValor(p.valor)}</text>`;}).join('');
+ const grid=[0,1,2,3,4].map(i=>{const yy=padT+i*(h-padT-padB)/4;return `<line x1="${padL}" y1="${yy}" x2="${w-padR}" y2="${yy}" stroke="#e5e5e5"/>`;}).join('');
+ const mediasLabels=pontos.map((p,i)=>{
+  const anchor=i===0?'start':(i===pontos.length-1?'end':'middle');
+  const dx=i===0?'-2':(i===pontos.length-1?'2':'0');
+  const texto=key==='gordura'?`Avaliação ${p.label}`:`Média: ${fmtValor(p.media)}`;
+  return `<text x="${x(i)}" dx="${dx}" y="${h-10}" text-anchor="${anchor}" font-size="8.5" font-weight="800" fill="#111">${texto}</text>`;
+ }).join('');
+ return `<svg class="grafico-svg" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#fff"/><text x="${w/2}" y="18" text-anchor="middle" font-size="11" font-weight="800">${titulo}</text>${bg}${grid}<line x1="${padL}" y1="${h-padB}" x2="${w-padR}" y2="${h-padB}" stroke="#bbb"/><line x1="${padL}" y1="${padT}" x2="${padL}" y2="${h-padB}" stroke="#bbb"/><path d="${linha}" fill="none" stroke="#0074d9" stroke-width="3"/>${circles}${mediasLabels}</svg>`;
+}
+async function relatorioIndividualBuscarEstatisticasJogos(atletaIndex){
+ const row=excelData[atletaIndex]||{};
+ const alvo={nomeCompleto:nomeCompletoAtletaJogos(row)||relatoriosNomeAtleta(row),ano:relatoriosAnoAtleta(row),nascimento:nascimentoAtletaJogos(row)};
+ const stats={jogos:0,vitorias:0,empates:0,derrotas:0,minutos:0,gols:0,amarelo:0,vermelho:0};
+ try{
+  const {data,error}=await _supabase.from('jogos').select('professor,numero_jogo,nome,dados');
+  if(error)throw error;
+  (data||[]).forEach(j=>{
+   const atleta=(j.dados?.atletas||[]).find(a=>String(a.nomeCompleto||'').trim()===alvo.nomeCompleto&&String(a.nascimento||'').trim()===alvo.nascimento&&String(a.ano||'').trim()===alvo.ano);
+   if(!atleta)return;
+   const minutos=parseInt(atleta.minutos||0,10)||0;
+   if(minutos<=0)return;
+   stats.jogos++; stats.minutos+=minutos; stats.gols+=parseInt(atleta.gols||0,10)||0; stats.amarelo+=parseInt(atleta.amarelo||0,10)||0; stats.vermelho+=parseInt(atleta.vermelho||0,10)||0;
+   const gf=parseInt(j.dados?.placar?.cfa_prosol||0,10)||0, gs=parseInt(j.dados?.placar?.adversario||0,10)||0;
+   if(gf>gs)stats.vitorias++; else if(gf<gs)stats.derrotas++; else stats.empates++;
+  });
+ }catch(e){console.error('Erro ao buscar jogos para relatório individual:',e);}
+ return stats;
+}
+function relatorioIndividualValorUltima(avals,key){
+ for(let i=avals.length-1;i>=0;i--){if(String(avals[i][key]||'').trim()!=='')return avals[i][key];}
+ return '-';
+}
+async function gerarRelatorioFisicoIndividual(){
+ const index=window.__relatorioAtletaSelecionadoIndex;
+ if(index===null||index===undefined||!excelData[index])return alert('Selecione um atleta primeiro.');
+ const row=excelData[index];
+ const avals=relatorioIndividualMetricasAtleta(index);
+ if(!avals.length)return alert('Este atleta não possui avaliações para gerar a ficha.');
+ const jogos=await relatorioIndividualBuscarEstatisticasJogos(index);
+ const nomeCompleto=nomeCompletoAtletaJogos(row)||relatoriosNomeAtleta(row);
+ const apelido=apelidoAtletaJogos(row)||relatoriosNomeAtleta(row);
+ const foto=relatoriosValorColunaFlex(row,['foto'])||'camiseta_linha.png';
+ const logo='logo.png';
+ const pos1=relatoriosValorColunaFlex(row,['posição 1','posicao 1','posição','posicao'])||'-';
+ const pos2=relatoriosValorColunaFlex(row,['posição 2','posicao 2'])||'-';
+ const ult=avals[avals.length-1], ant=avals.length>1?avals[avals.length-2]:null;
+ const esc=v=>escapeHtmlJogos(v??'');
+ const valor=(key,fallback='-')=>{for(let i=avals.length-1;i>=0;i--){if(String(avals[i][key]||'').trim()!=='')return avals[i][key];}return fallback;};
+ const valorAnt=(key,fallback='-')=>ant&&String(ant[key]||'').trim()!==''?ant[key]:fallback;
+ const delta=(key,menorMelhor=false,unit='')=>{
+  if(!ant)return '';
+  const a=relatoriosNum(ult[key]), b=relatoriosNum(ant[key]);
+  if(isNaN(a)||isNaN(b))return '';
+  const dif=a-b;
+  const bom=menorMelhor?dif<0:dif>0;
+  const ruim=menorMelhor?dif>0:dif<0;
+  const cls=bom?'bom':(ruim?'ruim':'neutro');
+  const sinal=dif>0?'+':'';
+  return `<span class="delta ${cls}">${sinal}${dif.toFixed(2).replace('.',',')}${unit}</span>`;
+ };
+ const card=(label,key,unit='',menorMelhor=false)=>`<div class="res-card"><span>${label}</span><strong>${esc(valor(key))}${unit}</strong>${delta(key,menorMelhor,unit)}</div>`;
+ const compRow=a=>`<tr><td>${esc(a.label)}</td><td>${esc(a.peso)}</td><td>${esc(a.altura)}</td><td>${esc(a.gordura)}</td><td>${esc(a.distancia)}</td><td>${esc(a.melhorSalto)}</td><td>${esc(a.aceleracao)}</td><td>${esc(a.velocidade)}</td><td>${esc(a.agilidade)}</td></tr>`;
+ const charts=[
+  relatorioIndividualChartSVG('% de Gordura',avals,'gordura','%'),
+  relatorioIndividualChartSVG('Teste de Resistência',avals,'distancia','m'),
+  relatorioIndividualChartSVG('Teste de Potência',avals,'melhorSalto','m'),
+  relatorioIndividualChartSVG('Aceleração em 10 m',avals,'aceleracao','s'),
+  relatorioIndividualChartSVG('Velocidade em 30 m',avals,'velocidade','s'),
+  relatorioIndividualChartSVG('Circuito de Agilidade',avals,'agilidade','s')
+ ].join('');
+ const w=window.open('','_blank','width=1150,height=900'); if(!w)return alert('Permita pop-ups para gerar a ficha.');
+ const html=`<!doctype html><html><head><meta charset="utf-8"><title>Ficha Física - ${esc(apelido)}</title><style>
+ @page{size:A4 portrait;margin:4mm}
+ *{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+ body{margin:0;background:#f6f1e8;color:#171717;font-family:Arial,Helvetica,sans-serif}.page-strip{height:8px;background:#58111a;border-bottom:4px solid #f9c614}.ficha{width:100%;max-width:1040px;margin:6px auto 0}.header-card{background:#fff;border:1px solid #d8cfc2;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px #0001}.header-band{background:#58111a;color:#f9c614;text-align:center;padding:4px 10px 2px}.header-band h1{font-size:18px;margin:0;font-weight:900;letter-spacing:.4px}.header-band p{font-size:9px;margin:1px 0 0;color:#fff;font-weight:700}.header-body{display:grid;grid-template-columns:82px 1fr 70px;gap:10px;align-items:center;padding:8px 14px 9px}.foto-box{width:70px;height:105px;border:2px solid #58111a;border-radius:8px;background:#f7f7f7;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:auto}.foto-box img{width:100%;height:100%;object-fit:cover}.logo-head{width:60px;display:block;margin:auto}.athlete-name{font-size:18px;line-height:1.05;margin:0;color:#58111a;font-weight:900}.athlete-sub{font-size:10px;font-weight:800;margin:4px 0;color:#222}.athlete-muted{font-size:9px;color:#666;margin-bottom:5px}.badges{display:flex;gap:5px;flex-wrap:wrap}.badge{min-width:54px;border-radius:6px;padding:4px 5px;text-align:center;color:#fff;font-weight:800}.badge span{display:block;font-size:6px;text-transform:uppercase}.badge strong{display:block;font-size:14px;line-height:1}.b-blue{background:#0984e3}.b-green{background:#27ae60}.b-yellow{background:#f9c614;color:#1c1c1c}.b-red{background:#d63031}.b-maroon{background:#58111a}.section-title{background:#58111a;color:#f9c614;text-align:center;font-size:12px;font-weight:900;padding:5px;margin:8px 0 6px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px}.resumo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.res-card{background:#fff;border:1px solid #d8cfc2;border-radius:8px;padding:6px 8px;min-height:46px;position:relative;box-shadow:0 1px 3px #0001;border-left:5px solid #f9c614}.res-card:nth-child(2n){border-left-color:#58111a}.res-card span{display:block;color:#666;font-size:9px;font-weight:800}.res-card strong{display:block;font-size:15px;margin-top:3px}.delta{position:absolute;right:7px;top:24px;font-size:8px;font-weight:900}.delta.bom{color:#159957}.delta.ruim{color:#b30000}.delta.neutro{color:#58111a}.comparativo{width:100%;border-collapse:collapse;background:#fff;font-size:8px;border:1px solid #58111a}.comparativo th{background:#58111a;color:#fff;padding:3px 3px}.comparativo td{padding:2px 3px;text-align:center;border:1px solid #eadfd0}.comparativo td:first-child{font-weight:900}.comparativo tr:nth-child(even){background:#faf6ed}.graficos{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:0}.grafico-svg,.grafico-vazio{width:100%;background:#fff;border:1px solid #d8cfc2;border-radius:8px}.grafico-vazio{height:155px;display:flex;flex-direction:column;align-items:center;justify-content:center}.legenda{font-size:8px;text-align:center;color:#333;margin:4px 0;display:flex;justify-content:center;gap:14px;align-items:center;font-weight:800}.leg-item{display:inline-flex;align-items:center;gap:4px}.leg-dot{width:9px;height:9px;border-radius:50%;display:inline-block;border:1px solid #fff;box-shadow:0 0 0 1px #999}.leg-green{background:#00b050}.leg-yellow{background:#ffff00}.leg-red{background:#ff0000}.footer{border-top:1px solid #d8cfc2;color:#666;font-size:8px;margin-top:4px;padding-top:3px;display:flex;justify-content:space-between}@media print{.ficha{margin-top:4px}.grafico-svg{height:158px!important}.graficos{gap:5px}.section-title{margin:6px 0 4px}.header-card{break-inside:avoid}.resumo-grid,.comparativo,.graficos{break-inside:avoid}.footer{display:none}}
+ </style></head><body><div class="page-strip"></div><div class="ficha"><div class="header-card"><div class="header-band"><h1>FICHA FÍSICA INDIVIDUAL</h1><p>Evolução dos Testes Físicos • CFA Prosol</p></div><div class="header-body"><div class="foto-box"><img src="${foto}" onerror="this.src='camiseta_linha.png'"></div><div><h2 class="athlete-name">${esc(nomeCompleto)}</h2><div class="athlete-sub">Ano: ${esc(relatoriosAnoAtleta(row))} &nbsp; • &nbsp; Nascimento: ${esc(nascimentoAtletaJogos(row))} &nbsp; • &nbsp; Posição: ${esc(pos1)}</div><div class="athlete-muted">Última avaliação: ${esc(ult.label)} &nbsp; • &nbsp; Avaliações comparadas: ${avals.length}</div><div class="badges"><div class="badge b-blue"><span>Jogos</span><strong>${jogos.jogos}</strong></div><div class="badge b-green"><span>Vitórias</span><strong>${jogos.vitorias}</strong></div><div class="badge b-yellow"><span>Empates</span><strong>${jogos.empates}</strong></div><div class="badge b-red"><span>Derrotas</span><strong>${jogos.derrotas}</strong></div><div class="badge b-maroon"><span>Minutos</span><strong>${jogos.minutos}</strong></div><div class="badge b-yellow"><span>Gols</span><strong>${jogos.gols}</strong></div></div></div><img class="logo-head" src="${logo}"></div></div><div class="section-title">Resumo da Última Avaliação</div><div class="resumo-grid">${card('Peso','peso',' Kg')}${card('Altura','altura',' m')}${card('Alt. Predita','predita',' m')}${card('% Gordura','gordura','',true)}${card('Resistência','distancia',' m')}${card('Potência','melhorSalto',' m')}${card('Aceleração','aceleracao',' s',true)}${card('Velocidade','velocidade',' s',true)}${card('Agilidade','agilidade',' s',true)}</div><div class="section-title">Comparativo das Avaliações</div><table class="comparativo"><thead><tr><th>Data</th><th>Peso</th><th>Altura</th><th>Gordura</th><th>Distância</th><th>Salto</th><th>Acel.</th><th>Veloc.</th><th>Agil.</th></tr></thead><tbody>${avals.map(compRow).join('')}</tbody></table><div class="section-title">Evolução dos Testes</div><div class="graficos">${charts}</div><div class="legenda"><span class="leg-item"><i class="leg-dot leg-green"></i>Acima da média</span><span class="leg-item"><i class="leg-dot leg-yellow"></i>Na média</span><span class="leg-item"><i class="leg-dot leg-red"></i>Abaixo da média</span></div><div class="footer"><span>CFA Prosol • Relatório gerado pelo Sistema de Organização Metodológica</span><span>Ficha Física Individual</span></div></div><script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
+ w.document.write(html);w.document.close();
+}
+function relatoriosMediaValores(dados,key){
+ const vals=(dados||[]).map(r=>relatoriosNum(r[key])).filter(v=>!isNaN(v));
+ if(!vals.length)return NaN;
+ return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+function relatoriosMediasCategoria(state){
+ return {
+  distancia:relatoriosMediaValores(state.dados,'distancia'),
+  melhorSalto:relatoriosMediaValores(state.dados,'melhorSalto'),
+  aceleracao:relatoriosMediaValores(state.dados,'aceleracao'),
+  velocidade:relatoriosMediaValores(state.dados,'velocidade'),
+  agilidade:relatoriosMediaValores(state.dados,'agilidade')
+ };
+}
+function relatoriosFormatoMedia(valor,sufixo=''){
+ if(isNaN(valor))return '-';
+ return valor.toFixed(2).replace('.',',')+sufixo;
+}
+function relatoriosClassePorMedia(valor,media,tolerancia,menorMelhor=false){
+ const n=relatoriosNum(valor);
+ if(isNaN(n)||isNaN(media))return '';
+ if(n < media - tolerancia)return menorMelhor?'media-verde':'media-vermelho';
+ if(n > media + tolerancia)return menorMelhor?'media-vermelho':'media-verde';
+ return 'media-amarelo';
+}
+function relatoriosClasseCelula(key,valor,medias){
+ if(key==='gordura')return relatoriosClasseGordura(valor);
+ if(key==='distancia')return relatoriosClassePorMedia(valor,medias.distancia,100,false);
+ if(key==='melhorSalto')return relatoriosClassePorMedia(valor,medias.melhorSalto,0.10,false);
+ if(key==='aceleracao')return relatoriosClassePorMedia(valor,medias.aceleracao,0.10,true);
+ if(key==='velocidade')return relatoriosClassePorMedia(valor,medias.velocidade,0.10,true);
+ if(key==='agilidade')return relatoriosClassePorMedia(valor,medias.agilidade,0.10,true);
+ return '';
+}
+function relatoriosColunasPDF(tipo){
+ const base=[{key:'nome',label:'Nome'},{key:'nascimento',label:'Nasc.'}];
+ if(tipo==='antropometricas')return base.concat([{key:'altura',label:'Altura',unit:' m'},{key:'peso',label:'Peso',unit:' Kg'},{key:'predita',label:'Altura Predita',unit:' m'},{key:'gordura',label:'% de Gordura'}]);
+ if(tipo==='resistencia')return base.concat([{key:'nivel',label:'Nível'},{key:'distancia',label:'Distância'}]);
+ if(tipo==='potencia')return base.concat([{key:'salto1',label:'Salto 1'},{key:'salto2',label:'Salto 2'},{key:'salto3',label:'Salto 3'},{key:'melhorSalto',label:'Melhor Salto'}]);
+ if(tipo==='velocidade')return base.concat([{key:'aceleracao',label:'Aceleração'},{key:'velocidade',label:'Velocidade'}]);
+ if(tipo==='agilidade')return base.concat([{key:'agilidade',label:'Agilidade'}]);
+ return base.concat([{key:'peso',label:'Peso',unit:' Kg'},{key:'altura',label:'Altura',unit:' m'},{key:'predita',label:'Altura Predita',unit:' m'},{key:'gordura',label:'% de Gordura'},{key:'distancia',label:'Distância'},{key:'melhorSalto',label:'Salto'},{key:'aceleracao',label:'Aceleração'},{key:'velocidade',label:'Velocidade'},{key:'agilidade',label:'Agilidade'}]);
+}
+function relatoriosValorPDF(row,col){
+ const v=row[col.key];
+ if(v===undefined||v===null||String(v).trim()==='')return '';
+ return String(v)+(col.unit||'');
+}
+function relatoriosTituloPDF(state){
+ const tipos=relatoriosTipos();
+ const nomeTitulo=state.tipo==='todos'?'Teste Físico':(tipos[state.tipo]||'Relatório');
+ return `${nomeTitulo} - ${relatoriosAnosTitulo(state)}`;
+}
+function relatoriosRodapeMedias(state,medias){
+ if(state.tipo==='antropometricas')return '';
+ if(state.tipo==='resistencia')return `<div class="media-cat">Média da categoria: ${relatoriosFormatoMedia(medias.distancia,' m')}</div>`;
+ if(state.tipo==='potencia')return `<div class="media-cat">Média da categoria: ${relatoriosFormatoMedia(medias.melhorSalto,' m')}</div>`;
+ if(state.tipo==='velocidade')return `<div class="media-cat">Média da categoria: Aceleração ${relatoriosFormatoMedia(medias.aceleracao)} | Velocidade ${relatoriosFormatoMedia(medias.velocidade)}</div>`;
+ if(state.tipo==='agilidade')return `<div class="media-cat">Média da categoria: ${relatoriosFormatoMedia(medias.agilidade)}</div>`;
+ return `<div class="media-cat">Médias da categoria: Distância ${relatoriosFormatoMedia(medias.distancia,' m')} | Salto ${relatoriosFormatoMedia(medias.melhorSalto,' m')} | Aceleração ${relatoriosFormatoMedia(medias.aceleracao)} | Velocidade ${relatoriosFormatoMedia(medias.velocidade)} | Agilidade ${relatoriosFormatoMedia(medias.agilidade)}</div>`;
+}
+function exportarRelatorioEspecialPDF(state){
+ const w=window.open('','_blank','width=1100,height=800');
+ if(!w)return alert('Permita pop-ups para gerar o PDF.');
+ const titulo=relatoriosTituloPDF(state);
+ const cols=relatoriosColunasPDF(state.tipo);
+ const medias=relatoriosMediasCategoria(state);
+ const bodyClass=state.tipo==='todos'?'rel-todos':'';
+ const pageOrientation=state.tipo==='todos'?'landscape':'portrait';
+ const linhas=state.dados.map(r=>`<tr>${cols.map(c=>{
+  const cls=relatoriosClasseCelula(c.key,r[c.key],medias);
+  const extra=(c.key==='nome')?' class="nome"':` class="${cls}"`;
+  return `<td${extra}>${escapeHtmlJogos(relatoriosValorPDF(r,c))}</td>`;
+ }).join('')}</tr>`).join('');
+ const html=`<!doctype html><html><head><meta charset="utf-8"><title>${titulo}</title><style>
+ @page{size:A4 ${pageOrientation};margin:8mm 10mm}
+ *{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+ body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#000;background:#fff}.cab{display:grid;grid-template-columns:90px 1fr 90px;align-items:center;margin-bottom:10px}.cab img{width:64px;height:64px;object-fit:contain;margin:auto;display:block}.cab h1{text-align:center;font-size:22px;margin:0;font-weight:800}
+ table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.15}th{background:#d60000;color:#fff;padding:3px 5px;text-align:left;font-weight:800}td{padding:2px 5px;border:0;text-align:left}td.nome{font-weight:800}td:not(.nome){text-align:center}.gord-azul{background:#00b0f0}.gord-amarelo,.media-amarelo{background:#ffff00}.gord-verde,.media-verde{background:#00ff38}.gord-vermelho,.media-vermelho{background:#ff0000;color:#000}.media-cat{margin-top:12px;font-size:15px;font-weight:800;text-align:center;border-top:2px solid #000;padding-top:8px}
+ th:nth-child(1),td:nth-child(1){text-align:left}th:nth-child(2),td:nth-child(2){text-align:center;width:95px}
+ body.rel-todos .cab{grid-template-columns:62px 1fr 62px;margin-bottom:6px}body.rel-todos .cab img{width:50px;height:50px}body.rel-todos .cab h1{font-size:18px}body.rel-todos table{font-size:10px;line-height:1.08;table-layout:auto}body.rel-todos th{padding:2.5px 2px;white-space:normal;text-align:center}body.rel-todos td{padding:2px 2px;white-space:nowrap}body.rel-todos td.nome{white-space:normal;min-width:80px}body.rel-todos th:nth-child(2),body.rel-todos td:nth-child(2){width:60px}body.rel-todos .media-cat{font-size:11px;margin-top:7px;padding-top:5px}
+ </style></head><body class="${bodyClass}"><div class="cab"><img src="logo.png"><h1>${titulo}</h1><img src="logo.png"></div><table><thead><tr>${cols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>${linhas}</tbody></table>${relatoriosRodapeMedias(state,medias)}<script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`;
+ w.document.write(html);w.document.close();
+}
+function exportarRelatorioPDF(){
+ const state=relatoriosDadosAtuais();
+ exportarRelatorioEspecialPDF(state);
+}
+
+
+/* === PRANCHETA VIRTUAL - MINI CAMPO COM BOTÕES MÓVEIS === */
+const pranchetaSistemasMini = {
+ '4-3-3': [[8,50,'G'],[23,18,'2'],[23,38,'3'],[23,62,'4'],[23,82,'6'],[48,28,'5'],[48,50,'8'],[48,72,'10'],[76,18,'7'],[82,50,'9'],[76,82,'11']],
+ '4-4-2': [[8,50,'G'],[23,18,'2'],[23,38,'3'],[23,62,'4'],[23,82,'6'],[50,15,'7'],[50,38,'5'],[50,62,'8'],[50,85,'11'],[78,38,'9'],[78,62,'10']],
+ '4-2-3-1': [[8,50,'G'],[23,18,'2'],[23,38,'3'],[23,62,'4'],[23,82,'6'],[43,38,'5'],[43,62,'8'],[63,18,'7'],[63,50,'10'],[63,82,'11'],[82,50,'9']],
+ '4-2-4': [[8,50,'G'],[23,18,'2'],[23,38,'3'],[23,62,'4'],[23,82,'6'],[45,38,'5'],[45,62,'8'],[76,14,'7'],[82,38,'9'],[82,62,'10'],[76,86,'11']],
+ '3-5-2': [[8,50,'G'],[25,30,'3'],[25,50,'4'],[25,70,'5'],[48,12,'2'],[48,32,'6'],[48,50,'8'],[48,68,'10'],[48,88,'11'],[78,38,'9'],[78,62,'7']],
+ '3-4-3': [[8,50,'G'],[25,30,'3'],[25,50,'4'],[25,70,'5'],[48,22,'2'],[48,42,'6'],[48,58,'8'],[48,78,'11'],[78,18,'7'],[82,50,'9'],[78,82,'10']],
+ '5-3-2': [[8,50,'G'],[23,12,'2'],[23,31,'3'],[23,50,'4'],[23,69,'5'],[23,88,'6'],[51,32,'8'],[51,50,'10'],[51,68,'11'],[80,38,'9'],[80,62,'7']]
+};
+let pranchetaMiniContador = 12;
+function openPranchetaModal() {
+ let modal=document.getElementById('prancheta-modal');
+ if(!modal){
+  modal=document.createElement('div');
+  modal.id='prancheta-modal';
+  modal.className='mini-prancheta-overlay';
+  modal.innerHTML='<div class="mini-prancheta-box"><div id="prancheta-modal-content"></div></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal)closePranchetaModal();});
+ }
+ modal.style.display='flex';
+ renderPranchetaVirtual();
+}
+function closePranchetaModal(){const modal=document.getElementById('prancheta-modal');if(modal)modal.style.display='none';}
+function renderPranchetaVirtual(){
+ const box=document.getElementById('prancheta-modal-content')||document.getElementById('prancheta-content');
+ if(!box)return;
+ box.innerHTML=`<div class="mini-board-toolbar"><strong>PRANCHETA VIRTUAL</strong><label>Sistema <select id="mini-tactical-system">${Object.keys(pranchetaSistemasMini).map(s=>`<option value="${s}">${s}</option>`).join('')}</select></label><button onclick="resetPrancheta()">Restaurar</button><button onclick="adicionarBotaoPrancheta()">+ Jogador</button><button onclick="adicionarBolaPrancheta()">Bola</button><button onclick="clearPrancheta()">Limpar</button><button class="mini-close" onclick="closePranchetaModal()">Fechar</button></div><div class="mini-board-area"><div id="mini-football-board"><div class="mini-field-line center"></div><div class="mini-center-circle"></div><div class="mini-center-dot"></div><div class="mini-box left big"></div><div class="mini-box left small"></div><div class="mini-box right big"></div><div class="mini-box right small"></div><div class="mini-goal left"></div><div class="mini-goal right"></div><div id="mini-board-players"></div></div></div><div class="mini-board-tip">Arraste os botões para movimentar. Clique duas vezes em um jogador para renomear.</div>`;
+ document.getElementById('mini-tactical-system').onchange=resetPrancheta;
+ resetPrancheta();
+}
+function resetPrancheta(){
+ const area=document.getElementById('mini-board-players');
+ const sel=document.getElementById('mini-tactical-system');
+ if(!area||!sel)return;
+ area.innerHTML='';
+ pranchetaMiniContador=12;
+ (pranchetaSistemasMini[sel.value]||[]).forEach(p=>criarBotaoPrancheta(p[0],p[1],p[2]));
+}
+function clearPrancheta(){const area=document.getElementById('mini-board-players');if(area)area.innerHTML='';}
+function adicionarBotaoPrancheta(){criarBotaoPrancheta(50,50,String(pranchetaMiniContador++));}
+function adicionarBolaPrancheta(){criarBotaoPrancheta(50,50,'⚽','ball');}
+function criarBotaoPrancheta(x,y,texto,tipo='player'){
+ const area=document.getElementById('mini-board-players');if(!area)return;
+ const btn=document.createElement('button');
+ btn.className='mini-tactical-player '+(tipo==='ball'?'mini-ball':'');
+ btn.textContent=texto;
+ btn.style.left=x+'%';
+ btn.style.top=y+'%';
+ btn.title='Arraste para mover';
+ btn.ondblclick=()=>{if(tipo==='ball')return;const n=prompt('Nome, número ou função:',btn.textContent);if(n)btn.textContent=n;};
+ makeTacticalDraggable(btn);
+ area.appendChild(btn);
+}
+function makeTacticalDraggable(el){
+ let dragging=false,dx=0,dy=0;
+ el.addEventListener('pointerdown',e=>{
+  e.preventDefault();dragging=true;
+  const r=el.getBoundingClientRect();dx=e.clientX-(r.left+r.width/2);dy=e.clientY-(r.top+r.height/2);
+  el.setPointerCapture?.(e.pointerId);el.classList.add('dragging');
+ });
+ el.addEventListener('pointermove',e=>{
+  if(!dragging)return;
+  const board=el.parentElement.parentElement.getBoundingClientRect();
+  let x=((e.clientX-dx-board.left)/board.width)*100;
+  let y=((e.clientY-dy-board.top)/board.height)*100;
+  el.style.left=Math.max(2,Math.min(98,x))+'%';
+  el.style.top=Math.max(4,Math.min(96,y))+'%';
+ });
+ const up=e=>{dragging=false;el.releasePointerCapture?.(e.pointerId);el.classList.remove('dragging');};
+ el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
 }
