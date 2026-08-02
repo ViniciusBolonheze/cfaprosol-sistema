@@ -31,6 +31,9 @@ let uploadedPhotoBase64 = '';
 let selectedAthleteIndex = null;
 let currentPfTab = 'antropometricas';
 let selectedConvocados = new Set();
+let convocacaoSessaoAtiva = false;
+let convocacaoCarregadaNaSessao = false;
+let professorJogosAtual = null;
 
 // Variável de controle para os Grupos
 let gruposData = {
@@ -153,6 +156,7 @@ function enterSystem() {
 }
 
 function navigateTo(screenId, event) {
+    if (screenId !== 'convocacao') { convocacaoSessaoAtiva = false; convocacaoCarregadaNaSessao = false; }
     if (screenId === 'convocacao') { openConvocacaoModal(); return; }
 
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
@@ -195,6 +199,7 @@ function navigateTo(screenId, event) {
         document.getElementById('grupos-screen').classList.add('active-screen');
         renderGruposScreen();
     } else {
+        if (screenId === 'jogos') { openJogosProfessorModal(); return; }
         if (screenId === 'prancheta') {
             openPranchetaModal();
             return;
@@ -613,10 +618,8 @@ function renderTabelaAntropometrica(evalNum, selectedYear, headerRow, tbody) {
         if (!excelColumns.includes(alturaPreditaKey)) excelColumns.push(alturaPreditaKey);
         const valores={ano,nome:valorColunaExata(row,'NOME COMPLETO'),nascimento,data:dataAval,idade:calcularIdadeAvaliacao(nascimento,dataAval),altura:valorAvaliacao(row,'Altura',evalNum),sentado:valorAvaliacao(row,'alturasentado',evalNum),predita:(()=>{const r=alturaPreditaCalculada(calcularIdadeAvaliacao(nascimento,dataAval).replace(',','.'),parseFloat(String(valorAvaliacao(row,'peso',evalNum)).replace(',','.'))||0,parseFloat(String(valorAvaliacao(row,'Altura',evalNum)).replace(',','.'))||0,parseFloat(String(valorAvaliacao(row,'alturasentado',evalNum)).replace(',','.'))||0);return r.valor?(Math.floor(r.valor)/100).toFixed(2).replace('.',',')+' m':'-'})(),peso:valorAvaliacao(row,'peso',evalNum),sbe:nums[0]||'',tri:nums[1]||'',spi:nums[2]||'',abd:nums[3]||'',soma:soma ? soma.toFixed(1).replace('.',',') : '',gordura:gorduraTexto};
         const tr=document.createElement('tr');
-        colunas.forEach((c,i)=>{const td=document.createElement('td'), key=c[1], fixed=['idade','predita','soma','gordura'].includes(key); if(key==='ano'||key==='nome'||key==='nascimento'){td.textContent=valores[key];td.style.background='#f4f6f7';}else if(fixed){td.textContent=valores[key];td.style.background='#e8f5e9';td.style.fontWeight='bold';}else{const input=document.createElement('input');input.type='text';input.value=valores[key];input.onchange=e=>{let base={data:'Data',altura:'Altura',sentado:'alturasentado',peso:'peso',sbe:'Dobras1_',tri:'Dobras2_',spi:'Dobras3_',abd:'Dobras4_'}[key];if(base){const k=base+evalNum;excelData[rowIndex][k]=e.target.value;saveToStorage();renderPfTable();}};td.appendChild(input);}tr.appendChild(td);}); tbody.appendChild(tr);
+        colunas.forEach((c,i)=>{const td=document.createElement('td'), key=c[1], fixed=['idade','predita','soma','gordura'].includes(key); if(key==='ano'||key==='nome'||key==='nascimento'){td.textContent=valores[key];td.style.background='#f4f6f7';}else if(fixed){td.textContent=valores[key];td.style.background='#e8f5e9';td.style.fontWeight='bold';}else{const input=document.createElement('input');input.type='text';input.value=valores[key];input.onchange=e=>{let base={data:'Data',altura:'Altura',sentado:'alturasentado',peso:'peso',sbe:'Dobras1_',tri:'Dobras2_',spi:'Dobras3_',abd:'Dobras4_'}[key];if(base){const k=base+evalNum;excelData[rowIndex][k]=e.target.value;renderPfTable();saveToStorage();}};td.appendChild(input);}tr.appendChild(td);}); tbody.appendChild(tr);
     });
-    saveToStorage();
-    renderExcelTable();
 }
 
 function distanciaNivelResistencia(valor){
@@ -684,7 +687,6 @@ function renderPfTable() {
         });
         tbody.appendChild(tr);
     });
-    saveToStorage();
 }
 
 
@@ -1831,7 +1833,7 @@ function ensureConvocacaoModalDom() {
         document.body.appendChild(modal);
     }
 }
-function openConvocacaoModal() { ensureConvocacaoModalDom(); renderConvocacaoScreen(); document.getElementById('convocacao-modal').style.display = 'flex'; }
+function openConvocacaoModal() { document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active-screen');s.style.display='';}); document.getElementById('home-screen')?.classList.add('active-screen'); if(!convocacaoSessaoAtiva){selectedConvocados.clear();localStorage.removeItem(STORAGE_CONVOCACAO_KEY);localStorage.removeItem('prosol_cfa_escalacao_v1');convocacaoCarregadaNaSessao=false;} convocacaoSessaoAtiva=true; ensureConvocacaoModalDom(); renderConvocacaoScreen(); document.getElementById('convocacao-modal').style.display = 'flex'; }
 function closeConvocacaoModal() { document.getElementById('convocacao-modal').style.display = 'none'; }
 function renderConvocacaoScreen() {
     const yearsBar = document.getElementById('convocacao-years-bar'); if (!yearsBar) return;
@@ -1912,7 +1914,7 @@ function limparConvocacao() { selectedConvocados.clear(); renderConvocacaoLists(
 function confirmarConvocacao() {
     if (selectedConvocados.size === 0) { alert('Nenhum atleta selecionado.'); return; }
     localStorage.setItem(STORAGE_CONVOCACAO_KEY, JSON.stringify(Array.from(selectedConvocados)));
-    localStorage.removeItem('prosol_cfa_escalacao_v1');
+    if(!convocacaoCarregadaNaSessao) localStorage.removeItem('prosol_cfa_escalacao_v1');
     abrirEscalacaoConvocacao();
 }
 
@@ -1934,7 +1936,7 @@ function abrirEscalacaoConvocacao() {
         const ordem = ordemPosicoes.findIndex(p => posicao.includes(p));
         return { index, nome: nomeKey && row[nomeKey] ? row[nomeKey] : 'Sem Nome', ordem: ordem < 0 ? 99 : ordem };
     }).sort((a,b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, 'pt-BR'));
-    modal.innerHTML = `<div class="escalacao-card"><div class="escalacao-header"><span>ESCALAÇÃO DA CONVOCAÇÃO</span><button onclick="fecharEscalacaoConvocacao()">×</button></div><p class="escalacao-help">Defina o número e indique se cada atleta é titular ou reserva.</p><div class="escalacao-list">${atletas.map((a,i) => { const v=salvo[a.index]||{}; return `<div class="escalacao-row posicao-${a.ordem}"><span class="escalacao-name">${a.nome}</span><input class="escalacao-numero" data-index="${a.index}" value="${v.numero||''}" placeholder="#" type="number" min="1" max="99"><label><input type="radio" name="status-${a.index}" value="titular" ${v.status!=='reserva'?'checked':''}> Titular</label><label><input type="radio" name="status-${a.index}" value="reserva" ${v.status==='reserva'?'checked':''}> Reserva</label></div>`; }).join('')}</div><div class="escalacao-footer"><span id="escalacao-status"></span><button class="escalacao-field" onclick="salvarEscalacaoConvocacao(); abrirCampoConvocacao()">Confirmar e abrir campo</button></div></div>`;
+    modal.innerHTML = `<div class="escalacao-card"><div class="escalacao-header"><span>ESCALAÇÃO DA CONVOCAÇÃO</span><button onclick="fecharEscalacaoConvocacao()">×</button></div><p class="escalacao-help">Defina o número e indique se cada atleta é titular ou reserva.</p><div class="escalacao-list">${atletas.map((a,i) => { const v=salvo[a.index]||{}; return `<div class="escalacao-row posicao-${a.ordem}"><span class="escalacao-name">${a.nome}</span><input class="escalacao-numero" data-index="${a.index}" value="${v.numero||''}" placeholder="#" type="number" min="1" max="99"><label><input type="radio" name="status-${a.index}" value="titular" ${v.status==='titular'?'checked':''}> Titular</label><label><input type="radio" name="status-${a.index}" value="reserva" ${v.status==='reserva'||!v.status?'checked':''}> Reserva</label></div>`; }).join('')}</div><div class="escalacao-footer"><span id="escalacao-status"></span><button class="escalacao-field" onclick="salvarEscalacaoConvocacao(); abrirCampoConvocacao()">Confirmar e abrir campo</button></div></div>`;
     modal.style.display = 'flex';
     modal.querySelectorAll('input[type="radio"]').forEach(r=>r.addEventListener('change', atualizarStatusEscalacao));
     atualizarStatusEscalacao();
@@ -1946,6 +1948,12 @@ function salvarEscalacaoConvocacao() {
     localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(dados));
     atualizarStatusEscalacao();
     alert('Escalação salva com sucesso!');
+}
+function voltarParaSelecaoConvocacao(){
+    salvarEscalacaoConvocacao();
+    fecharEscalacaoConvocacao();
+    openConvocacaoModal();
+    renderConvocacaoScreen();
 }
 function fecharEscalacaoConvocacao(){const m=document.getElementById('escalacao-convocacao-modal');if(m)m.style.display='none';}
 async function carregarConvocacaoSalva(){
@@ -2257,7 +2265,7 @@ async function confirmarCarregamentoConvocacao(){
  const select=document.getElementById('convocacao-para-carregar');if(!select||!select.value)return alert('Selecione uma convocação.');
  const {data,error}=await _supabase.from('convocacoes').select('nome,dados').eq('nome',select.value).single();
  if(error||!data){alert('Não foi possível carregar a convocação.');return;}
- const d=data.dados||{};window.__convocacaoCarregada=d;const indices=(d.selecionadosDetalhes||[]).map(localizarAtletaPorIdentidade).filter(i=>i>=0);selectedConvocados=new Set(indices.length?indices:(d.selecionados||[]));localStorage.setItem(STORAGE_CONVOCACAO_KEY,JSON.stringify([...selectedConvocados]));localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(d.escalacao||{}));
+ const d=data.dados||{};window.__convocacaoCarregada=d;convocacaoCarregadaNaSessao=true;const indices=(d.selecionadosDetalhes||[]).map(localizarAtletaPorIdentidade).filter(i=>i>=0);selectedConvocados=new Set(indices.length?indices:(d.selecionados||[]));localStorage.setItem(STORAGE_CONVOCACAO_KEY,JSON.stringify([...selectedConvocados]));localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(d.escalacao||{}));
  document.querySelectorAll('.conv-year-chk').forEach(c=>c.checked=(d.anos||[]).includes(c.value));renderConvocacaoLists();document.getElementById('carregar-convocacao-modal').style.display='none';abrirEscalacaoConvocacao();
 }
 
@@ -2288,4 +2296,517 @@ function abrirMinutagemConvocacao(){
  const arr=Object.keys(salvo).map(i=>{const r=excelData[i]||{};const nk=Object.keys(r).find(k=>k.toLowerCase().includes('apelido'))||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));return{n:salvo[i].numero||'',nome:nk&&r[nk]||'' ,res:salvo[i].status==='reserva'}});const tit=arr.filter(x=>!x.res).sort((a,b)=>(Number(a.n)||999)-(Number(b.n)||999)),sup=arr.filter(x=>x.res).sort((a,b)=>(Number(a.n)||999)-(Number(b.n)||999));
  const linha=(x,i)=>`<tr><td>${x.n}</td><td>${x.nome}</td><td></td><td class="box"></td><td class="box"></td><td class="tempo-box"></td><td class="minuto"></td><td class="tempo-box"></td><td></td><td></td><td class="box"></td><td class="box"></td></tr>`;const supl=sup.map(x=>`<tr><td>${x.n}</td><td>${x.nome}</td></tr>`).join('');
  const w=window.open('','_blank','width=1100,height=800');if(!w)return;w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Minutagem</title><style>@page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}body{font-family:Arial;margin:0;font-size:12px}.head{height:92px;display:flex;align-items:center;justify-content:center;gap:35px}.head img{width:82px}.sq{width:64px;height:38px;border:3px solid #111}.x{font-size:34px;font-weight:bold}.adv{font-size:22px;font-weight:bold}.tbl{width:100%;border-collapse:collapse;table-layout:fixed}.tbl th{text-align:center;height:23px}.tbl td{height:18px;border:1px solid #111;padding:1px 4px}.tbl td:nth-child(1){width:52px;text-align:center;border-right:0}.tbl td:nth-child(2){width:180px;text-align:left}.tbl td:nth-child(3){width:55px}.tbl td:nth-child(4),.tbl td:nth-child(5),.tbl td:nth-child(9),.tbl td:nth-child(10){width:62px}.tbl td.box,.tbl td.tempo-box,.tbl td.minuto{border:1px solid #111!important;background:#fff;height:16px}.tbl th:nth-child(1),.tbl td:nth-child(1){font-size:10px!important;width:32px!important;min-width:32px!important;max-width:32px!important;text-align:center!important}.tbl td:nth-child(7),.tbl th:nth-child(7){text-align:center!important} .tbl th:nth-child(3),.tbl td:nth-child(3),.tbl th:nth-child(10),.tbl td:nth-child(10){width:42px!important;min-width:42px!important;max-width:42px!important;padding:1px!important;text-align:center!important;white-space:nowrap}.tbl th:nth-child(4),.tbl td:nth-child(4),.tbl th:nth-child(5),.tbl td:nth-child(5),.tbl th:nth-child(11),.tbl td:nth-child(11),.tbl th:nth-child(12),.tbl td:nth-child(12){width:40px!important;min-width:40px!important;max-width:40px!important;padding:1px!important;text-align:center!important;white-space:nowrap}.tbl th:nth-child(6),.tbl td:nth-child(6),.tbl th:nth-child(8),.tbl td:nth-child(8){width:32px!important;min-width:32px!important;max-width:32px!important;padding:1px!important;text-align:center!important;white-space:nowrap}.tbl th:nth-child(7),.tbl td:nth-child(7){width:58px!important;min-width:58px!important;max-width:58px!important;text-align:center!important}.ca{background:#ff0}.cv{color:red}.bar{background:#c00;color:#fff;text-align:center;font-weight:bold;height:18px}.bottom{display:grid;grid-template-columns:240px 1fr;gap:60px}.sup td{height:15px;border-bottom:1px solid #111;border-right:2px dotted #111}.info{margin-top:15px;font-size:20px;text-align:center}.check{display:inline-block;width:36px;height:34px;border:2px solid #e33;vertical-align:middle;margin:8px 15px}.notes{border:3px solid #111;height:90px;margin-top:0;padding:4px;font-size:12px}</style></head><body><div class="head"><img src="logo.png"><span class="sq"></span><span class="x">X</span><span class="sq"></span><span class="adv">${adv||'Adversário'}</span></div><table class="tbl"><thead><tr><th>Número</th><th>Titulares</th><th>Gols</th><th class="ca">C.A.</th><th class="cv">C.V.</th><th>1º</th><th>Minuto</th><th>2º</th><th>Suplentes</th><th>Gols</th><th class="ca">C.A.</th><th class="cv">C.V.</th></tr></thead><tbody>${tit.map(linha).join('')}<tr><td colspan="12" class="bar">Suplentes</td></tr></tbody></table><div class="bottom"><table class="sup"><tbody>${supl}</tbody></table><div><div class="info"><b>Data:</b> ${data||'____/____/______'}<br><span class="check"></span> Casa <span class="check"></span> Fora</div><div class="notes">Informações adicionais</div></div></div><script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);w.document.close();
+}
+
+/* Atualiza a tela após 10 minutos sem atividade, evitando manter uma cópia antiga aberta */
+let timerInatividadeSistema;
+const TEMPO_INATIVIDADE_SISTEMA = 10 * 60 * 1000;
+let inicioInatividadeSistema=Date.now();
+function atualizarRelogioInatividade(){
+    let el=document.getElementById('relogio-inatividade-sistema');
+    if(!el){el=document.createElement('div');el.id='relogio-inatividade-sistema';el.title='Tempo para atualização automática';document.body.appendChild(el);}
+    const restante=Math.max(0,TEMPO_INATIVIDADE_SISTEMA-(Date.now()-inicioInatividadeSistema));
+    const minutos=String(Math.floor(restante/60000)).padStart(2,'0');
+    const segundos=String(Math.floor(restante%60000/1000)).padStart(2,'0');
+    el.textContent='↻ '+minutos+':'+segundos;
+}
+function reiniciarTimerInatividadeSistema(){
+    clearTimeout(timerInatividadeSistema);inicioInatividadeSistema=Date.now();atualizarRelogioInatividade();
+    timerInatividadeSistema=setTimeout(()=>window.location.reload(),TEMPO_INATIVIDADE_SISTEMA);
+}
+function iniciarRelogioInatividadeSistema(){
+    ['mousedown','keydown','input','change','scroll','touchstart','pointerdown'].forEach(evt=>document.addEventListener(evt,reiniciarTimerInatividadeSistema,{passive:true}));
+    reiniciarTimerInatividadeSistema();
+    setInterval(atualizarRelogioInatividade,1000);
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',iniciarRelogioInatividadeSistema); else iniciarRelogioInatividadeSistema();
+
+
+/* === MÓDULO JOGOS === */
+function openJogosProfessorModal(){
+ let m=document.getElementById('jogos-professor-modal');if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='jogos-professor-modal';document.body.appendChild(m)}
+ const professores=['Christian Rondina','Eric Bergmann','Roberto Fonseca Jr.','Vinícius Bolonheze'];
+ m.innerHTML=`<div class="jogos-professor-card"><h3>Selecione o professor</h3><p>Escolha o banco de dados que deseja acessar:</p><div>${professores.map(p=>`<button onclick="selecionarProfessorJogos('${p}')">${p}</button>`).join('')}</div><button class="cancelar-jogos" onclick="document.getElementById('jogos-professor-modal').style.display='none'">Cancelar</button></div>`;
+ m.style.display='flex';
+}
+function selecionarProfessorJogos(professor){
+ professorJogosAtual=professor;const m=document.getElementById('jogos-professor-modal');if(m)m.style.display='none';
+ document.querySelectorAll('.screen').forEach(x=>{x.classList.remove('active-screen');x.style.display=''});const g=document.getElementById('generic-screen');g.classList.add('active-screen');g.style.display='flex';renderJogosScreen();
+}
+function renderJogosScreen(){
+ const box=document.getElementById('generic-content');if(!box)return;
+ const qtdAtivos=contarAtletasAtivosJogos();
+ const modoAtivos=getJogosAtivosConfigRaw()===null?'Padrão atual: Ano 2013':`${qtdAtivos} atleta(s) ativo(s)`;
+ box.innerHTML=`<div class="jogos-header"><h2>Jogos — ${professorJogosAtual||''}</h2><p>Banco de dados individual do professor<br><small>${modoAtivos}</small></p></div><div id="jogos-salvos-lista" class="jogos-salvos-lista"><p>Carregando jogos salvos...</p></div><button class="atletas-ativos-fab" onclick="abrirAtletasAtivosJogos()">Atletas Ativos <span>${qtdAtivos}</span></button><button class="novo-jogo-fab" onclick="novoJogo()">Novo Jogo</button>`;
+ carregarJogosSalvosProfessor();
+}
+
+function getJogosAtivosTempSet(){
+ if(!window.__jogosAtivosTempSet) window.__jogosAtivosTempSet=new Set();
+ return window.__jogosAtivosTempSet;
+}
+
+function chaveJogosAtivosProfessor(professor=professorJogosAtual){
+ return 'prosol_cfa_jogos_ativos_v1_'+encodeURIComponent(professor||'geral');
+}
+function getJogosAtivosConfigRaw(){
+ const raw=localStorage.getItem(chaveJogosAtivosProfessor());
+ if(raw===null)return null;
+ try{return JSON.parse(raw)||[]}catch(e){return []}
+}
+function nomeAtletaJogos(row){
+ const nk=Object.keys(row).find(k=>k.toLowerCase().includes('apelido'))||Object.keys(row).find(k=>k.toLowerCase().includes('nome'));
+ return nk&&row[nk]?String(row[nk]).trim():'Sem Nome';
+}
+function anoAtletaJogos(row){return String(valorColunaExata(row,'Ano')||'').trim();}
+function posicaoAtletaJogos(row){
+ const pk=Object.keys(row).find(k=>k.toLowerCase().includes('posição')||k.toLowerCase().includes('posicao'));
+ return pk&&row[pk]?String(row[pk]).trim():'-';
+}
+function normalizarDataJogos(valor){return String(convertExcelDate(valor)||'').trim();}
+function nascimentoAtletaJogos(row){
+ const dk=Object.keys(row).find(k=>k.toLowerCase().includes('data de nascimento')||k.toLowerCase().includes('nascimento'));
+ return dk?normalizarDataJogos(row[dk]):'';
+}
+function nomeCompletoAtletaJogos(row){
+ const nk=Object.keys(row).find(k=>k.toLowerCase().includes('nome completo'))||Object.keys(row).find(k=>k.toLowerCase()==='nome')||Object.keys(row).find(k=>k.toLowerCase().includes('nome'));
+ return nk&&row[nk]?String(row[nk]).trim():'';
+}
+function identidadeAtletaJogos(index){
+ const row=excelData[index]||{};
+ return {apelido:nomeAtletaJogos(row),nascimento:nascimentoAtletaJogos(row),nomeCompleto:nomeCompletoAtletaJogos(row),ano:anoAtletaJogos(row)};
+}
+function localizarAtletaAtivoJogos(id){
+ if(id===undefined||id===null)return -1;
+ if(typeof id==='number')return id;
+ const apelido=String(id.apelido||'').trim();
+ const nascimento=normalizarDataJogos(id.nascimento||'');
+ const nomeCompleto=String(id.nomeCompleto||id.nome||'').trim();
+ const ano=String(id.ano||'').trim();
+ let idx=-1;
+ if(apelido&&nascimento){
+  idx=excelData.findIndex(row=>nomeAtletaJogos(row)===apelido&&nascimentoAtletaJogos(row)===nascimento);
+  if(idx>=0)return idx;
+ }
+ if(apelido&&ano){
+  idx=excelData.findIndex(row=>nomeAtletaJogos(row)===apelido&&anoAtletaJogos(row)===ano);
+  if(idx>=0)return idx;
+ }
+ if(nomeCompleto&&nascimento){
+  idx=excelData.findIndex(row=>nomeCompletoAtletaJogos(row)===nomeCompleto&&nascimentoAtletaJogos(row)===nascimento);
+  if(idx>=0)return idx;
+ }
+ return -1;
+}
+function getJogosAtletasAtivosIndices(){
+ const cfg=getJogosAtivosConfigRaw();
+ if(cfg===null){
+  return excelData.map((r,i)=>({r,i})).filter(x=>anoAtletaJogos(x.r)==='2013').map(x=>x.i);
+ }
+ const indices=cfg.map(item=>localizarAtletaAtivoJogos(item)).filter(i=>Number.isInteger(i)&&i>=0&&excelData[i]);
+ return Array.from(new Set(indices));
+}
+function contarAtletasAtivosJogos(){return getJogosAtletasAtivosIndices().length;}
+
+function abrirAtletasAtivosJogos(){
+ const cfgAtivosSalvos=getJogosAtivosConfigRaw();
+ window.__jogosAtivosTempSet=new Set((cfgAtivosSalvos===null?[]:getJogosAtletasAtivosIndices()).map(i=>String(i)));
+ let m=document.getElementById('atletas-ativos-jogos-modal');
+ if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='atletas-ativos-jogos-modal';document.body.appendChild(m)}
+ const anos=['2009','2010','2011','2012','2013','2014','2015','2016','2017','2018'];
+ m.innerHTML=`<div class="atletas-ativos-card"><div class="novo-jogo-title"><b>Atletas Ativos — ${professorJogosAtual||''}</b><button onclick="document.getElementById('atletas-ativos-jogos-modal').style.display='none'">×</button></div><div class="ativos-toolbar"><input id="busca-atleta-ativo-jogos" placeholder="Buscar atleta..." oninput="renderAtletasAtivosJogosLista()"><div class="ativos-anos">${anos.map(a=>`<label><input type="checkbox" class="jogo-ativo-ano" value="${a}" onchange="renderAtletasAtivosJogosLista()"> ${a}</label>`).join('')}</div><div class="ativos-acoes"><button onclick="marcarAtletasAtivosFiltrados(true)">Marcar filtrados</button><button onclick="marcarAtletasAtivosFiltrados(false)">Desmarcar filtrados</button><button onclick="getJogosAtivosTempSet().clear();renderAtletasAtivosJogosLista()">Limpar</button></div><p>Escolha os atletas que ficarão disponíveis em todos os jogos deste professor. Se nada for salvo, o padrão continua sendo o Ano 2013.</p></div><div id="jogos-atletas-ativos-lista"></div><div class="ativos-footer"><strong id="jogos-ativos-contador"></strong><div><button class="salvar-jogo" onclick="salvarAtletasAtivosJogos()">Salvar Ativos</button><button class="cancelar-ativos" onclick="document.getElementById('atletas-ativos-jogos-modal').style.display='none'">Cancelar</button></div></div></div>`;
+ m.style.display='flex';
+ renderAtletasAtivosJogosLista();
+}
+function getAtletasFiltradosAtivosJogos(){
+ const anosSel=Array.from(document.querySelectorAll('#atletas-ativos-jogos-modal .jogo-ativo-ano:checked')).map(x=>x.value);
+ const busca=(document.getElementById('busca-atleta-ativo-jogos')?.value||'').toLowerCase().trim();
+ return excelData.map((row,index)=>({index,row,nome:nomeAtletaJogos(row),ano:anoAtletaJogos(row),posicao:posicaoAtletaJogos(row)})).filter(a=>{
+  if(anosSel.length&& !anosSel.includes(a.ano))return false;
+  if(busca&& !(`${a.nome} ${a.ano} ${a.posicao}`.toLowerCase().includes(busca)))return false;
+  return true;
+ }).sort((a,b)=>a.ano.localeCompare(b.ano)||a.nome.localeCompare(b.nome,'pt-BR'));
+}
+function renderAtletasAtivosJogosLista(){
+ const box=document.getElementById('jogos-atletas-ativos-lista');if(!box)return;
+ const atletas=getAtletasFiltradosAtivosJogos();
+ box.innerHTML=`<div class="ativo-atleta-head"><span></span><span>Atleta</span><span>Ano</span><span>Posição</span></div>`+atletas.map(a=>`<label class="ativo-atleta-row"><input type="checkbox" ${getJogosAtivosTempSet().has(String(a.index))?'checked':''} onchange="toggleAtletaAtivoJogos(${a.index},this.checked)"><span>${a.nome}</span><span>${a.ano}</span><span>${a.posicao}</span></label>`).join('');
+ atualizarContadorAtivosJogos();
+}
+function toggleAtletaAtivoJogos(index,checked){
+ const set=getJogosAtivosTempSet(); if(checked)set.add(String(index));else set.delete(String(index));
+ atualizarContadorAtivosJogos();
+}
+function atualizarContadorAtivosJogos(){
+ const el=document.getElementById('jogos-ativos-contador');
+ if(el)el.textContent=`Selecionados: ${getJogosAtivosTempSet().size}`;
+}
+function marcarAtletasAtivosFiltrados(marcar){
+ const set=getJogosAtivosTempSet(); getAtletasFiltradosAtivosJogos().forEach(a=>{if(marcar)set.add(String(a.index));else set.delete(String(a.index));});
+ renderAtletasAtivosJogosLista();
+}
+function salvarAtletasAtivosJogos(){
+ const indices=Array.from(getJogosAtivosTempSet()).map(x=>parseInt(x)).filter(i=>Number.isInteger(i)&&excelData[i]);
+ const payload=indices.map(i=>identidadeAtletaJogos(i));
+ localStorage.setItem(chaveJogosAtivosProfessor(),JSON.stringify(payload));
+ const m=document.getElementById('atletas-ativos-jogos-modal');if(m)m.style.display='none';
+ renderJogosScreen();
+ alert('Atletas ativos salvos para '+(professorJogosAtual||'este professor')+'.');
+}
+
+function converterDataConvocacaoParaInput(valor){
+ if(!valor)return '';
+ const s=String(valor).trim();
+ let m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+ if(m)return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+ if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+ const d=new Date(s);
+ if(!isNaN(d))return d.toISOString().slice(0,10);
+ return '';
+}
+function getConvocacaoJogoAtual(){return window.__jogoConvocacaoAtual||null;}
+function indicesConvocadosDoJogo(dados){
+ const d=dados||{};
+ let indices=[];
+ if(Array.isArray(d.selecionadosDetalhes)&&d.selecionadosDetalhes.length){
+  indices=d.selecionadosDetalhes.map(id=>localizarAtletaAtivoJogos(id)).filter(i=>Number.isInteger(i)&&i>=0&&excelData[i]);
+ }
+ if(indices.length===0&&Array.isArray(d.selecionados)){
+  indices=d.selecionados.map(i=>parseInt(i)).filter(i=>Number.isInteger(i)&&i>=0&&excelData[i]);
+ }
+ return Array.from(new Set(indices));
+}
+function getIndicesListaNovoJogo(){
+ const base=getJogosAtletasAtivosIndices();
+ const conv=getConvocacaoJogoAtual();
+ const convocados=conv?indicesConvocadosDoJogo(conv.dados):[];
+ const editados=Array.isArray(window.__jogoAtletasEditIndices)?window.__jogoAtletasEditIndices:[];
+ return Array.from(new Set([...base,...convocados,...editados]));
+}
+function isAtletaConvocadoNoJogo(index){
+ const conv=getConvocacaoJogoAtual();
+ if(!conv)return false;
+ return indicesConvocadosDoJogo(conv.dados).includes(index);
+}
+function ordemPosicaoJogos(row){
+ const p=String(posicaoAtletaJogos(row)||'').toLowerCase();
+ if(p.includes('goleiro'))return 0;
+ if(p.includes('zagueiro'))return 1;
+ if(p.includes('lateral'))return 2;
+ if(p.includes('volante'))return 3;
+ if(p.includes('meia'))return 4;
+ if(p.includes('atacante'))return 5;
+ if(p.includes('extremo')||p.includes('ponta'))return 6;
+ return 99;
+}
+function aplicarStatsEditadasJogoNasLinhas(){
+ const mapa=window.__jogoStatsEditMap||{};
+ document.querySelectorAll('#novo-jogo-atletas-lista .jogo-atleta-row').forEach(row=>{
+  const s=mapa[row.dataset.index];
+  if(!s)return;
+  const set=(sel,val)=>{const el=row.querySelector(sel);if(el)el.value=val??0;};
+  set('.jogo-atleta-minutos',s.minutos);
+  set('.jogo-atleta-gols',s.gols);
+  set('.jogo-atleta-amarelo',s.amarelo);
+  set('.jogo-atleta-vermelho',s.vermelho);
+ });
+}
+function renderNovoJogoListaAtletas(){
+ const lista=document.getElementById('novo-jogo-atletas-lista');
+ if(!lista)return;
+ const conv=getConvocacaoJogoAtual();
+ const editando=window.__jogoEditandoAtual||null;
+ const editConvSet=window.__jogoConvocadosEditSet instanceof Set?window.__jogoConvocadosEditSet:new Set();
+ const cfgAtivosJogo=getJogosAtivosConfigRaw();
+ const titulo=document.getElementById('novo-jogo-atletas-titulo');
+ const info=document.getElementById('jogo-convocacao-info');
+ const convocadosSet=new Set(conv?indicesConvocadosDoJogo(conv.dados):Array.from(editConvSet));
+ if(titulo)titulo.textContent=(conv||editando)?'Atletas do Jogo — Convocados Grifados':(cfgAtivosJogo===null?'Atletas — Ano 2013':'Atletas Ativos');
+ if(info){
+  if(conv) info.innerHTML=`Convocação carregada: <strong>${conv.nome}</strong>. Atletas convocados estão grifados em verde.`;
+  else if(editando) info.innerHTML=`Editando: <strong>${editando.nome}</strong>${editando.convocacaoNome?` — Convocação: <strong>${editando.convocacaoNome}</strong>`:''}. Atletas convocados estão grifados em verde.`;
+  else info.innerHTML='Nenhuma convocação carregada.';
+ }
+ let indices=getIndicesListaNovoJogo();
+ if(conv||editando){
+  indices=indices.sort((ia,ib)=>{
+   const ca=convocadosSet.has(ia), cb=convocadosSet.has(ib);
+   if(ca!==cb)return ca?-1:1;
+   const ra=excelData[ia]||{}, rb=excelData[ib]||{};
+   if(ca&&cb){
+    const oa=ordemPosicaoJogos(ra), ob=ordemPosicaoJogos(rb);
+    if(oa!==ob)return oa-ob;
+   }
+   return nomeAtletaJogos(ra).localeCompare(nomeAtletaJogos(rb),'pt-BR');
+  });
+ }
+ const linhas=indices.map(i=>{
+  const row=excelData[i]||{};
+  const nome=nomeAtletaJogos(row);
+  const convocado=convocadosSet.has(i);
+  return `<div class="jogo-atleta-row ${convocado?'jogo-convocado':''}" data-index="${i}"><span>${nome}</span><input class="jogo-atleta-minutos" type="number" value="0"><input class="jogo-atleta-gols" type="number" value="0"><input class="jogo-atleta-amarelo" type="number" value="0"><input class="jogo-atleta-vermelho" type="number" value="0"></div>`;
+ }).join('');
+ lista.innerHTML=`<div class="jogo-atleta-head">Atleta <span>Min.</span><span>Gols</span><span>AM.</span><span>VER.</span></div>${linhas}`;
+ aplicarStatsEditadasJogoNasLinhas();
+}
+async function abrirBuscarConvocacaoJogo(){
+ const {data,error}=await _supabase.from('convocacoes').select('nome,dados').order('nome');
+ if(error){alert('Erro ao buscar convocações.');console.error(error);return;}
+ if(!data||!data.length){alert('Nenhuma convocação salva encontrada.');return;}
+ let m=document.getElementById('buscar-convocacao-jogo-modal');
+ if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='buscar-convocacao-jogo-modal';document.body.appendChild(m)}
+ m.innerHTML=`<div class="buscar-convocacao-jogo-card"><div class="novo-jogo-title"><b>Buscar Convocação</b><button onclick="document.getElementById('buscar-convocacao-jogo-modal').style.display='none'">×</button></div><div class="buscar-convocacao-jogo-body"><p>Selecione uma convocação salva para preencher a data, o adversário e grifar os atletas convocados.</p><select id="convocacao-jogo-select" size="10">${data.map(x=>`<option value="${String(x.nome).replace(/"/g,'&quot;')}">${x.nome}</option>`).join('')}</select><div class="buscar-convocacao-jogo-actions"><button onclick="confirmarBuscarConvocacaoJogo()">Carregar Convocação</button><button onclick="document.getElementById('buscar-convocacao-jogo-modal').style.display='none'">Cancelar</button></div></div></div>`;
+ m.style.display='flex';
+}
+async function confirmarBuscarConvocacaoJogo(){
+ const select=document.getElementById('convocacao-jogo-select');
+ if(!select||!select.value)return alert('Selecione uma convocação.');
+ const {data,error}=await _supabase.from('convocacoes').select('nome,dados').eq('nome',select.value).single();
+ if(error||!data){alert('Não foi possível carregar a convocação.');console.error(error);return;}
+ const dados=data.dados||{};
+ window.__jogoConvocacaoAtual={nome:data.nome,dados};
+ const campoData=document.querySelector('#novo-jogo-modal .jogo-data-input');
+ const dataFormatada=converterDataConvocacaoParaInput(dados.data||'');
+ if(campoData&&dataFormatada)campoData.value=dataFormatada;
+ const campoAdversario=document.querySelector('#novo-jogo-modal .jogo-adversario-top');
+ if(campoAdversario)campoAdversario.value=dados.adversario||'';
+ renderNovoJogoListaAtletas();
+ const m=document.getElementById('buscar-convocacao-jogo-modal');if(m)m.style.display='none';
+}
+function novoJogo(){
+ window.__jogoConvocacaoAtual=null;
+ window.__jogoEditandoAtual=null;
+ window.__jogoAtletasEditIndices=[];
+ window.__jogoStatsEditMap={};
+ window.__jogoConvocadosEditSet=new Set();
+ let m=document.getElementById('novo-jogo-modal');
+ if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='novo-jogo-modal';document.body.appendChild(m)}
+ const cfgAtivosJogo=getJogosAtivosConfigRaw();
+ const tituloAtletasJogo=cfgAtivosJogo===null?'Atletas — Ano 2013':'Atletas Ativos';
+ m.innerHTML=`
+  <div class="novo-jogo-card">
+   <div class="novo-jogo-title">
+    <b>Novo Jogo</b>
+    <div class="novo-jogo-title-actions">
+     <button class="buscar-convocacao-jogo-btn" onclick="abrirBuscarConvocacaoJogo()">Buscar Convocação</button>
+     <button class="carregar-jogo-salvo-btn" onclick="abrirCarregarJogoSalvoModal()">Carregar Jogo</button>
+     <button class="novo-jogo-fechar" onclick="document.getElementById('novo-jogo-modal').style.display='none'">×</button>
+    </div>
+   </div>
+   <div class="jogo-placar-header">
+    <img src="logo.png">
+    <input class="jogo-placar-prosol" type="number" min="0" placeholder="0">
+    <b>X</b>
+    <input class="jogo-placar-adversario" type="number" min="0" placeholder="0">
+    <input class="jogo-adversario-top" placeholder="Adversário">
+   </div>
+   <div class="jogo-form-top">
+    <label>Jogo<select class="jogo-tipo-select"><option>Campeonato</option><option>Amistoso</option><option>Torneio</option></select></label>
+    <label>Data<input type="date" class="jogo-data-input"></label>
+    <label>Local<select class="jogo-local-select"><option>Casa</option><option>Fora</option></select></label>
+    <label class="jogo-caracteristica">Característica<select class="jogo-caracteristica-select"><option>Clube</option><option>Escolinha</option><option>Projeto</option></select></label>
+    <label class="jogo-minutos">Minutos do jogo<input class="jogo-minutos-input" type="number" value="" min="0"></label>
+   </div>
+   <div class="jogo-convocacao-info" id="jogo-convocacao-info">Nenhuma convocação carregada.</div>
+   <h3 id="novo-jogo-atletas-titulo">${tituloAtletasJogo}</h3>
+   <div class="jogo-atletas" id="novo-jogo-atletas-lista"></div>
+   <button class="salvar-jogo" onclick="salvarJogoSupabase()">Salvar Jogo</button>
+  </div>`;
+ m.style.display='flex';
+ renderNovoJogoListaAtletas();
+}
+
+
+function formatarDataJogoBR(dataISO){
+ if(!dataISO)return '';
+ const m=String(dataISO).match(/^(\d{4})-(\d{2})-(\d{2})/);
+ if(m)return `${m[3]}/${m[2]}/${m[1]}`;
+ return String(dataISO);
+}
+function numeroValorJogo(selector){
+ const el=document.querySelector(selector);
+ const n=parseInt(el?.value||'0',10);
+ return isNaN(n)?0:n;
+}
+function textoValorJogo(selector){return (document.querySelector(selector)?.value||'').trim();}
+function apelidoAtletaJogos(row){
+ const ak=Object.keys(row||{}).find(k=>k.toLowerCase().includes('apelido'));
+ return ak&&row[ak]?String(row[ak]).trim():'';
+}
+function dadosAtletasJogo(){
+ const conv=getConvocacaoJogoAtual();
+ const convocadosSet=new Set(conv?indicesConvocadosDoJogo(conv.dados):[]);
+ return Array.from(document.querySelectorAll('#novo-jogo-atletas-lista .jogo-atleta-row')).map(row=>{
+  const index=parseInt(row.dataset.index,10);
+  const atleta=excelData[index]||{};
+  return {
+   nomeCompleto: nomeCompletoAtletaJogos(atleta) || nomeAtletaJogos(atleta),
+   apelido: apelidoAtletaJogos(atleta),
+   ano: anoAtletaJogos(atleta),
+   nascimento: nascimentoAtletaJogos(atleta),
+   convocado: convocadosSet.has(index),
+   minutos: parseInt(row.querySelector('.jogo-atleta-minutos')?.value||'0',10)||0,
+   gols: parseInt(row.querySelector('.jogo-atleta-gols')?.value||'0',10)||0,
+   amarelo: parseInt(row.querySelector('.jogo-atleta-amarelo')?.value||'0',10)||0,
+   vermelho: parseInt(row.querySelector('.jogo-atleta-vermelho')?.value||'0',10)||0
+  };
+ });
+}
+async function proximoNumeroJogoProfessor(professor){
+ const {data,error}=await _supabase.from('jogos').select('numero_jogo').eq('professor',professor).order('numero_jogo',{ascending:false}).limit(1);
+ if(error)throw error;
+ const ultimo=data&&data.length?parseInt(data[0].numero_jogo,10):0;
+ return (isNaN(ultimo)?0:ultimo)+1;
+}
+function escapeHtmlJogos(valor){
+ return String(valor??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+}
+async function buscarJogoSalvoPorId(id){
+ const {data,error}=await _supabase.from('jogos').select('id,professor,numero_jogo,nome,dados,criado_em').eq('id',id).single();
+ if(error||!data){console.error(error);alert('Não foi possível carregar o jogo salvo.');return null;}
+ return data;
+}
+async function carregarJogosSalvosProfessor(){
+ const box=document.getElementById('jogos-salvos-lista');if(!box)return;
+ const professor=professorJogosAtual||'Geral';
+ const {data,error}=await _supabase.from('jogos').select('id,numero_jogo,nome,dados,criado_em').eq('professor',professor).order('numero_jogo',{ascending:false});
+ if(error){
+  box.innerHTML='<div class="jogos-salvos-card"><strong>Banco de jogos ainda não configurado.</strong><br><small>Crie a tabela <b>jogos</b> no Supabase usando o SQL que combinamos.</small></div>';
+  return;
+ }
+ if(!data||!data.length){box.innerHTML='<div class="jogos-salvos-card">Nenhum jogo salvo para este professor.</div>';return;}
+ box.innerHTML=`<div class="jogos-salvos-card"><h3>Jogos salvos</h3>${data.map(j=>`<div class="jogo-salvo-item"><strong>${escapeHtmlJogos(j.nome)}</strong><div class="jogo-salvo-acoes"><button title="Editar jogo" onclick="editarJogoSalvoDireto('${j.id}')"><i class="fa-solid fa-pen"></i></button><button title="Ver detalhes" onclick="verDetalhesJogoSalvo('${j.id}')"><i class="fa-solid fa-magnifying-glass"></i></button><button title="Excluir jogo" class="excluir-jogo-salvo" onclick="excluirJogoSalvo('${j.id}')"><i class="fa-solid fa-xmark"></i></button></div></div>`).join('')}</div>`;
+}
+async function editarJogoSalvoDireto(id){
+ const jogo=await buscarJogoSalvoPorId(id);if(!jogo)return;
+ novoJogo();
+ aplicarJogoSalvoParaEdicao(jogo);
+}
+async function verDetalhesJogoSalvo(id){
+ const jogo=await buscarJogoSalvoPorId(id);if(!jogo)return;
+ const d=jogo.dados||{};
+ const placar=d.placar||{};
+ const atletas=(d.atletas||[]).filter(a=>(Number(a.minutos)||0)>0||(Number(a.gols)||0)>0||(Number(a.amarelo)||0)>0||(Number(a.vermelho)||0)>0);
+ let m=document.getElementById('detalhes-jogo-salvo-modal');
+ if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='detalhes-jogo-salvo-modal';document.body.appendChild(m)}
+ const lista=atletas.length?atletas.map(a=>{
+  const eventos=[];
+  if(Number(a.gols)>0)eventos.push(`<span class="det-gol">${a.gols} gol${Number(a.gols)>1?'s':''}</span>`);
+  if(Number(a.amarelo)>0)eventos.push(`<span class="det-amarelo">${a.amarelo} CA</span>`);
+  if(Number(a.vermelho)>0)eventos.push(`<span class="det-vermelho">${a.vermelho} CV</span>`);
+  return `<div class="det-atleta-row"><strong>${escapeHtmlJogos(a.apelido||a.nomeCompleto||'Atleta')}</strong><span>${Number(a.minutos)||0} min</span><span>${eventos.join(' ')||'-'}</span></div>`;
+ }).join(''):'<p class="det-sem-atletas">Nenhum atleta com minutos/eventos registrados.</p>';
+ m.innerHTML=`<div class="detalhes-jogo-card"><div class="novo-jogo-title"><b>Resumo do Jogo</b><button onclick="document.getElementById('detalhes-jogo-salvo-modal').style.display='none'">×</button></div><div class="detalhes-jogo-body"><div class="det-placar"><img src="logo.png"><strong>CFA Prosol</strong><span>${placar.cfa_prosol??0}</span><b>X</b><span>${placar.adversario??0}</span><strong>${escapeHtmlJogos(d.adversario||'Adversário')}</strong></div><div class="det-info-jogo">${escapeHtmlJogos(jogo.nome)}</div><h4>Atletas que jogaram</h4><div class="det-atletas-lista">${lista}</div></div></div>`;
+ m.style.display='flex';
+}
+async function excluirJogoSalvo(id){
+ const jogo=await buscarJogoSalvoPorId(id);if(!jogo)return;
+ if(!confirm('Excluir permanentemente o jogo salvo?\n\n'+jogo.nome))return;
+ const {error}=await _supabase.from('jogos').delete().eq('id',id);
+ if(error){console.error(error);alert('Erro ao excluir jogo. Verifique as permissões no Supabase.');return;}
+ alert('Jogo excluído com sucesso.');
+ carregarJogosSalvosProfessor();
+}
+async function salvarJogoSupabase(){
+ const professor=professorJogosAtual||'Geral';
+ const editando=window.__jogoEditandoAtual||null;
+ const dataISO=textoValorJogo('#novo-jogo-modal .jogo-data-input');
+ const dataBR=formatarDataJogoBR(dataISO);
+ const adversario=textoValorJogo('#novo-jogo-modal .jogo-adversario-top');
+ const placarProsol=numeroValorJogo('#novo-jogo-modal .jogo-placar-prosol');
+ const placarAdversario=numeroValorJogo('#novo-jogo-modal .jogo-placar-adversario');
+ if(!dataISO)return alert('Informe a data do jogo antes de salvar.');
+ if(!adversario)return alert('Informe o adversário antes de salvar.');
+ let numeroJogo;
+ try{numeroJogo=editando&&editando.numero_jogo?editando.numero_jogo:await proximoNumeroJogoProfessor(professor);}catch(error){
+  console.error(error);
+  alert('Não foi possível acessar a tabela jogos no Supabase. Crie a tabela jogos antes de salvar.');
+  return;
+ }
+ const nomeJogo=`Jogo ${numeroJogo} - ${dataBR} - CFA Prosol ${placarProsol} x ${placarAdversario} ${adversario}`;
+ const conv=getConvocacaoJogoAtual();
+ const dados={
+  professor,
+  numero_jogo:numeroJogo,
+  nome:nomeJogo,
+  tipo:textoValorJogo('#novo-jogo-modal .jogo-tipo-select'),
+  data:dataBR,
+  data_iso:dataISO,
+  local:textoValorJogo('#novo-jogo-modal .jogo-local-select'),
+  adversario,
+  caracteristica:textoValorJogo('#novo-jogo-modal .jogo-caracteristica-select'),
+  minutos_jogo:numeroValorJogo('#novo-jogo-modal .jogo-minutos-input'),
+  placar:{cfa_prosol:placarProsol,adversario:placarAdversario},
+  convocacao:conv?{nome:conv.nome}:(editando&&editando.convocacaoNome?{nome:editando.convocacaoNome}:null),
+  atletas:dadosAtletasJogo()
+ };
+ const payload={professor,numero_jogo:numeroJogo,nome:nomeJogo,dados,atualizado_em:new Date().toISOString()};
+ let error;
+ if(editando&&editando.id){
+  ({error}=await _supabase.from('jogos').update(payload).eq('id',editando.id));
+ }else{
+  ({error}=await _supabase.from('jogos').insert(payload));
+ }
+ if(error){console.error(error);alert('Erro ao salvar jogo no Supabase. Verifique a tabela jogos e as permissões.');return;}
+ alert(nomeJogo+(editando?' atualizado':' salvo')+' com sucesso!');
+ const modal=document.getElementById('novo-jogo-modal');if(modal)modal.style.display='none';
+ renderJogosScreen();
+}
+async function abrirCarregarJogoSalvoModal(){
+ const professor=professorJogosAtual||'Geral';
+ const {data,error}=await _supabase.from('jogos').select('id,numero_jogo,nome,dados,criado_em').eq('professor',professor).order('numero_jogo',{ascending:false});
+ if(error){alert('Erro ao carregar jogos salvos. Verifique a tabela jogos no Supabase.');console.error(error);return;}
+ if(!data||!data.length){alert('Nenhum jogo salvo para este professor.');return;}
+ window.__jogosSalvosCarregarTemp=data;
+ let m=document.getElementById('carregar-jogo-salvo-modal');
+ if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='carregar-jogo-salvo-modal';document.body.appendChild(m)}
+ m.innerHTML=`<div class="buscar-convocacao-jogo-card"><div class="novo-jogo-title"><b>Carregar Jogo Salvo</b><button onclick="document.getElementById('carregar-jogo-salvo-modal').style.display='none'">×</button></div><div class="buscar-convocacao-jogo-body"><p>Selecione um jogo salvo para editar. Ao salvar, ele será atualizado no Supabase mantendo o mesmo número do jogo.</p><select id="jogo-salvo-select" size="10">${data.map(j=>`<option value="${j.id}">${j.nome}</option>`).join('')}</select><div class="buscar-convocacao-jogo-actions"><button onclick="confirmarCarregarJogoSalvo()">Carregar para Editar</button><button onclick="document.getElementById('carregar-jogo-salvo-modal').style.display='none'">Cancelar</button></div></div></div>`;
+ m.style.display='flex';
+}
+function setValorCampoJogo(selector,valor){const el=document.querySelector(selector);if(el)el.value=valor??'';}
+function localizarAtletaSalvoEmJogo(atletaSalvo){
+ if(!atletaSalvo)return -1;
+ let idx=localizarAtletaAtivoJogos({apelido:atletaSalvo.apelido,nascimento:atletaSalvo.nascimento,nomeCompleto:atletaSalvo.nomeCompleto,ano:atletaSalvo.ano});
+ if(idx>=0)return idx;
+ const nomeCompleto=String(atletaSalvo.nomeCompleto||'').trim();
+ const nascimento=normalizarDataJogos(atletaSalvo.nascimento||'');
+ const ano=String(atletaSalvo.ano||'').trim();
+ if(nomeCompleto&&nascimento){idx=excelData.findIndex(row=>nomeCompletoAtletaJogos(row)===nomeCompleto&&nascimentoAtletaJogos(row)===nascimento);if(idx>=0)return idx;}
+ if(nomeCompleto&&ano){idx=excelData.findIndex(row=>nomeCompletoAtletaJogos(row)===nomeCompleto&&anoAtletaJogos(row)===ano);if(idx>=0)return idx;}
+ return -1;
+}
+function confirmarCarregarJogoSalvo(){
+ const select=document.getElementById('jogo-salvo-select');
+ if(!select||!select.value)return alert('Selecione um jogo salvo.');
+ const jogo=(window.__jogosSalvosCarregarTemp||[]).find(j=>j.id===select.value);
+ if(!jogo)return alert('Jogo não encontrado na lista carregada.');
+ aplicarJogoSalvoParaEdicao(jogo);
+ const m=document.getElementById('carregar-jogo-salvo-modal');if(m)m.style.display='none';
+}
+function aplicarJogoSalvoParaEdicao(jogo){
+ const d=jogo.dados||{};
+ window.__jogoConvocacaoAtual=null;
+ window.__jogoEditandoAtual={id:jogo.id,numero_jogo:jogo.numero_jogo,nome:jogo.nome,convocacaoNome:d.convocacao&&d.convocacao.nome?d.convocacao.nome:''};
+ setValorCampoJogo('#novo-jogo-modal .jogo-placar-prosol',d.placar?.cfa_prosol??0);
+ setValorCampoJogo('#novo-jogo-modal .jogo-placar-adversario',d.placar?.adversario??0);
+ setValorCampoJogo('#novo-jogo-modal .jogo-adversario-top',d.adversario||'');
+ setValorCampoJogo('#novo-jogo-modal .jogo-data-input',d.data_iso||converterDataConvocacaoParaInput(d.data||''));
+ setValorCampoJogo('#novo-jogo-modal .jogo-tipo-select',d.tipo||'Campeonato');
+ setValorCampoJogo('#novo-jogo-modal .jogo-local-select',d.local||'Casa');
+ setValorCampoJogo('#novo-jogo-modal .jogo-caracteristica-select',d.caracteristica||'Clube');
+ setValorCampoJogo('#novo-jogo-modal .jogo-minutos-input',d.minutos_jogo||'');
+ const indices=[];
+ const statsMap={};
+ const convocadosSet=new Set();
+ (d.atletas||[]).forEach(a=>{
+  const idx=localizarAtletaSalvoEmJogo(a);
+  if(idx<0)return;
+  indices.push(idx);
+  statsMap[String(idx)]={minutos:a.minutos||0,gols:a.gols||0,amarelo:a.amarelo||0,vermelho:a.vermelho||0};
+  if(a.convocado)convocadosSet.add(idx);
+ });
+ window.__jogoAtletasEditIndices=Array.from(new Set(indices));
+ window.__jogoStatsEditMap=statsMap;
+ window.__jogoConvocadosEditSet=convocadosSet;
+ renderNovoJogoListaAtletas();
 }
