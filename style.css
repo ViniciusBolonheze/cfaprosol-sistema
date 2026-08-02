@@ -1383,4 +1383,151 @@ body {
 .pf-table-wrapper,.excel-table-wrapper{overflow-x:scroll!important;overflow-y:auto!important;scrollbar-width:auto}
 .pf-table-wrapper::-webkit-scrollbar,.excel-table-wrapper::-webkit-scrollbar{height:16px;width:12px}
 .pf-table-wrapper::-webkit-scrollbar-track,.excel-table-wrapper::-webkit-scrollbar-track{background:#d8d8d8;border:1px solid #aaa}
-.pf-table-wrapper::-webkit-scrollbar-thumb,.excel-table-wrapper::-webkit-scrollbar-thumb{background:#777;border-radius:4px;border:2px solid #d8d8d8}
+.pf-table-wrapper::-webkit-scrollbar-thumb,.excel-table-wrapper::-webkit-scrollbar-thumb{background:#777;border-radius:4px;border:2px solid #d8d8d8}/* Ações flutuantes da convocação */
+#campo-convocacao-modal .campo-acoes{position:fixed!important;left:50%!important;bottom:18px!important;transform:translateX(-50%)!important;z-index:16000!important;background:rgba(0,0,0,.55);padding:8px;border-radius:8px;display:flex;gap:6px;white-space:nowrap}
+@media(max-width:700px){#campo-convocacao-modal .campo-acoes{left:8px!important;right:8px!important;transform:none!important;justify-content:center;flex-wrap:wrap;white-space:normal}}
+/* Botões em coluna no canto inferior direito; fechar permanece no topo */
+#campo-convocacao-modal .campo-acoes{position:fixed!important;right:18px!important;left:auto!important;bottom:18px!important;transform:none!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;z-index:16000!important}
+#campo-convocacao-modal .campo-acoes .campo-fechar{position:fixed!important;right:18px!important;top:18px!important;background:transparent!important;color:#fff!important;border:0!important;font-size:26px!important;z-index:16001!important}
+@media print{#campo-convocacao-modal .campo-acoes{display:none!important}}
+#campo-convocacao-modal .campo-acoes button{display:block!important;width:170px!important;min-height:32px!important;background:#0984e3!important;color:#fff!important;border:1px solid rgba(255,255,255,.6)!important;border-radius:3px!important;font-size:12px!important;font-weight:bold!important;opacity:1!important;visibility:visible!important}
+#campo-convocacao-modal .campo-acoes button:nth-child(2){background:#20a65a!important}
+#campo-convocacao-modal .campo-acoes button:nth-child(3){background:#8e44ad!important}
+#campo-convocacao-modal .campo-acoes button:nth-child(4){background:#e67e22!important}
+#campo-convocacao-modal .campo-acoes button:nth-child(5){background:#34495e!important}
+#campo-convocacao-modal .campo-acoes .campo-fechar{width:auto!important;min-height:0!important;background:transparent!important;border:0!important}
+/* Colunas de marcação de tempo compactas */
+.tbl th:nth-child(6),.tbl td:nth-child(6),.tbl th:nth-child(8),.tbl td:nth-child(8){width:32px!important;min-width:32px!important;max-width:32px!important;padding:1px!important;text-align:center!important;white-space:nowrap}
+.tbl th:nth-child(7),.tbl td:nth-child(7){width:58px!important;min-width:58px!important;max-width:58px!important;text-align:center!important}
+/* Regra final e exclusiva da impressão do pop-up da convocação */
+@media print{
+ html body.imprimindo-campo> #campo-convocacao-modal{display:flex!important;visibility:visible!important;opacity:1!important;position:static!important;inset:auto!important;width:100%!important;height:auto!important;background:#fff!important;z-index:999999!important}
+ html body.imprimindo-campo> *:not(#campo-convocacao-modal){display:none!important;visibility:hidden!important}
+ html body.imprimindo-campo> #campo-convocacao-modal .campo-card{display:block!important;visibility:visible!important;opacity:1!important;position:relative!important;width:100%!important;height:auto!important;max-height:none!important;overflow:visible!important;background-color:#fff!important}
+ html body.imprimindo-campo> #campo-convocacao-modal .campo-acoes{display:none!important}
+ html body.imprimindo-campo> #campo-convocacao-modal *{visibility:visible!important}
+}
+@media print{
+ body.imprimindo-campo>#campo-convocacao-modal .campo-card{width:297mm!important;height:210mm!important;min-height:210mm!important;max-height:210mm!important;overflow:hidden!important;position:relative!important}
+}
+#print-convocacao-layout{display:none}
+@media print{
+ body.printing-dedicated-convocacao>*{display:none!important}
+ body.printing-dedicated-convocacao>#print-convocacao-layout{display:block!important;position:relative!important;width:297mm!important;height:210mm!important;overflow:hidden!important;background:#fff!important}
+ #print-convocacao-layout .print-base{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:fill!important}
+ #print-convocacao-layout .print-title{position:absolute;top:3%;right:3%;z-index:3;color:#fff;font-weight:bold;font-size:14px}
+ #print-convocacao-layout .print-side{position:absolute;z-index:3;left:1%;top:14%;width:27%;height:70%;overflow:hidden;font-size:9px}
+ #print-convocacao-layout .print-side h3{background:#800000;color:#fff;text-align:center;padding:4px;margin:3px 0}
+ #print-convocacao-layout .print-side .campo-reservas div{height:18px;border:1px solid #777;background:#fff;padding:2px}
+ #print-convocacao-layout .print-side .comissao-label{height:22px!important;background:#fff;border:1px solid #777;display:grid!important;grid-template-columns:82px 1fr!important;font-size:9px}
+ #print-convocacao-layout .print-bottom{position:absolute;z-index:3;left:33%;top:81%;width:57%;height:17%;background:#fff;overflow:hidden}
+ #print-convocacao-layout .print-bottom .campo-faixa{display:flex;background:#c00;color:#fff;height:25px;justify-content:center}
+ #print-convocacao-layout .print-bottom .campo-info-jogo{display:flex;padding:5px;gap:8px}
+ #print-convocacao-layout .print-bottom .campo-adversario{flex:1;display:flex;align-items:center;gap:5px}.print-bottom .campo-adversario img{width:30px}.print-bottom .campo-horarios{width:45%}
+ #print-convocacao-layout .print-bottom input{height:20px;font-size:9px}.print-bottom label{display:flex;font-size:9px}
+ #print-convocacao-layout .print-players{position:absolute;inset:10% 30% 28% 29%;z-index:4}
+ #print-convocacao-layout .jogador-campo{position:absolute!important;transform:translate(-50%,-50%)!important;color:#fff!important;font-size:10px!important;text-align:center!important}
+ #print-convocacao-layout .jogador-campo img{width:40px!important;display:block!important;margin:auto!important}.print-players small{display:block;font-size:8px}
+ @page{size:A4 landscape!important;margin:0!important}
+}
+@media print{#print-convocacao-layout .print-players{inset:0!important}#print-convocacao-layout .jogador-campo{position:absolute!important}}
+@media print{
+ #print-convocacao-layout .print-side{left:1%!important;top:14%!important;width:27%!important;height:72%!important;font-size:12px!important;line-height:1.15!important}
+ #print-convocacao-layout .print-side h3{font-size:12px!important;padding:6px!important;margin:4px 0!important}
+ #print-convocacao-layout .print-side .campo-reservas div{height:24px!important;padding:4px 6px!important;font-size:11px!important}
+ #print-convocacao-layout .print-side .comissao-label{height:28px!important;font-size:11px!important;grid-template-columns:90px 1fr!important}
+ #print-convocacao-layout .print-side .comissao-label .campo-edit{height:24px!important;font-size:11px!important}
+ #print-convocacao-layout .print-bottom{left:33%!important;top:80%!important;width:57%!important;height:19%!important;padding:0!important}
+ #print-convocacao-layout .print-bottom .campo-faixa{height:30px!important;font-size:12px!important}
+ #print-convocacao-layout .print-bottom .campo-info-jogo{padding:8px!important;gap:10px!important}
+ #print-convocacao-layout .print-bottom .campo-adversario input{height:28px!important;font-size:11px!important}
+ #print-convocacao-layout .print-bottom .campo-adversario img{width:38px!important}
+ #print-convocacao-layout .print-bottom .campo-horarios{width:45%!important}
+ #print-convocacao-layout .print-bottom .campo-horarios label{height:26px!important;font-size:10px!important}
+ #print-convocacao-layout .print-bottom .campo-horarios input{height:23px!important;font-size:10px!important}
+}
+@media print{
+ #print-convocacao-layout .print-side{width:29%!important;left:1%!important;font-size:13px!important}
+ #print-convocacao-layout .print-side .campo-reservas div{height:27px!important;font-size:12px!important;padding:5px 7px!important}
+ #print-convocacao-layout .print-side h3{font-size:13px!important;padding:7px!important}
+ #print-convocacao-layout .print-bottom{left:37%!important;width:50%!important}
+}
+@media print{
+ #print-convocacao-layout .print-side{left:1%!important;width:27%!important;height:78%!important;font-size:13px!important}
+ #print-convocacao-layout .print-side .campo-reservas div{height:29px!important;padding:6px 7px!important;font-size:12px!important}
+ #print-convocacao-layout .print-side h3{font-size:13px!important;padding:7px!important;margin:5px 0!important}
+ #print-convocacao-layout .print-side .comissao-label{height:30px!important;font-size:12px!important}
+ #print-convocacao-layout .print-bottom{left:40%!important;width:47%!important}
+}
+@media print{
+ #print-convocacao-layout .print-side .campo-reservas div{height:32px!important;padding:7px 8px!important;font-size:13px!important}
+ #print-convocacao-layout .print-side h3{padding:8px!important;margin:6px 0!important;font-size:14px!important}
+ #print-convocacao-layout .print-side .comissao-label{height:34px!important;font-size:13px!important;grid-template-columns:98px 1fr!important}
+ #print-convocacao-layout .print-side .comissao-label .campo-edit{height:29px!important;font-size:12px!important}
+ #print-convocacao-layout .print-bottom{height:21%!important}
+ #print-convocacao-layout .print-bottom .campo-faixa{height:34px!important;font-size:13px!important}
+ #print-convocacao-layout .print-bottom .campo-info-jogo{padding:10px!important}
+ #print-convocacao-layout .print-bottom .campo-horarios label{height:29px!important;font-size:11px!important}
+}
+@media print{
+ #print-convocacao-layout .print-side .campo-reservas + h3{margin-top:14px!important}
+ #print-convocacao-layout .print-side .comissao-label{height:36px!important;font-size:13px!important}
+ #print-convocacao-layout .print-bottom{top:78%!important;height:23%!important;padding:0!important}
+ #print-convocacao-layout .print-bottom .campo-faixa{height:38px!important;font-size:14px!important}
+ #print-convocacao-layout .print-bottom .campo-info-jogo{height:calc(100% - 38px)!important;padding:12px!important;align-items:flex-start!important}
+ #print-convocacao-layout .print-bottom .campo-adversario input{height:32px!important;font-size:12px!important}
+ #print-convocacao-layout .print-bottom .campo-horarios label{height:32px!important;font-size:12px!important}
+ #print-convocacao-layout .print-bottom .campo-horarios input{height:28px!important;font-size:12px!important}
+}
+@media print{
+ #print-convocacao-layout .print-side .campo-reservas + h3{font-size:16px!important;padding:9px!important}
+ #print-convocacao-layout .print-side .comissao-label{height:39px!important;font-size:14px!important;grid-template-columns:105px 1fr!important}
+ #print-convocacao-layout .print-side .comissao-label .campo-edit{height:33px!important;font-size:14px!important}
+ #print-convocacao-layout .print-bottom .campo-adversario img{width:48px!important;height:48px!important}
+ #print-convocacao-layout .print-bottom .campo-adversario b{font-size:22px!important}
+ #print-convocacao-layout .print-bottom .campo-adversario input{height:36px!important;font-size:14px!important}
+}
+@media print{
+ #print-convocacao-layout .print-bottom{left:38%!important;width:50%!important;top:76%!important;height:25%!important}
+ #print-convocacao-layout .print-bottom .campo-faixa{height:42px!important;font-size:16px!important;font-weight:bold!important}
+ #print-convocacao-layout .print-bottom .campo-faixa input{font-size:16px!important;font-weight:bold!important}
+ #print-convocacao-layout .print-bottom .campo-info-jogo{padding:14px!important;gap:14px!important}
+ #print-convocacao-layout .print-bottom .campo-adversario{font-size:16px!important}
+ #print-convocacao-layout .print-bottom .campo-adversario img{width:60px!important;height:60px!important}
+ #print-convocacao-layout .print-bottom .campo-adversario b{font-size:28px!important}
+ #print-convocacao-layout .print-bottom .campo-adversario input{height:42px!important;font-size:16px!important}
+ #print-convocacao-layout .print-bottom .campo-horarios{width:48%!important;gap:6px!important}
+ #print-convocacao-layout .print-bottom .campo-horarios label{height:38px!important;font-size:14px!important;font-weight:bold!important}
+ #print-convocacao-layout .print-bottom .campo-horarios input{height:34px!important;font-size:14px!important}
+}
+@media print{
+ #print-convocacao-layout .print-bottom{left:40%!important;top:77%!important;width:49%!important;height:22%!important}
+}
+@media print{
+ #print-convocacao-layout .print-bottom .campo-faixa{position:relative!important;top:3px!important}
+}
+@media print{
+ #print-convocacao-layout .print-bottom .campo-faixa{top:8px!important}
+}
+@media print{
+ #print-convocacao-layout .print-bottom{padding:0!important;overflow:hidden!important}
+ #print-convocacao-layout .print-bottom .campo-faixa{position:relative!important;top:0!important;left:0!important;width:100%!important;margin:0!important;border:0!important}
+}
+@media print{
+ #print-convocacao-layout .print-bottom .campo-faixa{height:28px!important;min-height:28px!important;padding:2px 6px!important;font-size:12px!important}
+ #print-convocacao-layout .print-bottom .campo-faixa input{height:22px!important;font-size:12px!important}
+}
+@media print{
+ #print-convocacao-layout .print-bottom{top:80%!important;height:20%!important}
+ #print-convocacao-layout .print-bottom .campo-faixa{top:0!important}
+}
+@media print{#print-convocacao-layout .print-bottom{top:79%!important}}
+@media print{
+ #print-convocacao-layout .print-bottom .campo-faixa{font-size:15px!important;font-weight:bold!important}
+ #print-convocacao-layout .print-bottom .campo-faixa input{font-size:15px!important;font-weight:bold!important}
+}
+@media print{
+ /* Reserva ocupa sempre o espaço de 11 atletas, mantendo a comissão fixa */
+ #print-convocacao-layout .print-side .campo-reservas{height:319px!important;min-height:319px!important;overflow:hidden!important}
+}
+@media print{#print-convocacao-layout .print-side .campo-reservas{height:348px!important;min-height:348px!important}}
