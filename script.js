@@ -3460,13 +3460,73 @@ function prosolExportElementPDF(elemento, filename, orientacao='portrait'){
  };
  html2pdf().from(wrapper).set(opt).save();
 }
+
+function prosolPrepararWrapperPDF(elemento, orientacao='portrait', tipo='normal'){
+ const wrapper=document.createElement('div');
+ wrapper.style.background='#fff';
+ wrapper.style.padding='0';
+ wrapper.style.margin='0';
+ wrapper.style.overflow='hidden';
+ const clone=prosolCloneComInputsComoTexto(elemento);
+ if(tipo==='convocacao-campo'){
+  wrapper.style.width='297mm';
+  wrapper.style.height='210mm';
+  wrapper.style.maxHeight='210mm';
+  clone.style.width='297mm';
+  clone.style.height='210mm';
+  clone.style.minHeight='210mm';
+  clone.style.maxHeight='210mm';
+  clone.style.overflow='hidden';
+  clone.style.margin='0';
+  clone.style.boxShadow='none';
+ }
+ wrapper.appendChild(clone);
+ return wrapper;
+}
+function prosolOpcoesPDF(filename, orientacao='portrait', tipo='normal'){
+ return {
+  margin: tipo==='convocacao-campo' ? 0 : 4,
+  filename:prosolSanitizeFilename(filename)+'.pdf',
+  image:{type:'jpeg',quality:0.98},
+  html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:0},
+  jsPDF:{unit:'mm',format:'a4',orientation:orientacao},
+  pagebreak:{mode: tipo==='convocacao-campo' ? ['avoid-all'] : ['avoid-all','css','legacy']}
+ };
+}
+async function prosolCompartilharOuSalvarPDF(elemento, filename, orientacao='portrait', tipo='normal', titulo='CFA Prosol'){
+ if(!elemento)return alert('Não encontrei o conteúdo para exportar.');
+ if(typeof html2pdf==='undefined'){
+  alert('Exportação em PDF indisponível neste dispositivo.');
+  return;
+ }
+ const wrapper=prosolPrepararWrapperPDF(elemento,orientacao,tipo);
+ const opt=prosolOpcoesPDF(filename,orientacao,tipo);
+ try{
+  const blob=await html2pdf().from(wrapper).set(opt).outputPdf('blob');
+  const file=new File([blob],prosolSanitizeFilename(filename)+'.pdf',{type:'application/pdf'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+   await navigator.share({files:[file],title:titulo,text:'PDF gerado pelo CFA Prosol.'});
+  }else{
+   html2pdf().from(wrapper).set(opt).save();
+  }
+ }catch(e){
+  console.error('Erro ao compartilhar PDF:',e);
+  html2pdf().from(wrapper).set(opt).save();
+ }
+}
 function prosolAjustarTextosMobileExportar(){
  if(!prosolIsMobile())return;
  document.querySelectorAll('button').forEach(btn=>{
   const t=(btn.textContent||'').trim();
   if(/imprimir/i.test(t)){
-   btn.innerHTML=btn.innerHTML.replace(/IMPRIMIR/gi,'EXPORTAR PDF').replace(/Imprimir/gi,'Exportar PDF').replace(/🖨/g,'📄');
-   btn.title='Exportar PDF';
+   const dentroConvocacao=btn.closest&&btn.closest('#campo-convocacao-modal');
+   if(dentroConvocacao){
+    btn.innerHTML=btn.innerHTML.replace(/IMPRIMIR/gi,'COMPARTILHAR PDF').replace(/Imprimir/gi,'Compartilhar PDF').replace(/🖨/g,'📤');
+    btn.title='Compartilhar PDF';
+   }else{
+    btn.innerHTML=btn.innerHTML.replace(/IMPRIMIR/gi,'EXPORTAR PDF').replace(/Imprimir/gi,'Exportar PDF').replace(/🖨/g,'📄');
+    btn.title='Exportar PDF';
+   }
   }
  });
 }
@@ -3494,7 +3554,7 @@ if(typeof imprimirConvocacaoCampo==='function'){
  imprimirConvocacaoCampo=function(){
   if(!prosolIsMobile())return imprimirConvocacaoCampoDesktop();
   const card=document.querySelector('#campo-convocacao-modal .campo-card');
-  prosolExportElementPDF(card,'convocacao_cfa_prosol','landscape');
+  prosolCompartilharOuSalvarPDF(card,'convocacao_cfa_prosol','landscape','convocacao-campo','Convocação CFA Prosol');
  };
 }
 if(typeof printFicha==='function'){
