@@ -1473,7 +1473,6 @@ function renderGruposScreen() {
 }
 
 
-// 2. COLE O BLOCO ABAIXO LÁ NO FINAL DO SEU ARQUIVO JS:
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Ouvinte para o select de categoria (carregamento automático ao trocar a categoria)
     const catSelect = document.getElementById('grupo-categoria-select');
@@ -2133,23 +2132,6 @@ function imprimirGrupos() {
         }, 1000);
     }, 1000); 
 }
-document.addEventListener('DOMContentLoaded', () => {
-    // Carrega automaticamente ao mudar a categoria
-    const catSelect = document.getElementById('grupo-categoria-select');
-    if (catSelect) {
-        catSelect.addEventListener('change', async () => {
-            await carregarDoSupabase();
-        });
-    }
-
-    // Salva ao clicar no botão "Salvar Ficha"
-    const btnSalvar = document.getElementById('btn-salvar-ficha');
-    if (btnSalvar) {
-        btnSalvar.addEventListener('click', async () => {
-            await salvarNoSupabase();
-        });
-    }
-});
 /* Impressão exclusiva das fichas de grupos - independente da ficha do atleta */
 function imprimirFichasTreino() {
     const cards = Array.from(document.querySelectorAll('#fichas-render-container .ficha-grupo-card'));
@@ -2190,44 +2172,7 @@ function imprimirFichasTreino() {
     janela.onload = () => setTimeout(() => { janela.focus(); janela.print(); }, 400);
 }
 
-/* === PRANCHETA TÁTICA VIRTUAL === */
-const sistemasTaticos = {
- '4-3-3': [[8,50],[24,18],[24,39],[24,61],[24,82],[48,25],[48,50],[48,75],[76,18],[82,50],[76,82]],
- '4-4-2': [[8,50],[24,18],[24,39],[24,61],[24,82],[48,15],[48,38],[48,62],[48,85],[78,38],[78,62]],
- '4-2-3-1': [[8,50],[24,18],[24,39],[24,61],[24,82],[43,35],[43,65],[62,18],[62,50],[62,82],[82,50]],
- '3-5-2': [[8,50],[25,28],[25,50],[25,72],[48,12],[48,32],[48,50],[48,68],[48,88],[78,38],[78,62]],
- '3-4-3': [[8,50],[25,28],[25,50],[25,72],[48,20],[48,40],[48,60],[48,80],[78,18],[82,50],[78,82]],
- '5-3-2': [[8,50],[24,12],[24,31],[24,50],[24,69],[24,88],[50,28],[50,50],[50,72],[80,38],[80,62]],
- '4-1-4-1': [[8,50],[24,18],[24,39],[24,61],[24,82],[42,50],[61,15],[61,38],[61,62],[61,85],[82,50]]
-};
-function renderPranchetaVirtual() {
- const box=document.getElementById('prancheta-content') || document.getElementById('generic-content'); if(!box)return;
- box.innerHTML=`<div class="board-toolbar"><strong>PRANCHETA TÁTICA</strong><label>Sistema: <select id="tactical-system">${Object.keys(sistemasTaticos).map(s=>`<option>${s}</option>`).join('')}</select></label><button onclick="resetPrancheta()">Restaurar</button><button onclick="clearPrancheta()">Limpar</button><button onclick="closePranchetaModal();navigateTo('home',event)">Voltar</button></div><div class="board-wrap"><div id="football-board"><div class="half-line"></div><div class="center-circle"></div><div class="goal top"></div><div class="goal bottom"></div><div id="board-players"></div></div></div><p class="board-tip">Arraste os jogadores para montar sua estratégia. Clique duas vezes no botão para renomeá-lo.</p>`;
- document.getElementById('tactical-system').onchange=resetPrancheta; resetPrancheta();
-}
-function resetPrancheta(){const area=document.getElementById('board-players'), sel=document.getElementById('tactical-system');if(!area||!sel)return;area.innerHTML='';(sistemasTaticos[sel.value]||[]).forEach((p,i)=>{const b=document.createElement('button');b.className='tactical-player';b.textContent=i===0?'G':String(i);b.title='Arraste para mover';b.style.left=p[0]+'%';b.style.top=p[1]+'%';makeTacticalDraggable(b);b.ondblclick=()=>{const n=prompt('Nome ou função do jogador:',b.textContent);if(n)b.textContent=n};area.appendChild(b)});}
-function clearPrancheta(){const a=document.getElementById('board-players');if(a)a.innerHTML='';}
-function makeTacticalDraggable(el){let drag=false;const move=e=>{if(!drag)return;const r=el.parentElement.getBoundingClientRect();let x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100;el.style.left=Math.max(3,Math.min(97,x))+'%';el.style.top=Math.max(3,Math.min(97,y))+'%'};el.onpointerdown=e=>{drag=true;el.setPointerCapture(e.pointerId);el.classList.add('dragging')};el.onpointermove=move;el.onpointerup=()=>{drag=false;el.classList.remove('dragging')};}
-
-
-/* Prancheta virtual em janela modal independente */
-function openPranchetaModal() {
-    let modal = document.getElementById('prancheta-modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'prancheta-modal';
-        modal.className = 'prancheta-modal-overlay';
-        modal.innerHTML = '<div class="prancheta-modal-box"><div id="prancheta-content"></div></div>';
-        document.body.appendChild(modal);
-        modal.addEventListener('click', function(e) { if (e.target === modal) closePranchetaModal(); });
-    }
-    modal.style.display = 'flex';
-    renderPranchetaVirtual();
-}
-function closePranchetaModal() {
-    const modal = document.getElementById('prancheta-modal');
-    if (modal) modal.style.display = 'none';
-}
+/* Prancheta virtual: implementação final mini-campo localizada ao final do arquivo. */
 
 function posicaoInicialCampo(numero, indice) {
  const n=Number(numero);
@@ -3466,4 +3411,98 @@ function makeTacticalDraggable(el){
  });
  const up=e=>{dragging=false;el.releasePointerCapture?.(e.pointerId);el.classList.remove('dragging');};
  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+}
+
+
+/* === CAMADA MOBILE: exportação e ajustes de interface sem alterar desktop === */
+function prosolIsMobile(){
+ return (window.matchMedia&&window.matchMedia('(max-width: 900px)').matches)||/Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent||'');
+}
+function prosolSanitizeFilename(nome){
+ return String(nome||'arquivo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_\-]+/gi,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+}
+function prosolCloneComInputsComoTexto(elemento){
+ const clone=elemento.cloneNode(true);
+ const origInputs=elemento.querySelectorAll('input,textarea,select');
+ const cloneInputs=clone.querySelectorAll('input,textarea,select');
+ origInputs.forEach((inp,i)=>{
+  const alvo=cloneInputs[i]; if(!alvo||!alvo.parentNode)return;
+  const span=document.createElement('span');
+  span.textContent=inp.tagName==='SELECT'?(inp.options[inp.selectedIndex]?.text||inp.value):inp.value;
+  span.style.whiteSpace='pre-wrap';
+  span.style.fontWeight='inherit';
+  span.style.color='inherit';
+  span.style.textAlign=getComputedStyle(inp).textAlign||'center';
+  span.style.display='inline-block';
+  span.style.width='100%';
+  alvo.parentNode.replaceChild(span,alvo);
+ });
+ clone.querySelectorAll('.no-print,.campo-acoes,.close-btn,.campo-fechar,.novo-jogo-fechar').forEach(el=>el.remove());
+ return clone;
+}
+function prosolExportElementPDF(elemento, filename, orientacao='portrait'){
+ if(!elemento)return alert('Não encontrei o conteúdo para exportar.');
+ if(typeof html2pdf==='undefined'){
+  alert('Exportação em PDF indisponível neste dispositivo. Tente usar a opção de compartilhar/print do navegador.');
+  return;
+ }
+ const wrapper=document.createElement('div');
+ wrapper.style.background='#fff';
+ wrapper.style.padding='0';
+ wrapper.appendChild(prosolCloneComInputsComoTexto(elemento));
+ const opt={
+  margin:4,
+  filename:prosolSanitizeFilename(filename)+'.pdf',
+  image:{type:'jpeg',quality:0.98},
+  html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+  jsPDF:{unit:'mm',format:'a4',orientation:orientacao},
+  pagebreak:{mode:['avoid-all','css','legacy']}
+ };
+ html2pdf().from(wrapper).set(opt).save();
+}
+function prosolAjustarTextosMobileExportar(){
+ if(!prosolIsMobile())return;
+ document.querySelectorAll('button').forEach(btn=>{
+  const t=(btn.textContent||'').trim();
+  if(/imprimir/i.test(t)){
+   btn.innerHTML=btn.innerHTML.replace(/IMPRIMIR/gi,'EXPORTAR PDF').replace(/Imprimir/gi,'Exportar PDF').replace(/🖨/g,'📄');
+   btn.title='Exportar PDF';
+  }
+ });
+}
+(function iniciarAjustesMobileProsol(){
+ const start=()=>{
+  prosolAjustarTextosMobileExportar();
+  if(prosolIsMobile()){
+   const obs=new MutationObserver(()=>prosolAjustarTextosMobileExportar());
+   obs.observe(document.body,{childList:true,subtree:true});
+  }
+ };
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+
+if(typeof imprimirFichasTreino==='function'){
+ const imprimirFichasTreinoDesktop=imprimirFichasTreino;
+ imprimirFichasTreino=function(){
+  if(!prosolIsMobile())return imprimirFichasTreinoDesktop();
+  const el=document.getElementById('fichas-render-container');
+  prosolExportElementPDF(el,'fichas_treino_cfa_prosol','landscape');
+ };
+}
+if(typeof imprimirConvocacaoCampo==='function'){
+ const imprimirConvocacaoCampoDesktop=imprimirConvocacaoCampo;
+ imprimirConvocacaoCampo=function(){
+  if(!prosolIsMobile())return imprimirConvocacaoCampoDesktop();
+  const card=document.querySelector('#campo-convocacao-modal .campo-card');
+  prosolExportElementPDF(card,'convocacao_cfa_prosol','landscape');
+ };
+}
+if(typeof printFicha==='function'){
+ const printFichaDesktop=printFicha;
+ printFicha=function(){
+  if(!prosolIsMobile())return printFichaDesktop();
+  if(typeof shareFichaPDF==='function')return shareFichaPDF();
+  const el=document.getElementById('fichaExportContent');
+  prosolExportElementPDF(el,'ficha_atleta_cfa_prosol','portrait');
+ };
 }

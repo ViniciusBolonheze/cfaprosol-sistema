@@ -1167,21 +1167,7 @@ body {
         background: transparent !important;
     }
 }
-/* PRANCHETA TÁTICA VIRTUAL */
-#generic-screen:has(#football-board){background:#e9eef2;padding:16px;overflow:auto}
-#generic-screen:has(#football-board) .generic-container{padding:0;max-width:1200px;width:100%;margin:auto}
-.board-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#58111a;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0}.board-toolbar strong{font-size:18px;color:#f9c614;margin-right:auto}.board-toolbar select,.board-toolbar button{padding:8px 12px;border-radius:5px;border:0;font-weight:bold}.board-toolbar button{background:#f9c614;cursor:pointer}.board-toolbar button:last-child{background:#6c757d;color:#fff}.board-wrap{background:#1b5e20;padding:18px;box-shadow:0 5px 18px #0004}.board-tip{text-align:center;color:#555;font-size:12px;margin:10px}.board-wrap #football-board{position:relative;width:100%;max-width:1050px;margin:auto;aspect-ratio:1.55;background:repeating-linear-gradient(90deg,#258b35 0,#258b35 8%,#2f9d40 8%,#2f9d40 16%);border:4px solid #fff;overflow:hidden}.half-line{position:absolute;left:50%;top:0;bottom:0;border-left:2px solid #fff}.center-circle{position:absolute;width:22%;aspect-ratio:1;left:39%;top:39%;border:2px solid #fff;border-radius:50%}.center-circle:after{content:'';position:absolute;width:7px;height:7px;background:#fff;border-radius:50%;left:calc(50% - 3px);top:calc(50% - 3px)}.goal{position:absolute;left:44%;width:12%;height:6%;border:2px solid #fff}.goal.top{top:-2px}.goal.bottom{bottom:-2px}.tactical-player{position:absolute;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;border:3px solid #fff;background:#d63031;color:#fff;font-weight:bold;cursor:grab;touch-action:none;box-shadow:0 2px 5px #0008;z-index:3}.tactical-player:first-child{background:#f9c614;color:#222}.tactical-player.dragging{cursor:grabbing;transform:translate(-50%,-50%) scale(1.18);z-index:5}
-
-#prancheta-screen.active-screen { display:flex !important; flex-direction:column; padding:16px; background:#e9eef2; overflow:auto; }
-#prancheta-content { width:100%; max-width:1200px; margin:0 auto; }
-
-/* Prancheta aberta como pop-up independente */
-.prancheta-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:11000;padding:18px}
-.prancheta-modal-box{width:min(1180px,96vw);max-height:94vh;overflow:auto;background:#e9eef2;border:3px solid #f9c614;border-radius:10px;box-shadow:0 10px 40px #000; padding:16px}
-.prancheta-modal-box .board-toolbar{border-radius:8px 8px 0 0}
-.prancheta-modal-box .board-wrap{padding:18px}
-.prancheta-modal-box .board-tip{margin-bottom:0}
-
+/* Prancheta virtual: estilos finais em Mini Prancheta Virtual. */
 /* Escalação da convocação */
 .escalacao-overlay{position:fixed;inset:0;background:rgba(12,18,28,.72);display:none;align-items:center;justify-content:center;z-index:12000;padding:20px}
 .escalacao-card{width:min(900px,96vw);max-height:90vh;overflow:auto;background:#f7f9fc;border-radius:12px;box-shadow:0 15px 45px #0008;border:1px solid #d9e0ea}
@@ -2464,4 +2450,124 @@ body {
     .mini-board-toolbar select,.mini-board-toolbar button{padding:6px 8px;font-size:11px;}
     .mini-board-area{padding:8px;}
     .mini-tactical-player{width:34px;height:34px;font-size:11px;}
+}
+
+
+/* =========================================================
+   CAMADA RESPONSIVA MOBILE/TABLET
+   Desktop preservado: regras aplicadas apenas até 900px.
+   ========================================================= */
+@media (max-width: 900px){
+    html, body{width:100%;max-width:100%;overflow-x:hidden;}
+    body{min-height:100dvh;font-size:13px;}
+    #relogio-inatividade-sistema{font-size:9px;top:2px;left:3px;}
+
+    .top-header{padding:6px 8px;gap:8px;}
+    .header-content-top{align-items:center;min-width:0;}
+    .instagram-icon{width:22px;height:22px;font-size:12px;}
+    .date-display{font-size:9px;white-space:nowrap;}
+    .fullscreen-btn{position:static!important;padding:6px 8px;font-size:0;min-width:34px;justify-content:center;}
+    .fullscreen-btn i{font-size:13px;}
+    .yellow-bar{height:5px;}
+
+    .nav-menu{display:flex!important;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;gap:6px;padding:6px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+    .nav-btn{flex:0 0 auto;min-width:118px;min-height:38px;font-size:10px;padding:8px 7px;white-space:normal;}
+
+    .main-content{overflow:auto;min-height:0;}
+    .bottom-footer{padding:8px 6px;border-top-width:4px;}
+    .footer-logo-box{padding:3px 8px;margin-bottom:3px}.footer-sub,.footer-dev{font-size:9px;}
+
+    /* Login/Home */
+    .login-card{width:calc(100vw - 28px);padding:24px 18px;border-radius:12px;}
+    .login-logo{width:105px}.login-title{font-size:24px}.login-subtitle{font-size:12px}.btn-entrar{padding:12px;font-size:13px;}
+    .shield-box{width:calc(100vw - 34px);padding:18px;border-radius:12px}.shield-logo-img{max-width:210px;}
+    .floating-db-btn{right:12px;bottom:14px;padding:10px 14px;font-size:12px;z-index:5000;}
+
+    /* Banco de dados */
+    #excel-db-screen.active-screen{padding:8px;overflow:auto;}
+    .excel-header{flex-direction:column;align-items:stretch;gap:8px;padding:10px;border-left-width:4px;}
+    .excel-header h2{font-size:15px;text-align:center;}
+    .excel-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+    .btn-import-excel,.btn-excel-action,.btn-voltar{justify-content:center;font-size:10px;padding:8px 6px;min-height:34px;}
+    .excel-table-wrapper{max-height:calc(100dvh - 205px);overflow:auto;}
+    #excel-db-table{font-size:10px;}#excel-db-table th,#excel-db-table td{padding:5px 7px;}
+
+    /* Atletas */
+    #atletas-screen.active-screen{padding:7px;overflow:auto;}
+    .vba-atletas-title{font-size:14px;padding:7px;}
+    .vba-anos-filter{padding:8px;font-size:11px;}
+    .vba-anos-filter>div{gap:7px!important;}
+    .vba-content-grid{flex-direction:column;padding:8px;gap:8px;}
+    .vba-sidebar-btns{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+    .vba-green-btn,.vba-red-btn,.vba-gray-btn{padding:9px 6px;font-size:11px;}
+    .vba-positions-grid{grid-template-columns:1fr!important;grid-template-rows:auto!important;gap:8px;}
+    .pos-box{min-height:155px;}.pos-list{max-height:145px;}.athlete-item{font-size:11px;padding:5px 6px;}
+    .vba-modal-card{width:94vw!important;max-height:92dvh;overflow:auto;}.vba-form-grid{padding:12px;}.form-row input,.form-row select{font-size:12px;padding:7px;}
+
+    /* Testes físicos */
+    #testes-screen.active-screen{overflow:hidden;}
+    .pf-tabs-bar{overflow-x:auto;flex-wrap:nowrap;align-items:center;padding:4px;gap:4px;-webkit-overflow-scrolling:touch;}
+    .pf-tab,.pf-select-control,.pf-btn-add-eval,.pf-btn-del-eval,.pf-btn-home,.pf-btn-close{flex:0 0 auto;font-size:10px;padding:7px 8px;white-space:nowrap;}
+    .pf-subtab-group{flex:0 0 auto;margin-left:0;gap:4px;}
+    .pf-title-bar{font-size:13px;padding:6px;}.pf-table-wrapper{max-height:calc(100dvh - 132px);overflow:auto;}
+    #pf-table{font-size:10px;}#pf-table th,#pf-table td{padding:4px 6px;}
+    #btn-calculadora-estatico,#btn-calculadora-fab,#btn-add-athlete-pf-fab,#btn-grupos-pf-fab{right:12px!important;transform:scale(.82);transform-origin:right bottom;}
+    .calc-altura-card{width:94vw;}.calc-altura-card label{align-items:flex-start;flex-direction:column;gap:4px}.calc-altura-card input{width:100%;}
+
+    /* Grupos/fichas */
+    #grupos-screen.active-screen{overflow:auto;}
+    .grupos-top-bar{flex-direction:column;gap:8px;padding:8px;}.grupos-category-section{align-items:flex-start;flex-direction:column;gap:7px;}
+    .grupos-year-checkboxes{gap:8px;font-size:11px;}.grupos-media-panel{gap:8px;font-size:11px;padding:7px;}
+    .grupos-split-view{padding:8px;gap:8px;}.grupos-atletas-list{grid-template-columns:1fr!important;max-height:260px;padding:7px;}
+    .athlete-grid-layout{grid-template-columns:2.4fr repeat(6,.8fr);gap:3px;font-size:9px;}
+    .grupos-fichas-grid{grid-template-columns:1fr!important;gap:8px;}.grupos-data-table{font-size:9px;}.grupos-data-table th,.grupos-data-table td{padding:4px 2px;}
+    #fichas-treino-screen{padding:8px!important;overflow:auto;}.no-print{flex-direction:column!important;gap:8px!important;padding:8px!important;}.ficha-grupo-card{padding:8px;margin-bottom:15px;overflow:auto;}.ficha-header-title{font-size:18px;padding:7px;}.ficha-table{font-size:10px;min-width:760px;}
+
+    /* Convocação */
+    #convocacao-modal{padding:6px!important;align-items:flex-start!important;overflow:auto!important;}
+    #convocacao-modal>div{width:98vw!important;height:94dvh!important;max-width:none!important;}
+    #convocacao-modal>div>div:first-child{padding:8px 10px!important;font-size:13px!important;}
+    #convocacao-years-bar{gap:9px!important;padding:8px!important;justify-content:flex-start!important;overflow-x:auto;}
+    #convocacao-modal [style*="grid-template-columns: repeat(4"],#convocacao-modal [style*="grid-template-columns: repeat(3"]{grid-template-columns:1fr!important;gap:8px!important;}
+    #convocacao-modal .drop-box>div:last-child,#convocacao-modal [id^="conv-list-"]{height:125px!important;}
+    #convocacao-modal>div>div:nth-last-child(2){padding:10px!important;gap:8px!important;}
+    #convocacao-modal>div>div:last-child{flex-direction:column!important;align-items:stretch!important;padding:9px!important;gap:8px!important;}
+    #convocacao-modal>div>div:last-child>div:first-child{display:grid!important;grid-template-columns:1fr 1fr;gap:6px!important;}
+    #convocacao-modal button{font-size:10px!important;padding:8px 6px!important;}
+    #convocacao-contador{text-align:center;padding:5px!important;font-size:12px!important;}
+    .escalacao-card{width:96vw!important;max-height:92dvh!important;}.escalacao-row{grid-template-columns:1fr 52px 75px 75px!important;font-size:10px;gap:5px;}.escalacao-name{grid-column:1/-1;font-size:11px;}.escalacao-header{font-size:14px;padding:9px 12px;}.escalacao-footer{padding:8px;gap:8px;flex-wrap:wrap;}
+
+    /* Campo da convocação: preserva arte e permite rolagem/zoom natural */
+    .campo-overlay{align-items:flex-start!important;justify-content:flex-start!important;overflow:auto!important;padding:6px!important;}
+    .campo-card{width:1080px!important;min-width:1080px!important;height:765px!important;max-height:none!important;transform-origin:top left;}
+    #campo-convocacao-modal .campo-acoes{right:10px!important;bottom:10px!important;transform:scale(.86);transform-origin:right bottom;}
+    #campo-convocacao-modal .campo-acoes button{width:150px!important;min-height:30px!important;font-size:11px!important;}
+
+    /* Jogos */
+    .jogos-header{padding:10px;}.jogos-header h2{font-size:18px;}.jogos-header p{font-size:12px;}
+    .novo-jogo-fab,.atletas-ativos-fab{left:12px!important;right:auto!important;padding:11px 15px;font-size:12px;z-index:9000;}
+    .atletas-ativos-fab{bottom:78px!important;}.novo-jogo-fab{bottom:22px!important;}
+    .jogos-salvos-lista{width:94vw;margin:12px auto 120px;}.jogo-salvo-item{align-items:flex-start;flex-direction:column;}.jogo-salvo-acoes button{width:34px;height:30px;}
+    .novo-jogo-card,.atletas-ativos-card{width:96vw!important;max-height:92dvh!important;}.novo-jogo-title{padding:8px 10px;gap:8px;}.novo-jogo-title-actions{flex-wrap:wrap;justify-content:flex-end;}
+    .novo-jogo-title .buscar-convocacao-jogo-btn,.novo-jogo-title .carregar-jogo-salvo-btn{font-size:10px!important;padding:5px 8px!important;}
+    .jogo-placar-header{flex-wrap:wrap;gap:8px;padding:8px;}.jogo-placar-header img{width:52px;height:52px;}.jogo-placar-header input{height:34px;font-size:16px;}.jogo-placar-header .jogo-adversario-top{width:100%;font-size:13px;}
+    .jogo-form-top{grid-template-columns:1fr 1fr!important;padding:10px;gap:8px;}.jogo-form-top label{font-size:10px;}.jogo-form-top input,.jogo-form-top select{padding:7px;font-size:12px;}
+    .jogo-atletas{margin:0 8px;overflow:auto;}.jogo-atleta-head,.jogo-atleta-row{grid-template-columns:minmax(125px,1fr) 48px 48px 48px 48px!important;gap:5px;font-size:10px;padding:5px;}.jogo-atleta-row input[type=number]{width:45px;padding:4px;}
+    .jogos-estatisticas-grid{grid-template-columns:repeat(2,1fr)!important;}.jogos-estatisticas-detalhes{grid-template-columns:1fr!important;}.estat-lista-atletas{max-height:180px;}
+    .buscar-convocacao-jogo-card,.detalhes-jogo-card{width:94vw!important;}.det-placar{gap:6px;}.det-placar img{width:46px;height:46px;}.det-atleta-row{grid-template-columns:1fr;gap:3px;}
+
+    /* Relatórios */
+    .relatorios-overlay{padding:6px;align-items:flex-start;overflow:auto;}.relatorios-card{width:98vw;height:94dvh;}.relatorios-top{grid-template-columns:1fr!important;padding:10px;gap:8px;}.relatorios-top h2{text-align:center;font-size:17px;}.relatorios-left select,.relatorios-bottom select{width:100%;}.relatorios-anos{grid-template-columns:repeat(3,1fr);gap:6px 8px;font-size:11px;}.relatorios-actions{flex-direction:row;gap:8px;}.relatorios-actions button{flex:1;height:34px;}.relatorios-table-wrap{margin:0 8px;}#relatorios-table{font-size:10px;}#relatorios-table th,#relatorios-table td{padding:4px 6px;}.relatorios-bottom{flex-direction:column;gap:8px;padding:8px;}.relatorios-bottom .relatorio-individual-btn{width:100%;}
+
+    /* Prancheta */
+    .mini-prancheta-overlay{padding:6px;align-items:flex-start;overflow:auto;}.mini-prancheta-box{width:98vw;max-height:none;padding:8px;}.mini-board-toolbar{gap:6px;padding:8px;}.mini-board-toolbar strong{font-size:15px;width:100%;}.mini-board-toolbar select,.mini-board-toolbar button{padding:7px 8px;font-size:11px;}.mini-board-area{padding:8px;}#mini-football-board{min-width:620px;}.mini-tactical-player{width:34px;height:34px;font-size:11px;}
+}
+
+@media (max-width: 480px){
+    .excel-actions{grid-template-columns:1fr;}
+    .vba-sidebar-btns{grid-template-columns:1fr;}
+    .jogo-form-top{grid-template-columns:1fr!important;}
+    .relatorios-anos{grid-template-columns:repeat(2,1fr);}
+    .athlete-grid-layout{grid-template-columns:1.8fr repeat(6,.7fr);font-size:8px;}
+    #convocacao-modal>div>div:last-child>div:first-child{grid-template-columns:1fr!important;}
 }
