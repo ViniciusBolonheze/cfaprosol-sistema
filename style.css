@@ -2571,3 +2571,241 @@ body {
     .athlete-grid-layout{grid-template-columns:1.8fr repeat(6,.7fr);font-size:8px;}
     #convocacao-modal>div>div:last-child>div:first-child{grid-template-columns:1fr!important;}
 }
+
+/* === Controle de Peso - Testes Físicos === */
+.controle-peso-card{
+    background:#fff;
+    width:min(1180px,96vw);
+    max-height:92vh;
+    overflow:hidden;
+    border-radius:8px;
+    border:1px solid #555;
+    box-shadow:0 10px 35px rgba(0,0,0,.45);
+    display:flex;
+    flex-direction:column;
+}
+.controle-peso-title{
+    background:#58111a;
+    color:#f9c614;
+    padding:10px 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-weight:bold;
+    font-size:16px;
+}
+.controle-peso-title button{
+    background:none;
+    border:0;
+    color:#fff;
+    font-size:22px;
+    cursor:pointer;
+}
+.controle-peso-top{
+    padding:10px 12px;
+    background:#f3f3f3;
+    border-bottom:1px solid #ccc;
+}
+.controle-peso-top input#controle-peso-busca{
+    width:100%;
+    padding:8px;
+    border:1px solid #999;
+    box-sizing:border-box;
+    margin-bottom:8px;
+}
+.controle-peso-anos{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    font-size:12px;
+    font-weight:bold;
+    margin-bottom:8px;
+}
+.controle-peso-acoes{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+}
+.controle-peso-acoes button,
+.controle-peso-acoes select{
+    padding:7px 10px;
+    border-radius:4px;
+    border:1px solid #aaa;
+    font-size:12px;
+}
+.controle-peso-acoes button{
+    background:#0984e3;
+    color:#fff;
+    border:0;
+    font-weight:bold;
+    cursor:pointer;
+}
+.controle-peso-acoes button:first-child{background:#27ae60;}
+.controle-peso-acoes button:nth-child(2){background:#8e44ad;}
+.controle-peso-acoes button.perigo{background:#d63031;}
+.controle-peso-layout{
+    flex:1;
+    min-height:0;
+    display:grid;
+    grid-template-columns:310px 1fr;
+    gap:10px;
+    padding:10px;
+    overflow:hidden;
+}
+.controle-peso-selecao,
+.controle-peso-tabela-wrap{
+    min-height:0;
+    overflow:auto;
+    border:1px solid #ddd;
+    background:#fff;
+    border-radius:5px;
+}
+.controle-peso-selecao h4,
+.controle-peso-tabela-wrap h4{
+    margin:0;
+    padding:8px 10px;
+    background:#58111a;
+    color:#f9c614;
+    font-size:12px;
+    position:sticky;
+    top:0;
+    z-index:2;
+}
+#controle-peso-lista-selecao{
+    padding:6px;
+}
+.controle-peso-athlete-option{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:6px 8px;
+    border-bottom:1px solid #eee;
+    font-size:12px;
+    cursor:pointer;
+}
+.controle-peso-athlete-option:hover{background:#eef6ff;}
+.controle-peso-athlete-option small{color:#666;margin-left:5px;}
+.controle-peso-vazio{
+    padding:12px;
+    color:#666;
+    font-style:italic;
+    font-size:12px;
+}
+#controle-peso-tabela{
+    overflow:auto;
+}
+.controle-peso-table{
+    width:max-content;
+    min-width:100%;
+    border-collapse:collapse;
+    font-size:12px;
+}
+.controle-peso-table th,
+.controle-peso-table td{
+    border:1px solid #ddd;
+    padding:6px 8px;
+    text-align:center;
+    white-space:nowrap;
+}
+.controle-peso-table th{
+    background:#d9d9d9;
+    font-weight:bold;
+    position:sticky;
+    top:0;
+    z-index:1;
+}
+.controle-peso-table td:first-child,
+.controle-peso-table th:first-child{
+    text-align:left;
+    position:sticky;
+    left:0;
+    background:#fff;
+    z-index:2;
+    min-width:130px;
+    font-weight:bold;
+}
+.controle-peso-table th:first-child{
+    background:#d9d9d9;
+    z-index:3;
+}
+.controle-peso-table input[type=number]{
+    width:72px;
+    padding:5px;
+    text-align:center;
+    border:1px solid #aaa;
+    border-radius:3px;
+}
+@media(max-width:900px){
+    #btn-peso-pf-fab{right:12px!important;transform:scale(.82);transform-origin:right bottom;}
+    .controle-peso-card{width:96vw;max-height:92dvh;}
+    .controle-peso-layout{grid-template-columns:1fr;overflow:auto;}
+    .controle-peso-selecao{max-height:210px;}
+    .controle-peso-acoes{display:grid;grid-template-columns:1fr 1fr;}
+    .controle-peso-acoes button,.controle-peso-acoes select{width:100%;font-size:11px;padding:7px 6px;}
+    .controle-peso-anos{gap:7px;font-size:11px;}
+}
+
+/* Ajuste Controle de Peso: remoção por linha e autosave */
+.controle-peso-remove-row{
+    width:22px;
+    height:22px;
+    min-width:22px;
+    border:0;
+    border-radius:50%;
+    background:#d63031;
+    color:#fff;
+    font-weight:bold;
+    cursor:pointer;
+    margin-right:7px;
+    line-height:20px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+}
+.controle-peso-remove-row:hover{
+    filter:brightness(.9);
+    transform:scale(1.05);
+}
+.controle-peso-table td:first-child span{
+    vertical-align:middle;
+}
+.controle-peso-acoes::after{
+    content:'Salvamento automático ativado';
+    align-self:center;
+    color:#555;
+    font-size:11px;
+    font-weight:bold;
+    padding-left:4px;
+}
+@media(max-width:900px){
+    .controle-peso-acoes::after{grid-column:1/-1;text-align:center;padding:2px 0;}
+}
+
+/* Controle de Peso: exibição do % de gordura na seleção de atletas */
+.controle-peso-athlete-option{
+    display:grid!important;
+    grid-template-columns:22px minmax(0,1fr) 72px;
+    align-items:center;
+}
+.peso-athlete-name{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.peso-athlete-gordura{
+    justify-self:end;
+    background:#eef2f6;
+    border:1px solid #d2d8df;
+    border-radius:12px;
+    padding:2px 7px;
+    font-size:11px;
+    font-weight:bold;
+    color:#58111a;
+    white-space:nowrap;
+}
+@media(max-width:900px){
+    .controle-peso-athlete-option{grid-template-columns:22px minmax(0,1fr) 64px!important;}
+    .peso-athlete-gordura{font-size:10px;padding:2px 5px;}
+}

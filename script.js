@@ -55,10 +55,12 @@ async function loadFromStorage() {
         try { selectedConvocados = new Set(JSON.parse(savedConvocacao)); } catch(e) {}
     }
 
+    await carregarControlePesoStorage();
     initExcelTable();
     populateEvalSelect(); 
     ensureTestAddButton();
     ensureCalculadoraButton();
+    ensurePesoButton();
     ensureGruposButton(); // Inicializa o novo botão flutuante
     ensureConvocacaoModalDom();
     ensurePrintStyles();
@@ -177,6 +179,8 @@ function navigateTo(screenId, event) {
 
     const fabCalc = document.getElementById('btn-calculadora-fab');
     if (fabCalc) fabCalc.style.display = (screenId === 'testes') ? 'flex' : 'none';
+    const fabPeso = document.getElementById('btn-peso-pf-fab');
+    if (fabPeso) fabPeso.style.display = (screenId === 'testes') ? 'flex' : 'none';
     const fabAdd = document.getElementById('btn-add-athlete-pf-fab');
     const fabGrupos = document.getElementById('btn-grupos-pf-fab');
     if (fabAdd) fabAdd.style.display = (screenId === 'testes') ? 'flex' : 'none';
@@ -3630,4 +3634,233 @@ if(typeof printFicha==='function'){
   const el=document.getElementById('fichaExportContent');
   prosolExportElementPDF(el,'ficha_atleta_cfa_prosol','portrait');
  };
+}
+
+
+/* === CONTROLE DE PESO - TESTES FÍSICOS === */
+let controlePesoData = { atletas: [], datas: [], pesos: {} };
+let controlePesoSaveTimer = null;
+function normalizarTextoPeso(valor){return String(valor||'').trim().replace(/\s+/g,' ');}
+function valorPesoColunaFlex(row, termos){
+ const chave=Object.keys(row||{}).find(k=>termos.some(t=>String(k).toLowerCase().includes(String(t).toLowerCase())));
+ return chave ? row[chave] : '';
+}
+function identidadeAtletaPeso(index){
+ const row=excelData[index]||{};
+ const nomeCompleto=normalizarTextoPeso(valorPesoColunaFlex(row,['nome completo'])||valorColunaExata(row,'NOME COMPLETO')||valorPesoColunaFlex(row,['nome']));
+ const apelido=normalizarTextoPeso(valorPesoColunaFlex(row,['apelido']))||nomeCompleto;
+ const nascimento=normalizarTextoPeso(convertExcelDate(valorPesoColunaFlex(row,['data de nascimento','nascimento']))||valorPesoColunaFlex(row,['data de nascimento','nascimento']));
+ const ano=normalizarTextoPeso(valorColunaExata(row,'Ano'));
+ return {nomeCompleto,apelido,nascimento,ano};
+}
+function chaveAtletaPeso(id){return normalizarTextoPeso(id?.nomeCompleto||'')+'||'+normalizarTextoPeso(id?.nascimento||'');}
+function localizarAtletaPeso(id){
+ const chave=chaveAtletaPeso(id);
+ if(!chave||chave==='||')return -1;
+ return (excelData||[]).findIndex((_,i)=>chaveAtletaPeso(identidadeAtletaPeso(i))===chave);
+}
+function garantirControlePesoData(){
+ if(!controlePesoData||typeof controlePesoData!=='object')controlePesoData={atletas:[],datas:[],pesos:{}};
+ if(!Array.isArray(controlePesoData.atletas))controlePesoData.atletas=[];
+ if(!Array.isArray(controlePesoData.datas))controlePesoData.datas=[];
+ if(!controlePesoData.pesos||typeof controlePesoData.pesos!=='object')controlePesoData.pesos={};
+}
+function anoControlePesoAtleta(id){
+ const idx=localizarAtletaPeso(id);
+ if(idx>=0)return identidadeAtletaPeso(idx).ano;
+ const m=String(id?.nascimento||'').match(/(\d{4})$/);
+ return m?m[1]:'';
+}
+function datasControlePesoOrdenadas(datas){
+ return [...(datas||[])].sort((a,b)=>{
+  const pa=String(a.label||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const pb=String(b.label||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const ta=pa?new Date(+pa[3],+pa[2]-1,+pa[1]).getTime():0;
+  const tb=pb?new Date(+pb[3],+pb[2]-1,+pb[1]).getTime():0;
+  return ta-tb;
+ });
+}
+async function carregarControlePesoStorage(){
+ try{
+  const {data,error}=await _supabase.from('controle_peso').select('nome_completo,apelido,nascimento,pesos').order('apelido');
+  if(error){console.warn('Controle de peso não carregado. Verifique se a tabela controle_peso existe:',error.message);return;}
+  const atletas=[];
+  const pesos={};
+  const datasSet=new Set();
+  (data||[]).forEach(r=>{
+   const id={nomeCompleto:normalizarTextoPeso(r.nome_completo),apelido:normalizarTextoPeso(r.apelido),nascimento:normalizarTextoPeso(r.nascimento)};
+   if(!id.nomeCompleto||!id.nascimento)return;
+   atletas.push(id);
+   const key=chaveAtletaPeso(id);
+   pesos[key]=r.pesos&&typeof r.pesos==='object'?r.pesos:{};
+   Object.keys(pesos[key]).forEach(d=>datasSet.add(d));
+  });
+  controlePesoData={
+   atletas,
+   datas:datasControlePesoOrdenadas(Array.from(datasSet).map(label=>({id:label,label}))),
+   pesos
+  };
+  garantirControlePesoData();
+ }catch(e){console.warn('Controle de peso não carregado:',e);}
+}
+async function salvarControlePesoStorage(){
+ garantirControlePesoData();
+ try{
+  const rows=controlePesoData.atletas
+   .filter(a=>a.nomeCompleto&&a.nascimento)
+   .map(a=>{
+    const key=chaveAtletaPeso(a);
+    return {
+     nome_completo:a.nomeCompleto,
+     apelido:a.apelido||'',
+     nascimento:a.nascimento,
+     pesos:controlePesoData.pesos[key]||{},
+     atualizado_em:new Date().toISOString()
+    };
+   });
+
+  if(rows.length){
+   const {error:upsertError}=await _supabase.from('controle_peso').upsert(rows,{onConflict:'nome_completo,nascimento'});
+   if(upsertError){console.error('Erro ao salvar controle de peso:',upsertError);alert('Erro ao salvar controle de peso no Supabase.');return false;}
+  }
+
+  // Remove da tabela própria os atletas que foram removidos do controle.
+  const ativos=new Set(rows.map(r=>normalizarTextoPeso(r.nome_completo)+'||'+normalizarTextoPeso(r.nascimento)));
+  const {data:atuais,error:selectError}=await _supabase.from('controle_peso').select('id,nome_completo,nascimento');
+  if(!selectError){
+   const remover=(atuais||[]).filter(r=>!ativos.has(normalizarTextoPeso(r.nome_completo)+'||'+normalizarTextoPeso(r.nascimento)));
+   for(const r of remover){await _supabase.from('controle_peso').delete().eq('id',r.id);}
+  }
+  return true;
+ }catch(e){console.error(e);alert('Erro de conexão ao salvar controle de peso.');return false;}
+}
+function salvarControlePesoDebounced(){
+ clearTimeout(controlePesoSaveTimer);
+ controlePesoSaveTimer=setTimeout(()=>salvarControlePesoStorage(),700);
+}
+function ensurePesoButton(){
+ let b=document.getElementById('btn-peso-pf-fab');
+ if(!b){
+  b=document.createElement('div');
+  b.id='btn-peso-pf-fab';
+  b.textContent='Peso';
+  b.style.cssText='position:fixed;bottom:255px;right:30px;width:65px;height:65px;border-radius:50%;background:#8e44ad;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.4);cursor:pointer;font-weight:bold;font-size:12px;z-index:9999;text-align:center;user-select:none;transition:.2s;';
+  b.onmouseover=()=>{b.style.transform='scale(1.1)';b.style.background='#783993';};
+  b.onmouseout=()=>{b.style.transform='scale(1.0)';b.style.background='#8e44ad';};
+  b.onclick=abrirControlePesoModal;
+  document.body.appendChild(b);
+ }
+}
+function abrirControlePesoModal(){
+ garantirControlePesoData();
+ let m=document.getElementById('controle-peso-modal');
+ if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='controle-peso-modal';document.body.appendChild(m)}
+ const anos=['2009','2010','2011','2012','2013','2014','2015','2016','2017','2018'];
+ m.innerHTML=`<div class="controle-peso-card"><div class="controle-peso-title"><b>Controle de Peso</b><button onclick="document.getElementById('controle-peso-modal').style.display='none'">×</button></div><div class="controle-peso-top"><input id="controle-peso-busca" placeholder="Buscar atleta..." oninput="renderControlePesoSelecao()"><div class="controle-peso-anos">${anos.map(a=>`<label><input type="checkbox" class="controle-peso-ano" value="${a}" onchange="renderControlePesoSelecao()"> ${a}</label>`).join('')}</div><div class="controle-peso-acoes"><button onclick="adicionarSelecionadosControlePeso()">Adicionar selecionados</button><button onclick="adicionarDataControlePeso()">Adicionar data</button><select id="controle-peso-data-excluir"><option value="">Excluir data...</option>${controlePesoData.datas.map(d=>`<option value="${d.id}">${d.label}</option>`).join('')}</select><button class="perigo" onclick="excluirDataControlePeso()">Excluir data</button></div></div><div class="controle-peso-layout"><div class="controle-peso-selecao"><h4>Selecionar atletas</h4><div id="controle-peso-lista-selecao"></div></div><div class="controle-peso-tabela-wrap"><h4>Pesagens</h4><div id="controle-peso-tabela"></div></div></div></div>`;
+ m.style.display='flex';
+ renderControlePesoSelecao();
+ renderControlePesoTabela();
+}
+function controlePesoAtletasAtivosKeys(){garantirControlePesoData();return new Set(controlePesoData.atletas.map(chaveAtletaPeso));}
+function getAtletasFiltradosControlePeso(){
+ const anosSel=Array.from(document.querySelectorAll('#controle-peso-modal .controle-peso-ano:checked')).map(x=>x.value);
+ const busca=(document.getElementById('controle-peso-busca')?.value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+ return (excelData||[]).map((row,index)=>({index,id:identidadeAtletaPeso(index)})).filter(item=>{
+  if(anosSel.length&&!anosSel.includes(item.id.ano))return false;
+  if(busca){
+   const texto=`${item.id.nomeCompleto} ${item.id.apelido} ${item.id.ano}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+   if(!texto.includes(busca))return false;
+  }
+  return item.id.nomeCompleto&&item.id.nascimento;
+ }).sort((a,b)=>parseInt(a.id.ano||9999)-parseInt(b.id.ano||9999)||a.id.apelido.localeCompare(b.id.apelido,'pt-BR'));
+}
+function renderControlePesoSelecao(){
+ const box=document.getElementById('controle-peso-lista-selecao');if(!box)return;
+ const ativos=controlePesoAtletasAtivosKeys();
+ const atletas=getAtletasFiltradosControlePeso();
+ if(!atletas.length){box.innerHTML='<p class="controle-peso-vazio">Nenhum atleta encontrado.</p>';return;}
+ box.innerHTML=atletas.map(a=>{const gordura=(getUltimaAvaliacao(excelData[a.index]||{}).gordura||'-');return `<label class="controle-peso-athlete-option"><input type="checkbox" class="controle-peso-select-athlete" data-index="${a.index}" ${ativos.has(chaveAtletaPeso(a.id))?'checked':''}> <span class="peso-athlete-name">${escapeHtmlJogos(a.id.apelido)} <small>${escapeHtmlJogos(a.id.ano)}</small></span><span class="peso-athlete-gordura">${escapeHtmlJogos(gordura)}</span></label>`;}).join('');
+}
+function adicionarSelecionadosControlePeso(){
+ garantirControlePesoData();
+ const existentes=controlePesoAtletasAtivosKeys();
+ document.querySelectorAll('#controle-peso-modal .controle-peso-select-athlete:checked').forEach(chk=>{
+  const index=parseInt(chk.dataset.index,10);const id=identidadeAtletaPeso(index);const key=chaveAtletaPeso(id);
+  if(id.nomeCompleto&&id.nascimento&&!existentes.has(key)){controlePesoData.atletas.push(id);existentes.add(key);}
+ });
+ renderControlePesoSelecao();renderControlePesoTabela();salvarControlePesoDebounced();
+}
+function removerSelecionadosControlePeso(){
+ garantirControlePesoData();
+ const remover=new Set();
+ document.querySelectorAll('#controle-peso-modal .controle-peso-select-athlete:checked').forEach(chk=>{const id=identidadeAtletaPeso(parseInt(chk.dataset.index,10));remover.add(chaveAtletaPeso(id));});
+ if(!remover.size)return alert('Marque atletas para remover do controle.');
+ if(!confirm('Remover os atletas marcados do controle de peso? Os pesos lançados para eles também serão removidos.'))return;
+ controlePesoData.atletas=controlePesoData.atletas.filter(a=>!remover.has(chaveAtletaPeso(a)));
+ remover.forEach(k=>delete controlePesoData.pesos[k]);
+ renderControlePesoSelecao();renderControlePesoTabela();salvarControlePesoDebounced();
+}
+function formatarDataPesoLabel(valor){
+ const s=String(valor||'').trim();
+ const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/); if(m)return `${m[3]}/${m[2]}/${m[1]}`;
+ const m2=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/); if(m2)return `${String(m2[1]).padStart(2,'0')}/${String(m2[2]).padStart(2,'0')}/${m2[3]}`;
+ return s;
+}
+function adicionarDataControlePeso(){
+ garantirControlePesoData();
+ const hoje=new Date().toISOString().slice(0,10);
+ const entrada=prompt('Informe a data da pesagem (DD/MM/AAAA ou AAAA-MM-DD):',hoje);
+ if(!entrada)return;
+ const label=formatarDataPesoLabel(entrada);
+ if(!label)return alert('Data inválida.');
+ if(controlePesoData.datas.some(d=>d.label===label))return alert('Esta data já existe no controle.');
+ controlePesoData.datas.push({id:label,label});
+ controlePesoData.datas=datasControlePesoOrdenadas(controlePesoData.datas);
+ controlePesoData.atletas.forEach(a=>{const key=chaveAtletaPeso(a);if(!controlePesoData.pesos[key])controlePesoData.pesos[key]={};if(controlePesoData.pesos[key][label]===undefined)controlePesoData.pesos[key][label]='';});
+ renderControlePesoTabela();
+ const sel=document.getElementById('controle-peso-data-excluir');if(sel)sel.innerHTML='<option value="">Excluir data...</option>'+controlePesoData.datas.map(d=>`<option value="${d.id}">${d.label}</option>`).join('');
+ salvarControlePesoDebounced();
+}
+function excluirDataControlePeso(){
+ garantirControlePesoData();
+ const sel=document.getElementById('controle-peso-data-excluir');const id=sel?.value;
+ if(!id)return alert('Selecione uma data para excluir.');
+ const data=controlePesoData.datas.find(d=>d.id===id);
+ if(!confirm('Excluir a data '+(data?.label||'selecionada')+' e todos os pesos dela?'))return;
+ controlePesoData.datas=controlePesoData.datas.filter(d=>d.id!==id);
+ Object.keys(controlePesoData.pesos).forEach(k=>{if(controlePesoData.pesos[k])delete controlePesoData.pesos[k][id];});
+ renderControlePesoTabela();
+ if(sel)sel.innerHTML='<option value="">Excluir data...</option>'+controlePesoData.datas.map(d=>`<option value="${d.id}">${d.label}</option>`).join('');
+ salvarControlePesoDebounced();
+}
+function atualizarPesoControleAtleta(chave,dataId,valor){
+ garantirControlePesoData();
+ if(!controlePesoData.pesos[chave])controlePesoData.pesos[chave]={};
+ controlePesoData.pesos[chave][dataId]=String(valor||'').trim();
+ salvarControlePesoDebounced();
+}
+function removerAtletaControlePeso(chave){
+ garantirControlePesoData();
+ const atleta=controlePesoData.atletas.find(a=>chaveAtletaPeso(a)===chave);
+ if(!atleta)return;
+ const nome=atleta.apelido||atleta.nomeCompleto||'atleta';
+ if(!confirm('Remover '+nome+' do controle de peso? Os pesos lançados para este atleta também serão removidos.'))return;
+ controlePesoData.atletas=controlePesoData.atletas.filter(a=>chaveAtletaPeso(a)!==chave);
+ delete controlePesoData.pesos[chave];
+ renderControlePesoSelecao();
+ renderControlePesoTabela();
+ salvarControlePesoDebounced();
+}
+function renderControlePesoTabela(){
+ garantirControlePesoData();
+ const box=document.getElementById('controle-peso-tabela');if(!box)return;
+ if(!controlePesoData.atletas.length){box.innerHTML='<p class="controle-peso-vazio">Nenhum atleta adicionado ao controle de peso.</p>';return;}
+ const datas=controlePesoData.datas;
+ const head=`<tr><th>Atleta</th><th>Ano</th>${datas.map(d=>`<th>${d.label}</th>`).join('')}</tr>`;
+ const rows=controlePesoData.atletas.map(a=>{
+  const key=chaveAtletaPeso(a); const pesos=controlePesoData.pesos[key]||{};
+  const keyEncoded=encodeURIComponent(key);
+  return `<tr><td><button type="button" class="controle-peso-remove-row" title="Remover atleta" onclick="removerAtletaControlePeso(decodeURIComponent('${keyEncoded}'))">×</button><span>${escapeHtmlJogos(a.apelido||a.nomeCompleto)}</span></td><td>${escapeHtmlJogos(anoControlePesoAtleta(a))}</td>${datas.map(d=>`<td><input type="number" step="0.1" value="${escapeHtmlJogos(pesos[d.id]||'')}" onchange="atualizarPesoControleAtleta(decodeURIComponent('${keyEncoded}'),'${d.id}',this.value)" placeholder="Kg"></td>`).join('')}</tr>`;
+ }).join('');
+ box.innerHTML=`<table class="controle-peso-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
 }
