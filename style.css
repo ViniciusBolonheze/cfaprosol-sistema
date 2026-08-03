@@ -2809,3 +2809,33 @@ body {
     .controle-peso-athlete-option{grid-template-columns:22px minmax(0,1fr) 64px!important;}
     .peso-athlete-gordura{font-size:10px;padding:2px 5px;}
 }
+
+/* Controle de Peso: cabeçalho clicável de ordenação */
+.controle-peso-selecao-header{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 92px;
+    gap:6px;
+    align-items:center;
+}
+.controle-peso-selecao-header button{
+    border:0;
+    background:transparent;
+    color:inherit;
+    font:inherit;
+    text-align:left;
+    cursor:pointer;
+    padding:0;
+    min-width:0;
+}
+.controle-peso-selecao-header button:last-child{
+    text-align:right;
+}
+.controle-peso-selecao-header button:hover,
+.controle-peso-selecao-header button.active{
+    color:#fff;
+    text-decoration:underline;
+}
+@media(max-width:900px){
+    .controle-peso-selecao-header{grid-template-columns:minmax(0,1fr) 82px;}
+    .controle-peso-selecao-header button:last-child{font-size:10px;}
+}

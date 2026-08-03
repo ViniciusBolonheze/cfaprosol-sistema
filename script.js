@@ -3640,6 +3640,8 @@ if(typeof printFicha==='function'){
 /* === CONTROLE DE PESO - TESTES FÍSICOS === */
 let controlePesoData = { atletas: [], datas: [], pesos: {} };
 let controlePesoSaveTimer = null;
+let controlePesoOrdenacaoSelecao = 'padrao';
+let controlePesoGorduraDir = 'desc';
 function normalizarTextoPeso(valor){return String(valor||'').trim().replace(/\s+/g,' ');}
 function valorPesoColunaFlex(row, termos){
  const chave=Object.keys(row||{}).find(k=>termos.some(t=>String(k).toLowerCase().includes(String(t).toLowerCase())));
@@ -3756,12 +3758,35 @@ function abrirControlePesoModal(){
  let m=document.getElementById('controle-peso-modal');
  if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='controle-peso-modal';document.body.appendChild(m)}
  const anos=['2009','2010','2011','2012','2013','2014','2015','2016','2017','2018'];
- m.innerHTML=`<div class="controle-peso-card"><div class="controle-peso-title"><b>Controle de Peso</b><button onclick="document.getElementById('controle-peso-modal').style.display='none'">×</button></div><div class="controle-peso-top"><input id="controle-peso-busca" placeholder="Buscar atleta..." oninput="renderControlePesoSelecao()"><div class="controle-peso-anos">${anos.map(a=>`<label><input type="checkbox" class="controle-peso-ano" value="${a}" onchange="renderControlePesoSelecao()"> ${a}</label>`).join('')}</div><div class="controle-peso-acoes"><button onclick="adicionarSelecionadosControlePeso()">Adicionar selecionados</button><button onclick="adicionarDataControlePeso()">Adicionar data</button><select id="controle-peso-data-excluir"><option value="">Excluir data...</option>${controlePesoData.datas.map(d=>`<option value="${d.id}">${d.label}</option>`).join('')}</select><button class="perigo" onclick="excluirDataControlePeso()">Excluir data</button></div></div><div class="controle-peso-layout"><div class="controle-peso-selecao"><h4>Selecionar atletas</h4><div id="controle-peso-lista-selecao"></div></div><div class="controle-peso-tabela-wrap"><h4>Pesagens</h4><div id="controle-peso-tabela"></div></div></div></div>`;
+ m.innerHTML=`<div class="controle-peso-card"><div class="controle-peso-title"><b>Controle de Peso</b><button onclick="document.getElementById('controle-peso-modal').style.display='none'">×</button></div><div class="controle-peso-top"><input id="controle-peso-busca" placeholder="Buscar atleta..." oninput="renderControlePesoSelecao()"><div class="controle-peso-anos">${anos.map(a=>`<label><input type="checkbox" class="controle-peso-ano" value="${a}" onchange="renderControlePesoSelecao()"> ${a}</label>`).join('')}</div><div class="controle-peso-acoes"><button onclick="adicionarSelecionadosControlePeso()">Adicionar selecionados</button><button onclick="adicionarDataControlePeso()">Adicionar data</button><select id="controle-peso-data-excluir"><option value="">Excluir data...</option>${controlePesoData.datas.map(d=>`<option value="${d.id}">${d.label}</option>`).join('')}</select><button class="perigo" onclick="excluirDataControlePeso()">Excluir data</button></div></div><div class="controle-peso-layout"><div class="controle-peso-selecao"><h4 class="controle-peso-selecao-header"><button type="button" id="peso-sort-padrao" onclick="ordenarControlePesoSelecao('padrao')">Selecionar atletas</button><button type="button" id="peso-sort-gordura" onclick="ordenarControlePesoSelecao('gordura')">% de Gordura</button></h4><div id="controle-peso-lista-selecao"></div></div><div class="controle-peso-tabela-wrap"><h4>Pesagens</h4><div id="controle-peso-tabela"></div></div></div></div>`;
  m.style.display='flex';
  renderControlePesoSelecao();
  renderControlePesoTabela();
 }
 function controlePesoAtletasAtivosKeys(){garantirControlePesoData();return new Set(controlePesoData.atletas.map(chaveAtletaPeso));}
+function gorduraControlePesoNum(index){
+ const gordura=getUltimaAvaliacao(excelData[index]||{}).gordura;
+ const n=parseFloat(String(gordura||'').replace('%','').replace(',','.'));
+ return isNaN(n)?NaN:n;
+}
+function ordenarControlePesoSelecao(tipo){
+ if(tipo==='gordura'){
+  if(controlePesoOrdenacaoSelecao==='gordura') controlePesoGorduraDir = controlePesoGorduraDir === 'desc' ? 'asc' : 'desc';
+  else { controlePesoOrdenacaoSelecao='gordura'; controlePesoGorduraDir='desc'; }
+ }else{
+  controlePesoOrdenacaoSelecao='padrao';
+ }
+ renderControlePesoSelecao();
+}
+function atualizarHeaderOrdenacaoControlePeso(){
+ const bPadrao=document.getElementById('peso-sort-padrao');
+ const bGordura=document.getElementById('peso-sort-gordura');
+ if(bPadrao)bPadrao.classList.toggle('active',controlePesoOrdenacaoSelecao==='padrao');
+ if(bGordura){
+  bGordura.classList.toggle('active',controlePesoOrdenacaoSelecao==='gordura');
+  bGordura.textContent=controlePesoOrdenacaoSelecao==='gordura' ? `% de Gordura ${controlePesoGorduraDir==='desc'?'▼':'▲'}` : '% de Gordura';
+ }
+}
 function getAtletasFiltradosControlePeso(){
  const anosSel=Array.from(document.querySelectorAll('#controle-peso-modal .controle-peso-ano:checked')).map(x=>x.value);
  const busca=(document.getElementById('controle-peso-busca')?.value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
@@ -3772,9 +3797,19 @@ function getAtletasFiltradosControlePeso(){
    if(!texto.includes(busca))return false;
   }
   return item.id.nomeCompleto&&item.id.nascimento;
- }).sort((a,b)=>parseInt(a.id.ano||9999)-parseInt(b.id.ano||9999)||a.id.apelido.localeCompare(b.id.apelido,'pt-BR'));
+ }).sort((a,b)=>{
+  if(controlePesoOrdenacaoSelecao==='gordura'){
+   const ga=gorduraControlePesoNum(a.index), gb=gorduraControlePesoNum(b.index);
+   let r=0;
+   if(isNaN(ga)&&isNaN(gb))r=0; else if(isNaN(ga))r=1; else if(isNaN(gb))r=-1; else r=ga-gb;
+   if(controlePesoGorduraDir==='desc')r=-r;
+   return r || parseInt(a.id.ano||9999)-parseInt(b.id.ano||9999) || a.id.apelido.localeCompare(b.id.apelido,'pt-BR');
+  }
+  return parseInt(a.id.ano||9999)-parseInt(b.id.ano||9999)||a.id.apelido.localeCompare(b.id.apelido,'pt-BR');
+ });
 }
 function renderControlePesoSelecao(){
+ atualizarHeaderOrdenacaoControlePeso();
  const box=document.getElementById('controle-peso-lista-selecao');if(!box)return;
  const ativos=controlePesoAtletasAtivosKeys();
  const atletas=getAtletasFiltradosControlePeso();
