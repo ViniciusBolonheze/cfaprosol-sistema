@@ -1189,6 +1189,81 @@ function getValorColuna(row, chavesPossiveis) {
     return chaveEncontrada ? row[chaveEncontrada] : '';
 }
 
+function normalizarTextoGrupoAtleta(valor) {
+    return String(valor || '').trim().replace(/\s+/g, ' ');
+}
+function normalizarDataGrupoAtleta(valor) {
+    return normalizarTextoGrupoAtleta(convertExcelDate(valor) || valor);
+}
+function valorColunaGrupoFlex(row, termos) {
+    const chave = Object.keys(row || {}).find(k => termos.some(t => String(k).toLowerCase().includes(String(t).toLowerCase())));
+    return chave ? row[chave] : '';
+}
+function identidadeAtletaGrupo(index) {
+    const row = excelData[index] || {};
+    const nomeCompleto = normalizarTextoGrupoAtleta(
+        valorColunaGrupoFlex(row, ['nome completo']) ||
+        valorColunaExata(row, 'NOME COMPLETO') ||
+        valorColunaGrupoFlex(row, ['nome'])
+    );
+    const apelido = normalizarTextoGrupoAtleta(valorColunaGrupoFlex(row, ['apelido']));
+    const nascimento = normalizarDataGrupoAtleta(valorColunaGrupoFlex(row, ['data de nascimento', 'nascimento']));
+    const ano = normalizarTextoGrupoAtleta(valorColunaExata(row, 'Ano'));
+    return { nomeCompleto, apelido, nascimento, ano };
+}
+function localizarAtletaGrupoSalvo(atletaSalvo) {
+    if (atletaSalvo === undefined || atletaSalvo === null) return -1;
+    const normalizar = normalizarTextoGrupoAtleta;
+    const normalizarData = normalizarDataGrupoAtleta;
+
+    if (typeof atletaSalvo === 'object') {
+        const nomeCompletoSalvo = normalizar(atletaSalvo.nomeCompleto || atletaSalvo.nome_completo || '');
+        const apelidoSalvo = normalizar(atletaSalvo.apelido || '');
+        const nomeSalvo = normalizar(atletaSalvo.nome || ''); // compatibilidade com formato antigo: geralmente era apelido
+        const nascimentoSalvo = normalizarData(atletaSalvo.nascimento || atletaSalvo.dataNascimento || atletaSalvo.data_nascimento || '');
+        const anoSalvo = normalizar(atletaSalvo.ano || '');
+
+        let idx = -1;
+        if (nomeCompletoSalvo && nascimentoSalvo) {
+            idx = excelData.findIndex((_, i) => {
+                const id = identidadeAtletaGrupo(i);
+                return id.nomeCompleto === nomeCompletoSalvo && id.nascimento === nascimentoSalvo;
+            });
+            if (idx >= 0) return idx;
+        }
+        if (nomeSalvo && nascimentoSalvo) {
+            idx = excelData.findIndex((_, i) => {
+                const id = identidadeAtletaGrupo(i);
+                return (id.apelido === nomeSalvo || id.nomeCompleto === nomeSalvo) && id.nascimento === nascimentoSalvo;
+            });
+            if (idx >= 0) return idx;
+        }
+        if (apelidoSalvo && nascimentoSalvo) {
+            idx = excelData.findIndex((_, i) => {
+                const id = identidadeAtletaGrupo(i);
+                return id.apelido === apelidoSalvo && id.nascimento === nascimentoSalvo;
+            });
+            if (idx >= 0) return idx;
+        }
+        if ((nomeCompletoSalvo || nomeSalvo || apelidoSalvo) && anoSalvo) {
+            const nomeBusca = nomeCompletoSalvo || nomeSalvo || apelidoSalvo;
+            idx = excelData.findIndex((_, i) => {
+                const id = identidadeAtletaGrupo(i);
+                return (id.nomeCompleto === nomeBusca || id.apelido === nomeBusca) && id.ano === anoSalvo;
+            });
+            if (idx >= 0) return idx;
+        }
+        return -1;
+    }
+
+    const nomeAntigo = normalizar(atletaSalvo);
+    if (!nomeAntigo) return -1;
+    return excelData.findIndex((_, i) => {
+        const id = identidadeAtletaGrupo(i);
+        return id.apelido === nomeAntigo || id.nomeCompleto === nomeAntigo;
+    });
+}
+
 async function salvarNoSupabase() {
     const catSelect = document.getElementById('grupo-categoria-select');
     if (!catSelect || catSelect.selectedIndex <= 0) {
@@ -1205,16 +1280,18 @@ async function salvarNoSupabase() {
         const isVisivel = panel.style.display !== 'none';
         
         const atletas = Array.from(panel.querySelectorAll('.ficha-table tbody tr')).map(tr => {
-            const cols = tr.querySelectorAll('td');
             const index = Number(tr.dataset.globalIndex);
             if (Number.isInteger(index) && excelData[index]) {
-                const row = excelData[index];
-                const anoKey = Object.keys(row).find(k => k.toLowerCase() === 'ano');
-                const nomeKey = Object.keys(row).find(k => k.toLowerCase().includes('apelido')) || Object.keys(row).find(k => k.toLowerCase().includes('nome'));
-                return { nome: nomeKey ? String(row[nomeKey]).trim() : '', nascimento: Object.keys(row).find(k => k.toLowerCase().includes('nascimento')) ? String(row[Object.keys(row).find(k => k.toLowerCase().includes('nascimento'))] || '').trim() : '' };
+                const id = identidadeAtletaGrupo(index);
+                return {
+                    nomeCompleto: id.nomeCompleto,
+                    apelido: id.apelido,
+                    nascimento: id.nascimento,
+                    ano: id.ano
+                };
             }
             return null;
-        }).filter(atleta => atleta && atleta.nome);
+        }).filter(atleta => atleta && atleta.nomeCompleto && atleta.nascimento);
 
         return { nomeGrupo, isVisivel, atletas };
     });
@@ -1294,27 +1371,15 @@ async function carregarDoSupabase() {
 
             if (gData.atletas && Array.isArray(gData.atletas)) {
                 gData.atletas.forEach(atletaSalvo => {
-                    // Formato novo: salva o índice único do atleta.
-                    // Formato antigo: continua aceitando apenas o nome.
-                    let idx = -1;
-                    if (typeof atletaSalvo === 'object' && atletaSalvo !== null) {
-                        idx = excelData.findIndex(row => {
-                            const id = identidadeAtleta(excelData.indexOf(row));
-                            return id.nome === atletaSalvo.nome && id.nascimento === atletaSalvo.nascimento;
-                        });
+                    const idx = localizarAtletaGrupoSalvo(atletaSalvo);
+                    if (idx >= 0 && idx < excelData.length) {
+                        if (!gruposData[gData.nomeGrupo]) gruposData[gData.nomeGrupo] = [];
+                        if (!gruposData[gData.nomeGrupo].some(item => item.index === idx)) {
+                            gruposData[gData.nomeGrupo].push({ index: idx, manualData: {} });
+                        }
                     } else {
-                        const nomeAtleta = String(atletaSalvo).trim();
-                        idx = excelData.findIndex(row => {
-                            const anoKey = Object.keys(row).find(k => k.toLowerCase() === 'ano');
-                            const apelido = Object.keys(row).find(k => k.toLowerCase().includes('apelido'));
-                            const nome = Object.keys(row).find(k => k.toLowerCase().includes('nome'));
-                            const valApelido = apelido && row[apelido] ? String(row[apelido]).trim() : '';
-                            const valNome = nome && row[nome] ? String(row[nome]).trim() : '';
-                            const valAno = anoKey ? String(row[anoKey]).trim() : '';
-                            return (valApelido === nomeAtleta || valNome === nomeAtleta) && (!atletaSalvo.ano || valAno === atletaSalvo.ano);
-                        });
+                        console.warn('Atleta salvo no grupo não localizado:', atletaSalvo);
                     }
-                    if (idx >= 0 && idx < excelData.length) gruposData[gData.nomeGrupo].push({ index: idx, manualData: {} });
                 });
             }
         });
