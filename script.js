@@ -2411,7 +2411,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 /* === MÓDULO JOGOS === */
 function openJogosProfessorModal(){
  let m=document.getElementById('jogos-professor-modal');if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='jogos-professor-modal';document.body.appendChild(m)}
- const professores=['Christian Rondina','Eric Bergmann','Roberto Fonseca Jr.','Vinícius Bolonheze'];
+ const professores=['Christian Rondina','Eric Bergmann','Roberto Fonseca Jr.','Roberto Fonseca Jr. Sub 14','Vinícius Bolonheze'];
  m.innerHTML=`<div class="jogos-professor-card"><h3>Selecione o professor</h3><p>Escolha o banco de dados que deseja acessar:</p><div>${professores.map(p=>`<button onclick="selecionarProfessorJogos('${p}')">${p}</button>`).join('')}</div><button class="cancelar-jogos" onclick="document.getElementById('jogos-professor-modal').style.display='none'">Cancelar</button></div>`;
  m.style.display='flex';
 }
@@ -2448,6 +2448,7 @@ function anosPadraoJogosProfessor(professor=professorJogosAtual){
  if(nome.includes('christian')) return ['2015','2016','2017','2018'];
  if(nome.includes('eric')) return ['2014'];
  if(nome.includes('vinicius')) return ['2013'];
+ if(nome.includes('roberto') && (nome.includes('sub 14') || nome.includes('sub14'))) return ['2012'];
  if(nome.includes('roberto')) return ['2009','2010','2011','2012'];
  return ['2013'];
 }
