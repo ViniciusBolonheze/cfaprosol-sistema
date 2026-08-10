@@ -2839,3 +2839,102 @@ body {
     .controle-peso-selecao-header{grid-template-columns:minmax(0,1fr) 82px;}
     .controle-peso-selecao-header button:last-child{font-size:10px;}
 }
+
+/* Fichas de treino: rótulos MMI/Protocolo/HIIT editáveis e aviso final */
+.side-label:has(.side-label-edit){
+    writing-mode: horizontal-tb !important;
+    transform: none !important;
+    padding: 0 !important;
+    min-width: 32px;
+}
+.side-label .side-label-edit{
+    writing-mode: vertical-rl !important;
+    transform: rotate(180deg) !important;
+    width: 30px !important;
+    min-height: 72px !important;
+    height: 100% !important;
+    border: none !important;
+    background: transparent !important;
+    color: #000 !important;
+    text-align: center !important;
+    font-weight: bold !important;
+    font-size: 14px !important;
+    padding: 2px 0 !important;
+    outline: none !important;
+}
+.side-label .side-label-edit:focus{
+    background: #fff8cc !important;
+    box-shadow: inset 0 0 0 1px #58111a !important;
+}
+.proto-banner input{
+    color: #fff !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    font-size: 11px !important;
+}
+.ficha-aviso-final .proto-banner{
+    padding: 6px !important;
+}
+.ficha-aviso-final input{
+    width: 100% !important;
+}
+@media print{
+    .side-label:has(.side-label-edit){writing-mode:horizontal-tb!important;transform:none!important;padding:0!important;}
+    .side-label .side-label-edit{writing-mode:vertical-rl!important;transform:rotate(180deg)!important;border:0!important;background:transparent!important;}
+}
+
+/* Ajuste visual das fichas: rótulos laterais editáveis compactos apenas na tela.
+   Mantém a impressão como estava. */
+@media screen {
+    #fichas-treino-screen .side-label {
+        position: relative !important;
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        vertical-align: middle !important;
+        writing-mode: horizontal-tb !important;
+        transform: none !important;
+    }
+
+    #fichas-treino-screen .side-label .side-label-edit {
+        position: absolute !important;
+        left: 50% !important;
+        top: 50% !important;
+        transform: translate(-50%, -50%) rotate(-90deg) !important;
+        writing-mode: horizontal-tb !important;
+        width: 92px !important;
+        height: 22px !important;
+        min-height: 0 !important;
+        max-height: 22px !important;
+        line-height: 22px !important;
+        padding: 0 2px !important;
+        border: none !important;
+        background: transparent !important;
+        color: #000 !important;
+        text-align: center !important;
+        font-weight: bold !important;
+        font-size: 13px !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    #fichas-treino-screen .side-label .side-label-edit:focus {
+        background: #fff8cc !important;
+        box-shadow: inset 0 0 0 1px #58111a !important;
+    }
+}
+
+/* Fichas de treino: aviso final fixo e 6 campos editáveis no HIIT */
+.ficha-aviso-final .proto-banner{
+    color:#fff !important;
+    font-weight:bold !important;
+    text-align:center !important;
+    font-size:11px !important;
+    padding:6px !important;
+}
+.hiit-footer input{
+    font-weight:bold !important;
+    text-align:center !important;
+}

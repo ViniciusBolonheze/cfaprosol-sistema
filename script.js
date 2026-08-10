@@ -78,7 +78,36 @@ async function saveToStorage() {
     return saveQueue;
 }
 
-document.addEventListener("DOMContentLoaded", () => { loadFromStorage(); });
+function atualizarCabecalhoSistema() {
+    const dateEl = document.querySelector('.date-display');
+    if (dateEl) {
+        const dataAtual = new Intl.DateTimeFormat('pt-BR', {
+            weekday: 'long',
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        }).format(new Date());
+        dateEl.textContent = dataAtual;
+    }
+
+    const instagramEl = document.querySelector('.instagram-icon');
+    if (instagramEl && !instagramEl.dataset.instagramReady) {
+        instagramEl.dataset.instagramReady = '1';
+        instagramEl.style.cursor = 'pointer';
+        instagramEl.title = 'Abrir Instagram';
+        instagramEl.addEventListener('click', () => {
+            window.open('https://instagram.com/vinicius_bolonheze', '_blank', 'noopener,noreferrer');
+        });
+        instagramEl.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                window.open('https://instagram.com/vinicius_bolonheze', '_blank', 'noopener,noreferrer');
+            }
+        });
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => { atualizarCabecalhoSistema(); loadFromStorage(); });
 
 /* === FUNÇÕES DE IMPRESSÃO / EXPORTAÇÃO === */
 function ensurePrintStyles() {
@@ -901,6 +930,50 @@ async function removerDocumentoTemporario(index) {
 
 
 
+function setValorInputFicha(input, valor) {
+    if (!input || valor === undefined || valor === null) return;
+    input.value = valor;
+    input.setAttribute('value', valor);
+}
+function aplicarValoresExerciciosFicha(card, valoresSalvos) {
+    if (!card || !valoresSalvos) return;
+    const inputs = Array.from(card.querySelectorAll('input'));
+    const valores = Array.isArray(valoresSalvos) ? valoresSalvos : [];
+    if (!valores.length || !inputs.length) return;
+
+    // Formato atual: MMI/Protocolo/HIIT editáveis + 6 campos de tempo do HIIT.
+    // A frase final é fixa e NÃO é salva como campo editável.
+    if (valores.length >= inputs.length) {
+        inputs.forEach((input, i) => setValorInputFicha(input, valores[i]));
+        return;
+    }
+
+    // Compatibilidade com o formato anterior de 44 inputs:
+    // [MMI label] + 21, [Protocolo label] + 12, [HIIT label] + 6 exercícios + 1 tempo único + 1 aviso final.
+    // No modelo novo, o tempo único vira 6 quadradinhos e o aviso final é fixo.
+    if (valores.length === 44 && inputs.length >= 48) {
+        for (let i = 0; i <= 41; i++) setValorInputFicha(inputs[i], valores[i]);
+        for (let i = 0; i < 6; i++) setValorInputFicha(inputs[42 + i], valores[42] || '20 SEG.');
+        return;
+    }
+
+    // Compatibilidade com fichas antigas de 40 inputs:
+    // 21 MMI + 12 Protocolo + 6 exercícios HIIT + 1 tempo único.
+    if (valores.length === 40 && inputs.length >= 48) {
+        setValorInputFicha(inputs[0], 'MMI');
+        for (let i = 0; i < 21; i++) setValorInputFicha(inputs[1 + i], valores[i]);
+        setValorInputFicha(inputs[22], 'Protocolo');
+        for (let i = 0; i < 12; i++) setValorInputFicha(inputs[23 + i], valores[21 + i]);
+        setValorInputFicha(inputs[35], 'HIIT');
+        for (let i = 0; i < 6; i++) setValorInputFicha(inputs[36 + i], valores[33 + i]);
+        for (let i = 0; i < 6; i++) setValorInputFicha(inputs[42 + i], valores[39] || '20 SEG.');
+        return;
+    }
+
+    // Fallback seguro: aplica o que existir sem quebrar.
+    inputs.forEach((input, i) => setValorInputFicha(input, valores[i]));
+}
+
 /* === GERAR FICHAS COM LAYOUT PERSONALIZADO (ATUALIZADO) === */
 function gerarFichasTreino() {
     // 1. Pega apenas os painéis de grupos que estão visíveis na tela
@@ -1044,7 +1117,7 @@ function gerarFichasTreino() {
                 <!-- MMI -->
                 <table class="ficha-table" style="margin-top: 8px;">
                     <tr>
-                        <td rowspan="3" class="side-label">MMI</td>
+                        <td rowspan="3" class="side-label"><input type="text" class="side-label-edit" value="MMI"></td>
                         <td class="mmi-header"><input type="text" value="Agachamento livre"></td>
                         <td class="mmi-header"><input type="text" value="Agachamento lateral"></td>
                         <td class="mmi-header"><input type="text" value="STIFF + Avanço"></td>
@@ -1076,18 +1149,13 @@ function gerarFichasTreino() {
                 <!-- PROTOCOLO -->
                 <table class="ficha-table" style="margin-top: 8px;">
                     <tr>
-                        <td rowspan="3" class="side-label">Protocolo</td>
+                        <td rowspan="2" class="side-label"><input type="text" class="side-label-edit" value="Protocolo"></td>
                         <td class="proto-header"><input type="text" value="Remada baixa"></td>
                         <td class="proto-header"><input type="text" value="Supino com elevação pélvica"></td>
                         <td class="proto-header"><input type="text" value="Remada serrote"></td>
                         <td class="proto-header"><input type="text" value="Abd remador"></td>
                         <td class="proto-header"><input type="text" value="Dumbbell Snatch"></td>
                         <td class="proto-header"><input type="text" value="Flexão"></td>
-                    </tr>
-                    <tr>
-                        <td colspan="6" class="proto-banner">
-                            Chegar ANTES ou ficar APÓS para realizar os PROTOCOLOS (Atletas marcados, deverão realizar)
-                        </td>
                     </tr>
                     <tr>
                         <td class="proto-weight"><input type="text" value="60kg"></td>
@@ -1102,7 +1170,7 @@ function gerarFichasTreino() {
                 <!-- HIIT -->
                 <table class="ficha-table" style="margin-top: 8px;">
                     <tr>
-                        <td rowspan="2" class="side-label">HIIT</td>
+                        <td rowspan="2" class="side-label"><input type="text" class="side-label-edit" value="HIIT"></td>
                         <td class="hiit-header"><input type="text" value="AGACHAMENTO COM SALTO"></td>
                         <td class="hiit-header"><input type="text" value="AVANÇO COM SALTO"></td>
                         <td class="hiit-header"><input type="text" value="POLICHINELO"></td>
@@ -1111,8 +1179,20 @@ function gerarFichasTreino() {
                         <td class="hiit-header"><input type="text" value="BURPEE"></td>
                     </tr>
                     <tr>
-                        <td colspan="6" class="hiit-footer">
-                            <input type="text" value="20 SEG. CADA EXERCÍCIO" style="font-weight: bold; text-align: center;">
+                        <td class="hiit-footer"><input type="text" value="20 SEG." style="font-weight: bold; text-align: center;"></td>
+                        <td class="hiit-footer"><input type="text" value="20 SEG." style="font-weight: bold; text-align: center;"></td>
+                        <td class="hiit-footer"><input type="text" value="20 SEG." style="font-weight: bold; text-align: center;"></td>
+                        <td class="hiit-footer"><input type="text" value="20 SEG." style="font-weight: bold; text-align: center;"></td>
+                        <td class="hiit-footer"><input type="text" value="20 SEG." style="font-weight: bold; text-align: center;"></td>
+                        <td class="hiit-footer"><input type="text" value="20 SEG." style="font-weight: bold; text-align: center;"></td>
+                    </tr>
+                </table>
+
+                <!-- AVISO FINAL -->
+                <table class="ficha-table ficha-aviso-final" style="margin-top: 8px;">
+                    <tr>
+                        <td class="proto-banner">
+                            Chegar ANTES ou ficar APÓS para realizar os PROTOCOLOS (Atletas marcados, deverão realizar)
                         </td>
                     </tr>
                 </table>
@@ -1127,16 +1207,8 @@ function gerarFichasTreino() {
         // ==========================================
         if (Object.keys(exerciciosSalvosNaNuvem).length > 0) {
             document.querySelectorAll('.ficha-grupo-card').forEach((card, index) => {
-                const inputs = card.querySelectorAll('input');
                 const valoresSalvos = exerciciosSalvosNaNuvem[index];
-                if (valoresSalvos && inputs) {
-                    inputs.forEach((input, i) => {
-                        if (valoresSalvos[i] !== undefined) {
-                            input.value = valoresSalvos[i];
-                            input.setAttribute('value', valoresSalvos[i]); // Fixa no HTML
-                        }
-                    });
-                }
+                aplicarValoresExerciciosFicha(card, valoresSalvos);
             });
         }
         // ==========================================
