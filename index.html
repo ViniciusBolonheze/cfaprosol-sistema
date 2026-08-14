@@ -45,8 +45,15 @@
         <div class="header-content-top">
             <div class="header-icons-row">
                 <div class="instagram-icon" title="Abrir Instagram" role="button" tabindex="0"><i class="fab fa-instagram"></i></div>
-                <button class="fotos-header-btn" onclick="openFotosModal()" title="Fotos dos atletas">
-                    <i class="fa-solid fa-images"></i><span>Fotos</span>
+                <button class="fotos-header-btn" onclick="openFotosModal()" title="Fotos dos atletas" aria-label="Fotos dos atletas">
+                    <span class="fotos-header-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M4 7.5C4 6.12 5.12 5 6.5 5h2.1l.75-1.15C9.72 3.32 10.32 3 10.96 3h2.08c.64 0 1.24.32 1.61.85L15.4 5h2.1C18.88 5 20 6.12 20 7.5v9C20 17.88 18.88 19 17.5 19h-11C5.12 19 4 17.88 4 16.5v-9Z"/>
+                            <circle cx="12" cy="12" r="3.35"/>
+                            <circle cx="17.2" cy="8.05" r="1.05"/>
+                        </svg>
+                    </span>
+                    <span>Fotos</span>
                 </button>
             </div>
             <div class="date-display">segunda-feira, 10 de agosto de 2026</div>
@@ -541,5 +548,5 @@
     </div>
 </div>
     <script src="script.js?v=20260814-fotos-atletas"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2b01ba7fb4c1a8c',t:'MTc4NjcxMjA2NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
