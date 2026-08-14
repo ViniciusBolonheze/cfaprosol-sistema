@@ -43,7 +43,12 @@
     <!-- Cabeçalho Superior -->
     <header class="top-header">
         <div class="header-content-top">
-            <div class="instagram-icon" title="Abrir Instagram" role="button" tabindex="0"><i class="fab fa-instagram"></i></div>
+            <div class="header-icons-row">
+                <div class="instagram-icon" title="Abrir Instagram" role="button" tabindex="0"><i class="fab fa-instagram"></i></div>
+                <button class="fotos-header-btn" onclick="openFotosModal()" title="Fotos dos atletas">
+                    <i class="fa-solid fa-images"></i><span>Fotos</span>
+                </button>
+            </div>
             <div class="date-display">segunda-feira, 10 de agosto de 2026</div>
         </div>
         <button class="fullscreen-btn" onclick="toggleFullScreen()" title="Tela Cheia">
@@ -135,7 +140,7 @@
                     <div class="vba-sidebar-btns">
                         <button class="vba-green-btn" onclick="openAddAthleteModal()">Adicionar Atleta</button>
                         <button class="vba-red-btn" onclick="deleteSelectedAthlete()">Excluir Atleta</button>
-                        <button class="vba-gray-btn" onclick="navigateTo('excel-db', event)">Todos Atletas</button>
+                        <button class="vba-gray-btn" onclick="openEditAthleteModal()" style="background-color: #f39c12; color: #111;">Editar Atleta</button>
                         <button class="vba-gray-btn" onclick="openFichaAtleta(selectedAthleteIndex)" style="background-color: #58111a; color: #d4af37;">Ver Ficha Atleta</button>
 <button class="vba-gray-btn" onclick="openAnotacoesModal(selectedAthleteIndex)" style="background-color: #0984e3; color: #fff;">Anotações</button>
 </div>
@@ -519,9 +524,14 @@
 
             <!-- Rodapé do Modal -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
-                <label style="cursor: pointer; display: inline-flex; align-items: center; font-weight: bold; gap: 5px; font-size: 13px;">
-                    <input type="checkbox" id="checkbox-lesao" style="width: 16px; height: 16px; cursor: pointer;"> Lesão
-                </label>
+                <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                    <label style="cursor: pointer; display: inline-flex; align-items: center; font-weight: bold; gap: 5px; font-size: 13px;">
+                        <input type="checkbox" id="checkbox-lesao" style="width: 16px; height: 16px; cursor: pointer;"> Lesão
+                    </label>
+                    <label style="cursor: pointer; display: inline-flex; align-items: center; font-weight: bold; gap: 5px; font-size: 13px;">
+                        <input type="checkbox" id="checkbox-cartao-vermelho" style="width: 16px; height: 16px; cursor: pointer;"> Cartão vermelho
+                    </label>
+                </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="button" class="vba-btn-cancelar" onclick="closeAnotacoesModal()" style="padding: 6px 15px; cursor: pointer;">Cancelar</button>
                     <button type="button" class="vba-btn-salvar" onclick="salvarAnotacoesAtleta()" style="background: #800000; color: #fff; border: none; padding: 6px 20px; border-radius: 4px; font-weight: bold; cursor: pointer;">Salvar</button>
@@ -530,6 +540,6 @@
         </div>
     </div>
 </div>
-    <script src="script.js?v=20260730-prancheta"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28fb0e2add5dc3f',t:'MTc4NjM3MjE0Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script src="script.js?v=20260814-fotos-atletas"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2b01ba7fb4c1a8c',t:'MTc4NjcxMjA2NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

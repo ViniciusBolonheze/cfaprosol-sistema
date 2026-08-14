@@ -2938,3 +2938,291 @@ body {
     font-weight:bold !important;
     text-align:center !important;
 }
+
+
+/* === Galeria de fotos dos atletas === */
+.header-icons-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2px;}
+.fotos-header-btn{height:26px;border:1px solid rgba(255,255,255,.35);border-radius:6px;background:rgba(255,255,255,.14);color:#fff;padding:0 9px;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:bold;cursor:pointer;}
+.fotos-header-btn:hover{background:rgba(255,255,255,.28)}
+.fotos-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;z-index:18000;padding:16px;}
+.fotos-categorias-card{position:relative;width:min(360px,94vw);background:#100506;border:2px solid #7b112a;border-radius:12px;padding:26px 18px 20px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.65);}
+.fotos-close{position:absolute;right:8px;top:6px;background:transparent;border:0;color:#fff;font-size:24px;cursor:pointer;}
+.fotos-logo-main{width:170px;max-width:70%;display:block;margin:0 auto 8px;filter:drop-shadow(0 3px 4px #000)}
+.fotos-categorias-card h2{color:#fff;margin:0;font-size:24px;font-weight:800}.fotos-categorias-card p{color:#f9c614;margin:4px 0 14px;font-size:12px;font-weight:bold}
+.fotos-cat-buttons{display:flex;flex-direction:column;gap:9px}.fotos-cat-buttons button{background:#980d0d;color:#fff;border:0;border-radius:6px;padding:10px 12px;font-weight:bold;cursor:pointer}.fotos-cat-buttons button:hover{background:#c51515}
+.fotos-list-card{width:min(760px,96vw);max-height:92vh;background:#fff;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+.fotos-list-top{display:grid;grid-template-columns:110px 1fr 40px;align-items:center;background:#58111a;color:#f9c614;padding:9px 10px;gap:6px}.fotos-list-top strong{text-align:center;font-size:18px}.fotos-list-top button{border:0;border-radius:5px;background:#fff;color:#58111a;font-weight:bold;padding:7px;cursor:pointer}.fotos-list-top button:last-child{background:transparent;color:#fff;font-size:22px;padding:0}
+.fotos-year-pills{display:flex;gap:8px;flex-wrap:wrap;padding:10px;background:#f7f7f7;border-bottom:1px solid #ddd}.fotos-year-pills span{border:1px solid #ddd;border-radius:16px;padding:6px 10px;font-size:12px;background:#fff}.fotos-year-pills span:first-child{border-color:#b30000;color:#b30000;background:#fff6f6}
+.fotos-list-body{overflow:auto;padding:12px 14px 18px;background:#fff}.fotos-pos-section{margin-bottom:18px}.fotos-pos-section h3{margin:0 0 8px;color:#111;font-size:16px}.fotos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:12px}
+.foto-atleta-card{border:1px solid #e2e2e2;border-radius:10px;background:#fff;padding:10px;box-shadow:0 2px 7px rgba(0,0,0,.07);min-height:210px;display:flex;flex-direction:column;align-items:flex-start}.foto-img-box{width:74px;height:86px;background:#f1f1f1;border-radius:4px;overflow:hidden;margin:0 auto 8px}.foto-img-box img{width:100%;height:100%;object-fit:cover}.foto-atleta-card b{font-size:12px;line-height:1.15;color:#111}.foto-atleta-card span{font-size:11px;color:#333;margin-top:5px}.foto-atleta-card small{font-size:11px;color:#777;margin-top:3px}.foto-apelido{font-size:10px;color:#b30000;text-transform:uppercase;margin-bottom:3px}.fotos-empty{padding:20px;text-align:center;color:#666}
+@media(max-width:700px){.fotos-overlay{align-items:flex-start;padding:8px}.fotos-list-card{width:98vw;max-height:96vh}.fotos-list-top{grid-template-columns:86px 1fr 32px}.fotos-list-top strong{font-size:16px}.fotos-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.foto-atleta-card{min-height:190px;padding:8px}.foto-img-box{width:66px;height:78px}.fotos-header-btn span{display:none}.fotos-header-btn{width:28px;padding:0;justify-content:center}.header-icons-row{gap:6px}}
+
+
+/* Galeria Fotos: filtros de ano clicáveis e carregamento visual otimizado */
+.fotos-year-pills button{
+    border:1px solid #ddd;
+    border-radius:16px;
+    padding:6px 10px;
+    font-size:12px;
+    background:#fff;
+    cursor:pointer;
+    color:#111;
+}
+.fotos-year-pills button:first-child,
+.fotos-year-pills button.active{
+    border-color:#b30000;
+    color:#b30000;
+    background:#fff6f6;
+    font-weight:bold;
+}
+.fotos-year-pills button:hover{
+    background:#f3f3f3;
+}
+.foto-img-box img[data-index]{
+    filter:grayscale(.15);
+    opacity:.78;
+}
+
+
+/* Galeria Fotos: miniaturas leves e popup de detalhe */
+.foto-img-box{
+    border:0;
+    padding:0;
+    cursor:pointer;
+    display:block;
+}
+.foto-img-box:hover{
+    box-shadow:0 0 0 2px #f9c614;
+}
+.foto-img-box img.foto-carregando{
+    opacity:.55;
+    filter:blur(.3px) grayscale(.2);
+}
+.foto-img-box img.foto-miniatura-pronta{
+    opacity:1;
+    transition:opacity .18s ease;
+}
+.foto-detalhe-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.82);
+    z-index:19000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+}
+.foto-detalhe-card{
+    position:relative;
+    width:min(760px,96vw);
+    max-height:92vh;
+    background:#fff;
+    border-radius:14px;
+    overflow:hidden;
+    display:grid;
+    grid-template-columns:minmax(280px,1.1fr) minmax(230px,.9fr);
+    box-shadow:0 14px 45px rgba(0,0,0,.7);
+}
+.foto-detalhe-close{
+    position:absolute;
+    right:10px;
+    top:8px;
+    z-index:2;
+    width:34px;
+    height:34px;
+    border:0;
+    border-radius:50%;
+    background:#58111a;
+    color:#fff;
+    font-size:24px;
+    cursor:pointer;
+}
+.foto-detalhe-img{
+    background:#111;
+    min-height:420px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.foto-detalhe-img img{
+    max-width:100%;
+    max-height:86vh;
+    object-fit:contain;
+}
+.foto-detalhe-info{
+    padding:30px 24px 22px;
+    color:#111;
+}
+.foto-detalhe-info h2{
+    margin:0 0 6px;
+    color:#b30000;
+    font-size:24px;
+    text-transform:uppercase;
+}
+.foto-detalhe-info h3{
+    margin:0 0 18px;
+    color:#58111a;
+    font-size:18px;
+}
+.foto-detalhe-info p{
+    margin:8px 0;
+    font-size:14px;
+}
+@media(max-width:700px){
+    .foto-detalhe-card{grid-template-columns:1fr;overflow:auto;}
+    .foto-detalhe-img{min-height:320px;}
+    .foto-detalhe-info{padding:18px;}
+    .foto-detalhe-info h2{font-size:20px;}
+}
+
+
+/* Galeria Fotos: placeholder neutro enquanto a miniatura é gerada */
+.foto-img-box img[data-index]{
+    object-fit:cover;
+    opacity:.82;
+}
+.foto-img-box img.foto-miniatura-pronta{
+    object-fit:cover;
+}
+
+
+/* Galeria Fotos: botão de pré-carregamento */
+.fotos-preload-btn{
+    width:100%;
+    border:1px solid #f9c614;
+    background:#f9c614;
+    color:#230000;
+    border-radius:6px;
+    padding:9px 10px;
+    font-weight:900;
+    cursor:pointer;
+    margin:4px 0 6px;
+}
+.fotos-preload-btn:disabled{
+    opacity:.75;
+    cursor:wait;
+}
+.fotos-preload-status{
+    min-height:16px;
+    color:#fff;
+    font-size:11px;
+    font-weight:bold;
+    margin-bottom:8px;
+}
+
+/* Galeria Fotos: detalhes físicos no popup de foto */
+.foto-detalhe-card.foto-detalhe-card-completo{
+    width:min(1050px,96vw);
+    grid-template-columns:minmax(280px,.75fr) minmax(520px,1.25fr);
+}
+.foto-detalhe-card-completo .foto-detalhe-info{
+    padding:22px 22px 18px;
+    overflow:auto;
+    max-height:92vh;
+}
+.fd-basic-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:4px 12px;
+    margin-bottom:10px;
+}
+.fd-basic-grid p{
+    margin:3px 0;
+}
+.fd-section-title{
+    background:#58111a;
+    color:#f9c614;
+    text-align:center;
+    font-weight:900;
+    text-transform:uppercase;
+    border-radius:6px;
+    padding:6px;
+    font-size:12px;
+    margin:10px 0 8px;
+}
+.fd-resumo-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:7px;
+}
+.fd-res-card{
+    position:relative;
+    background:#fff;
+    border:1px solid #d8cfc2;
+    border-left:5px solid #f9c614;
+    border-radius:8px;
+    padding:7px 8px;
+    min-height:54px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.fd-res-card:nth-child(2n){border-left-color:#58111a;}
+.fd-res-card span{
+    display:block;
+    color:#666;
+    font-size:10px;
+    font-weight:800;
+}
+.fd-res-card strong{
+    display:block;
+    font-size:15px;
+    margin-top:4px;
+}
+.fd-delta{
+    position:absolute;
+    right:7px;
+    bottom:7px;
+    font-style:normal;
+    font-size:10px;
+    font-weight:900;
+}
+.fd-delta.bom{color:#159957;}
+.fd-delta.ruim{color:#b30000;}
+.fd-delta.neutro{color:#58111a;}
+.fd-comp-wrap{
+    overflow:auto;
+    border:1px solid #eadfd0;
+    border-radius:6px;
+}
+.fd-comparativo{
+    width:100%;
+    min-width:620px;
+    border-collapse:collapse;
+    font-size:10px;
+    background:#fff;
+}
+.fd-comparativo th{
+    background:#58111a;
+    color:#fff;
+    padding:5px 4px;
+    text-align:center;
+}
+.fd-comparativo td{
+    border:1px solid #eadfd0;
+    padding:4px;
+    text-align:center;
+}
+.fd-comparativo tr:nth-child(even){background:#faf6ed;}
+.fd-empty{
+    padding:10px;
+    background:#fff8e1;
+    border:1px solid #f1c40f;
+    border-radius:6px;
+    color:#5b4a00;
+    font-size:12px;
+    font-weight:bold;
+}
+@media(max-width:900px){
+    .foto-detalhe-card.foto-detalhe-card-completo{
+        grid-template-columns:1fr;
+        overflow:auto;
+    }
+    .foto-detalhe-card-completo .foto-detalhe-info{
+        max-height:none;
+        padding:16px;
+    }
+    .fd-resumo-grid{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:520px){
+    .fd-basic-grid{grid-template-columns:1fr;}
+    .fd-resumo-grid{grid-template-columns:1fr;}
+}

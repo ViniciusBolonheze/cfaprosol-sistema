@@ -1,8 +1,23 @@
 const SUPABASE_URL = 'https://jrudgjopfxfyyhnvgidz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_VScGEvhYLgQSDGll2IQIsw_bsTQXRCO';
 
-const { createClient } = supabase;
-const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+function criarSupabaseIndisponivel() {
+    const erro = { message: 'Biblioteca Supabase não carregada. Verifique a conexão com a internet.' };
+    const query = {
+        select() { return this; }, eq() { return this; }, single() { return Promise.resolve({ data: null, error: erro }); },
+        maybeSingle() { return Promise.resolve({ data: null, error: erro }); }, order() { return this; }, limit() { return this; },
+        upsert() { return Promise.resolve({ error: erro }); }, insert() { return Promise.resolve({ error: erro }); },
+        update() { return this; }, delete() { return this; }, then(resolve) { resolve({ data: [], error: erro }); }
+    };
+    return {
+        from() { return query; },
+        storage: { from() { return { upload() { return Promise.resolve({ data: null, error: erro }); }, getPublicUrl() { return { data: { publicUrl: '' } }; }, remove() { return Promise.resolve({ data: [], error: erro }); } }; } }
+    };
+}
+const supabaseCreateClient = (window.supabase && window.supabase.createClient)
+    ? window.supabase.createClient
+    : (typeof supabase !== 'undefined' && supabase.createClient ? supabase.createClient : null);
+const _supabase = supabaseCreateClient ? supabaseCreateClient(SUPABASE_URL, SUPABASE_ANON_KEY) : criarSupabaseIndisponivel();
 // Variável global para armazenar a quantidade de grupos ativa (padrão é 6)
 let quantidadeGruposAtivos = 6;
 
@@ -29,6 +44,7 @@ let excelColumns = defaultColumns;
 let excelData = defaultData;
 let uploadedPhotoBase64 = '';
 let selectedAthleteIndex = null;
+let editingAthleteIndex = null;
 let currentPfTab = 'antropometricas';
 let selectedConvocados = new Set();
 let convocacaoSessaoAtiva = false;
@@ -487,12 +503,23 @@ function renderAtletasScreen() {
             </svg>
         ` : '';
 
+        // 3. Verifica se o atleta está marcado com cartão vermelho
+        let chaveCartaoVermelho = Object.keys(row).find(k => ['cartaovermelho','cartao vermelho','cartão vermelho'].includes(k.toLowerCase().replace(/_/g, ' ').trim()) || k.toLowerCase().replace(/\s+/g,'') === 'cartaovermelho');
+        let valorCartaoVermelho = chaveCartaoVermelho ? String(row[chaveCartaoVermelho]).toLowerCase().trim() : '';
+        let temCartaoVermelho = valorCartaoVermelho === 'sim';
+
+        let iconeCartaoVermelho = temCartaoVermelho ? `
+            <svg width="13" height="16" viewBox="0 0 18 24" style="display:inline-block; vertical-align:-3px; margin-left:4px;" title="Cartão Vermelho">
+                <rect x="3" y="2" width="12" height="20" rx="2" fill="#d63031" stroke="#7a0000" stroke-width="1.5"></rect>
+            </svg>
+        ` : '';
+
         const itemDiv = document.createElement('div');
         itemDiv.className = 'athlete-item' + (selectedAthleteIndex === globalIndex ? ' selected' : '');
         if(selectedAthleteIndex === globalIndex) { itemDiv.style.backgroundColor = '#0984e3'; itemDiv.style.color = '#fff'; }
         
-        // 3. Insere o nome junto com os ícones (ficha e/ou cruz vermelha)
-        itemDiv.innerHTML = `<span>${nomeExibicao} ${iconeFicha} ${iconeLesao}</span> <span>${anoAtleta}</span>`;
+        // 4. Insere o nome junto com os ícones (ficha, lesão e/ou cartão vermelho)
+        itemDiv.innerHTML = `<span>${nomeExibicao} ${iconeFicha} ${iconeLesao} ${iconeCartaoVermelho}</span> <span>${anoAtleta}</span>`;
         
         itemDiv.onclick = () => { selectedAthleteIndex = globalIndex; renderAtletasScreen(); };
         if (posLists[targetBox]) posLists[targetBox].appendChild(itemDiv);
@@ -503,17 +530,90 @@ function deleteSelectedAthlete() {
     if (selectedAthleteIndex === null) { alert('Selecione um atleta na lista.'); return; }
     if (confirm('Deseja realmente excluir o atleta?')) { excelData.splice(selectedAthleteIndex, 1); selectedAthleteIndex = null; saveToStorage(); renderAtletasScreen(); }
 }
-function openAddAthleteModal() { uploadedPhotoBase64 = ''; document.getElementById('athlete-form').reset(); document.getElementById('add-athlete-modal').style.display = 'flex'; }
-function closeAddAthleteModal() { document.getElementById('add-athlete-modal').style.display = 'none'; }
+function setAddAthleteModalMode(mode) {
+    const modal = document.getElementById('add-athlete-modal');
+    if (!modal) return;
+    const titleSpan = modal.querySelector('.vba-modal-title span:first-child');
+    const submitBtn = modal.querySelector('.vba-btn-salvar');
+    if (titleSpan) titleSpan.textContent = mode === 'edit' ? 'Editar Atleta - CFA Prosol' : 'Adicionar Atletas - CFA Prosol';
+    if (submitBtn) submitBtn.textContent = mode === 'edit' ? 'Atualizar' : 'Salvar';
+}
+function valorCampoAtleta(row, termos) {
+    const chave = Object.keys(row || {}).find(k => termos.some(t => String(k).toLowerCase().trim() === String(t).toLowerCase().trim() || String(k).toLowerCase().includes(String(t).toLowerCase())));
+    return chave && row[chave] !== undefined && row[chave] !== null ? row[chave] : '';
+}
+function openAddAthleteModal() {
+    editingAthleteIndex = null;
+    uploadedPhotoBase64 = '';
+    const form = document.getElementById('athlete-form');
+    if (form) form.reset();
+    const fileLabel = document.getElementById('file-label-text');
+    if (fileLabel) fileLabel.textContent = 'Selecionar Foto';
+    setAddAthleteModalMode('add');
+    document.getElementById('add-athlete-modal').style.display = 'flex';
+}
+function openEditAthleteModal() {
+    if (selectedAthleteIndex === null || selectedAthleteIndex === undefined || !excelData[selectedAthleteIndex]) {
+        alert('Selecione um atleta na lista primeiro.');
+        return;
+    }
+    editingAthleteIndex = selectedAthleteIndex;
+    const row = excelData[editingAthleteIndex];
+    const form = document.getElementById('athlete-form');
+    if (form) form.reset();
+    document.getElementById('add-ano').value = valorCampoAtleta(row, ['Ano']) || '2010';
+    document.getElementById('add-nome').value = valorCampoAtleta(row, ['NOME COMPLETO', 'nome completo', 'nome']);
+    document.getElementById('add-apelido').value = valorCampoAtleta(row, ['APELIDO', 'apelido']);
+    document.getElementById('add-nascimento').value = convertExcelDate(valorCampoAtleta(row, ['Data de nascimento', 'nascimento']));
+    document.getElementById('add-posicao').value = valorCampoAtleta(row, ['Posição 1', 'posicao 1', 'posição', 'posicao']) || 'Meia';
+    document.getElementById('add-cidade').value = valorCampoAtleta(row, ['CIDADE', 'cidade']);
+    document.getElementById('add-contato').value = valorCampoAtleta(row, ['Contato', 'contato']);
+    document.getElementById('add-rg').value = valorCampoAtleta(row, ['RG', 'rg']);
+    uploadedPhotoBase64 = valorCampoAtleta(row, ['Foto', 'foto', 'imagem']);
+    const fileLabel = document.getElementById('file-label-text');
+    if (fileLabel) fileLabel.textContent = uploadedPhotoBase64 ? 'Foto atual mantida' : 'Selecionar Foto';
+    const fileInput = document.getElementById('add-foto');
+    if (fileInput) fileInput.value = '';
+    setAddAthleteModalMode('edit');
+    document.getElementById('add-athlete-modal').style.display = 'flex';
+}
+function closeAddAthleteModal() {
+    document.getElementById('add-athlete-modal').style.display = 'none';
+    editingAthleteIndex = null;
+    uploadedPhotoBase64 = '';
+    setAddAthleteModalMode('add');
+}
 function previewAthletePhoto(input) {
     if (input.files && input.files[0]) { document.getElementById('file-label-text').textContent = input.files[0].name; const reader = new FileReader(); reader.onload = function(e) { uploadedPhotoBase64 = e.target.result; }; reader.readAsDataURL(input.files[0]); }
 }
 function saveNewAthlete(event) {
     event.preventDefault();
-    let newRow = {}; excelColumns.forEach(col => { newRow[col] = ''; });
-    newRow['Ano'] = document.getElementById('add-ano').value; newRow['NOME COMPLETO'] = document.getElementById('add-nome').value; newRow['APELIDO'] = document.getElementById('add-apelido').value; newRow['Data de nascimento'] = document.getElementById('add-nascimento').value; newRow['Posição 1'] = document.getElementById('add-posicao').value; newRow['CIDADE'] = document.getElementById('add-cidade').value; newRow['Contato'] = document.getElementById('add-contato').value; newRow['RG'] = document.getElementById('add-rg').value; newRow['Foto'] = uploadedPhotoBase64;
-    excelData.push(newRow); saveToStorage(); closeAddAthleteModal(); renderAtletasScreen();
-    alert('Salvo com sucesso!');
+    const isEdit = editingAthleteIndex !== null && editingAthleteIndex !== undefined && excelData[editingAthleteIndex];
+    let row;
+    if (isEdit) {
+        row = excelData[editingAthleteIndex];
+    } else {
+        row = {};
+        excelColumns.forEach(col => { row[col] = ''; });
+    }
+    row['Ano'] = document.getElementById('add-ano').value;
+    row['NOME COMPLETO'] = document.getElementById('add-nome').value;
+    row['APELIDO'] = document.getElementById('add-apelido').value;
+    row['Data de nascimento'] = document.getElementById('add-nascimento').value;
+    row['Posição 1'] = document.getElementById('add-posicao').value;
+    row['CIDADE'] = document.getElementById('add-cidade').value;
+    row['Contato'] = document.getElementById('add-contato').value;
+    row['RG'] = document.getElementById('add-rg').value;
+    row['Foto'] = uploadedPhotoBase64 || row['Foto'] || '';
+    if (!isEdit) {
+        excelData.push(row);
+        selectedAthleteIndex = excelData.length - 1;
+    }
+    saveToStorage();
+    closeAddAthleteModal();
+    if (typeof renderAtletasScreen === 'function') renderAtletasScreen();
+    if (typeof renderExcelTable === 'function') renderExcelTable();
+    alert(isEdit ? 'Atleta atualizado com sucesso!' : 'Salvo com sucesso!');
 }
 
 /* === TESTES FÍSICOS === */
@@ -802,6 +902,13 @@ function openAnotacoesModal(globalIndex) {
     // Checkbox de lesão
     let chaveLesao = Object.keys(row).find(k => k.toLowerCase() === 'lesao');
     document.getElementById('checkbox-lesao').checked = chaveLesao ? String(row[chaveLesao]).toLowerCase().trim() === 'sim' : false;
+
+    // Checkbox de cartão vermelho
+    let chaveCartaoVermelho = Object.keys(row).find(k => ['cartaovermelho','cartao vermelho','cartão vermelho'].includes(k.toLowerCase().replace(/_/g, ' ').trim()) || k.toLowerCase().replace(/\s+/g,'') === 'cartaovermelho');
+    const checkboxCartaoVermelho = document.getElementById('checkbox-cartao-vermelho');
+    if (checkboxCartaoVermelho) {
+        checkboxCartaoVermelho.checked = chaveCartaoVermelho ? String(row[chaveCartaoVermelho]).toLowerCase().trim() === 'sim' : false;
+    }
 
     document.getElementById('modal-anotacoes').style.display = 'flex';
 }
@@ -1245,6 +1352,11 @@ function salvarAnotacoesAtleta() {
     const checkboxLesao = document.getElementById('checkbox-lesao');
     if (checkboxLesao) {
         excelData[atletaGlobalIndexAtual]['Lesao'] = checkboxLesao.checked ? 'sim' : '';
+    }
+
+    const checkboxCartaoVermelho = document.getElementById('checkbox-cartao-vermelho');
+    if (checkboxCartaoVermelho) {
+        excelData[atletaGlobalIndexAtual]['CartaoVermelho'] = checkboxCartaoVermelho.checked ? 'sim' : '';
     }
 
     saveToStorage(); 
@@ -2051,11 +2163,27 @@ function renderConvocacaoLists() {
         let targetBox = 'meias';
         if (posicao.includes('goleiro')) targetBox = 'goleiros'; else if (posicao.includes('zagueiro')) targetBox = 'zagueiros'; else if (posicao.includes('lateral')) targetBox = 'laterais'; else if (posicao.includes('volante')) targetBox = 'volantes'; else if (posicao.includes('atacante')) targetBox = 'atacantes'; else if (posicao.includes('extremo') || posicao.includes('ponta')) targetBox = 'extremos';
 
+        // Indicadores visuais apenas para identificação na convocação: lesão e cartão vermelho.
+        const chaveLesaoConv = Object.keys(row).find(k => k.toLowerCase() === 'lesao');
+        const estaLesionadoConv = chaveLesaoConv ? String(row[chaveLesaoConv]).toLowerCase().trim() === 'sim' : false;
+        const iconeLesaoConv = estaLesionadoConv ? `
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="#d63031" style="display:inline-block; vertical-align:-2px; margin-right:4px; flex:0 0 auto;" title="Atleta lesionado">
+                <rect x="9" y="2" width="6" height="20" rx="1" fill="#d63031"></rect>
+                <rect x="2" y="9" width="20" height="6" rx="1" fill="#d63031"></rect>
+            </svg>` : '';
+
+        const chaveCartaoConv = Object.keys(row).find(k => ['cartaovermelho','cartao vermelho','cartão vermelho'].includes(k.toLowerCase().replace(/_/g, ' ').trim()) || k.toLowerCase().replace(/\s+/g,'') === 'cartaovermelho');
+        const temCartaoConv = chaveCartaoConv ? String(row[chaveCartaoConv]).toLowerCase().trim() === 'sim' : false;
+        const iconeCartaoConv = temCartaoConv ? `
+            <svg width="11" height="14" viewBox="0 0 18 24" style="display:inline-block; vertical-align:-3px; margin-right:4px; flex:0 0 auto;" title="Cartão vermelho / suspenso">
+                <rect x="3" y="2" width="12" height="20" rx="2" fill="#d63031" stroke="#7a0000" stroke-width="1.5"></rect>
+            </svg>` : '';
+
         const itemDiv = document.createElement('div');
         itemDiv.draggable = true; itemDiv.style.cssText = 'padding: 6px 8px; cursor: grab; display: flex; justify-content: space-between; font-size: 13px; border-bottom: 1px solid #f1f1f1; user-select: none;';
         itemDiv.ondragstart = (e) => { e.dataTransfer.setData('text/plain', globalIndex); };
         if (selectedConvocados.has(globalIndex)) { itemDiv.style.backgroundColor = '#0984e3'; itemDiv.style.color = '#fff'; }
-        itemDiv.innerHTML = `<span>${nomeExibicao}</span> <span style="font-size: 11px; opacity: 0.8;">${anoAtleta}</span>`;
+        itemDiv.innerHTML = `<span style="display:flex; align-items:center; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${iconeLesaoConv}${iconeCartaoConv}<span style="overflow:hidden; text-overflow:ellipsis;">${nomeExibicao}</span></span> <span style="font-size: 11px; opacity: 0.8; flex:0 0 auto; margin-left:8px;">${anoAtleta}</span>`;
         itemDiv.onclick = (e) => {
             e.stopPropagation();
             if (selectedConvocados.has(globalIndex)) { selectedConvocados.delete(globalIndex); itemDiv.style.backgroundColor = 'transparent'; itemDiv.style.color = '#000'; }
@@ -3972,3 +4100,273 @@ function renderControlePesoTabela(){
  }).join('');
  box.innerHTML=`<table class="controle-peso-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
 }
+
+
+/* === GALERIA DE FOTOS DOS ATLETAS === */
+function fotosCategoriasConfig(){
+ return {
+  sub11:{label:'Sub 11',anos:['2015','2016','2017','2018']},
+  sub12:{label:'Sub 12',anos:['2014']},
+  sub13:{label:'Sub 13',anos:['2013']},
+  sub14:{label:'Sub 14',anos:['2012']},
+  sub16:{label:'Sub 16',anos:['2009','2010','2011']}
+ };
+}
+
+let fotosFiltrosAno = {};
+function fotosFiltroAtual(catKey){
+ const cat=fotosCategoriasConfig()[catKey];
+ if(!cat)return {all:true,anos:[]};
+ const filtro=fotosFiltrosAno[catKey];
+ if(!filtro||filtro.all)return {all:true,anos:[...cat.anos]};
+ const anos=(filtro.anos||[]).filter(a=>cat.anos.includes(a));
+ return anos.length?{all:false,anos}:{all:true,anos:[...cat.anos]};
+}
+function fotosSetFiltroTodos(catKey){
+ fotosFiltrosAno[catKey]={all:true,anos:[...((fotosCategoriasConfig()[catKey]||{}).anos||[])]};
+ renderFotosCategoria(catKey);
+}
+function fotosToggleAno(catKey,ano){
+ const cat=fotosCategoriasConfig()[catKey]; if(!cat)return;
+ const atual=fotosFiltroAtual(catKey);
+ let anos=atual.all?[ano]:[...atual.anos];
+ if(!atual.all){
+  if(anos.includes(ano)) anos=anos.filter(a=>a!==ano);
+  else anos.push(ano);
+ }
+ anos=anos.filter(a=>cat.anos.includes(a));
+ if(!anos.length || anos.length===cat.anos.length) fotosFiltrosAno[catKey]={all:true,anos:[...cat.anos]};
+ else fotosFiltrosAno[catKey]={all:false,anos};
+ renderFotosCategoria(catKey);
+}
+function iniciarLazyFotosAtletas(){
+ // As fotos agora são exibidas diretamente em tamanho reduzido pelo CSS.
+ // Não geramos miniatura via canvas porque isso exige carregar a imagem grande primeiro
+ // e pode ficar mais lento em celulares.
+ document.querySelectorAll('#fotos-atletas-modal img[data-index]').forEach(img=>img.removeAttribute('data-index'));
+}
+
+function fotosValorFlex(row, termos){
+ const chave=Object.keys(row||{}).find(k=>termos.some(t=>String(k).toLowerCase().includes(String(t).toLowerCase())));
+ return chave ? row[chave] : '';
+}
+function fotosAnoAtleta(row){return String(valorColunaExata(row,'Ano')||fotosValorFlex(row,['ano'])||'').trim();}
+function fotosNomeCompleto(row){return String(fotosValorFlex(row,['nome completo'])||valorColunaExata(row,'NOME COMPLETO')||fotosValorFlex(row,['nome'])||'Sem Nome').trim();}
+function fotosNascimento(row){return convertExcelDate(fotosValorFlex(row,['data de nascimento','nascimento'])||'');}
+function fotosApelido(row){return String(fotosValorFlex(row,['apelido'])||'').trim();}
+function fotosPosicao(row){return String(fotosValorFlex(row,['posição','posicao'])||'').toLowerCase();}
+function fotosFotoOriginalAtleta(row){
+ return String(fotosValorFlex(row,['foto','imagem'])||'').trim();
+}
+function fotosTemFotoAtleta(row){
+ return fotosFotoOriginalAtleta(row).length > 0;
+}
+function fotosImagemAtleta(row){
+ const foto=fotosFotoOriginalAtleta(row);
+ if(foto)return foto;
+ const pos=fotosPosicao(row);
+ return pos.includes('goleiro')?'camiseta_goleiro.png':'camiseta_linha.png';
+}
+function fotosPlaceholderMiniatura(){
+ return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="190"><rect width="100%" height="100%" fill="#f1f1f1"/><circle cx="80" cy="76" r="24" fill="#d0d0d0"/><rect x="38" y="114" width="84" height="44" rx="20" fill="#d0d0d0"/></svg>');
+}
+
+const fotosThumbCache = new Map();
+const fotosThumbEmProcesso = new Map();
+function fotosFallbackAtleta(row){return fotosPosicao(row).includes('goleiro')?'camiseta_goleiro.png':'camiseta_linha.png';}
+function fotosChaveThumb(index){
+ const row=excelData[index]||{};
+ return `${fotosNomeCompleto(row)}|${fotosNascimento(row)}|${index}`;
+}
+function criarThumbnailFoto(src, maxW=160, maxH=190){
+ return new Promise(resolve=>{
+  if(!src || (!src.startsWith('data:image') && !src.startsWith('blob:'))){resolve(src);return;}
+  const img=new Image();
+  img.onload=()=>{
+   try{
+    const ratio=Math.min(maxW/img.naturalWidth, maxH/img.naturalHeight, 1);
+    const w=Math.max(1, Math.round(img.naturalWidth*ratio));
+    const h=Math.max(1, Math.round(img.naturalHeight*ratio));
+    const canvas=document.createElement('canvas');
+    canvas.width=w; canvas.height=h;
+    const ctx=canvas.getContext('2d', {alpha:false});
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,w,h);
+    ctx.drawImage(img,0,0,w,h);
+    resolve(canvas.toDataURL('image/jpeg',0.72));
+   }catch(e){console.warn('Falha ao gerar miniatura:',e);resolve(src);}
+  };
+  img.onerror=()=>resolve(src);
+  img.src=src;
+ });
+}
+async function obterThumbnailAtleta(index){
+ const row=excelData[index]||{};
+ const fallback=fotosFallbackAtleta(row);
+ const foto=fotosFotoOriginalAtleta(row);
+ if(!foto)return fallback;
+ const chave=fotosChaveThumb(index);
+ if(fotosThumbCache.has(chave))return fotosThumbCache.get(chave);
+ if(fotosThumbEmProcesso.has(chave))return fotosThumbEmProcesso.get(chave);
+ const promessa=criarThumbnailFoto(foto).then(thumb=>{const final=thumb||foto||fallback;fotosThumbCache.set(chave,final);fotosThumbEmProcesso.delete(chave);return final;});
+ fotosThumbEmProcesso.set(chave,promessa);
+ return promessa;
+}
+function fotosGrupoPosicao(row){
+ const p=fotosPosicao(row);
+ if(p.includes('goleiro'))return 'Goleiro';
+ if(p.includes('zagueiro'))return 'Zagueiro';
+ if(p.includes('lateral'))return 'Lateral';
+ if(p.includes('volante'))return 'Volante';
+ if(p.includes('meia'))return 'Meia';
+ if(p.includes('atacante'))return 'Atacante';
+ if(p.includes('extremo')||p.includes('ponta'))return 'Extremo';
+ return 'Outros';
+}
+function fotosOrdemGrupo(label){
+ return ['Goleiro','Zagueiro','Lateral','Volante','Meia','Atacante','Extremo','Outros'].indexOf(label);
+}
+function openFotosModal(){
+ let modal=document.getElementById('fotos-atletas-modal');
+ if(!modal){
+  modal=document.createElement('div');
+  modal.id='fotos-atletas-modal';
+  modal.className='fotos-overlay';
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal)closeFotosModal();});
+ }
+ modal.style.display='flex';
+ renderFotosCategorias();
+}
+function closeFotosModal(){const modal=document.getElementById('fotos-atletas-modal');if(modal)modal.style.display='none';}
+
+let fotosPreloadEmAndamento = false;
+let fotosPreloadConcluido = false;
+let fotosPreloadTotal = 0;
+let fotosPreloadAtual = 0;
+const fotosPreloadCache = new Map();
+function fotosAtualizarStatusPreload(){
+ const el=document.getElementById('fotos-preload-status');
+ const btn=document.getElementById('fotos-preload-btn');
+ if(el){
+  if(fotosPreloadEmAndamento)el.textContent=`Carregando fotos... ${fotosPreloadAtual}/${fotosPreloadTotal}`;
+  else if(fotosPreloadConcluido)el.textContent=`Fotos carregadas: ${fotosPreloadAtual}/${fotosPreloadTotal}`;
+  else el.textContent='';
+ }
+ if(btn){
+  btn.disabled=fotosPreloadEmAndamento;
+  btn.textContent=fotosPreloadEmAndamento?'Carregando...':'Carregar fotos';
+ }
+}
+function fotosPreloadUmaImagem(src){
+ return new Promise(resolve=>{
+  if(!src){resolve(false);return;}
+  const img=new Image();
+  img.onload=async()=>{
+   try{ if(img.decode) await img.decode(); }catch(e){}
+   resolve(true);
+  };
+  img.onerror=()=>resolve(false);
+  img.src=src;
+ });
+}
+async function carregarFotosAtletasAntecipado(){
+ if(fotosPreloadEmAndamento)return;
+ const itens=(excelData||[]).map((row,index)=>({row,index,src:fotosFotoOriginalAtleta(row)})).filter(x=>x.src);
+ fotosPreloadTotal=itens.length;
+ fotosPreloadAtual=0;
+ fotosPreloadConcluido=false;
+ fotosPreloadEmAndamento=true;
+ fotosAtualizarStatusPreload();
+ let cursor=0;
+ const concorrencia=3;
+ async function worker(){
+  while(cursor<itens.length){
+   const item=itens[cursor++];
+   const key=fotosChaveThumb(item.index);
+   if(!fotosPreloadCache.has(key)){
+    await fotosPreloadUmaImagem(item.src);
+    fotosPreloadCache.set(key,item.src);
+   }
+   fotosPreloadAtual++;
+   fotosAtualizarStatusPreload();
+   await new Promise(r=>setTimeout(r,10));
+  }
+ }
+ await Promise.all(Array.from({length:Math.min(concorrencia,itens.length)},worker));
+ fotosPreloadEmAndamento=false;
+ fotosPreloadConcluido=true;
+ fotosAtualizarStatusPreload();
+}
+function renderFotosCategorias(){
+ const modal=document.getElementById('fotos-atletas-modal');if(!modal)return;
+ const cats=fotosCategoriasConfig();
+ modal.innerHTML=`<div class="fotos-categorias-card"><button class="fotos-close" onclick="closeFotosModal()">×</button><img src="logo.png" class="fotos-logo-main"><h2>CFA Prosol</h2><p>Fotos dos atletas</p><button id="fotos-preload-btn" class="fotos-preload-btn" onclick="carregarFotosAtletasAntecipado()">Carregar fotos</button><div id="fotos-preload-status" class="fotos-preload-status"></div><div class="fotos-cat-buttons">${Object.keys(cats).map(k=>`<button onclick="renderFotosCategoria('${k}')">${cats[k].label}</button>`).join('')}</div></div>`;
+ fotosAtualizarStatusPreload();
+}
+function fotosAtletasCategoria(catKey, anosFiltro){
+ const cat=fotosCategoriasConfig()[catKey];
+ if(!cat)return [];
+ const anos=(anosFiltro&&anosFiltro.length)?anosFiltro:cat.anos;
+ return (excelData||[]).map((row,index)=>({row,index})).filter(item=>anos.includes(fotosAnoAtleta(item.row))).sort((a,b)=>{
+  const ga=fotosOrdemGrupo(fotosGrupoPosicao(a.row)), gb=fotosOrdemGrupo(fotosGrupoPosicao(b.row));
+  if(ga!==gb)return ga-gb;
+  return fotosNomeCompleto(a.row).localeCompare(fotosNomeCompleto(b.row),'pt-BR');
+ });
+}
+function renderFotosCategoria(catKey){
+ const modal=document.getElementById('fotos-atletas-modal');if(!modal)return;
+ const cat=fotosCategoriasConfig()[catKey];if(!cat)return;
+ const filtro=fotosFiltroAtual(catKey);
+ const atletas=fotosAtletasCategoria(catKey,filtro.anos);
+ const grupos={};
+ atletas.forEach(item=>{const g=fotosGrupoPosicao(item.row);if(!grupos[g])grupos[g]=[];grupos[g].push(item);});
+ const filtrosAnos=cat.anos.length>1?`<div class="fotos-year-pills"><button class="${filtro.all?'active':''}" onclick="fotosSetFiltroTodos('${catKey}')">${cat.anos.join('/')}</button>${cat.anos.map(a=>`<button class="${(!filtro.all&&filtro.anos.includes(a))?'active':''}" onclick="fotosToggleAno('${catKey}','${a}')">${a}</button>`).join('')}</div>`:'';
+ const conteudo=Object.keys(grupos).sort((a,b)=>fotosOrdemGrupo(a)-fotosOrdemGrupo(b)).map(grupo=>`<section class="fotos-pos-section"><h3>${grupo}</h3><div class="fotos-grid">${grupos[grupo].map(({row,index})=>{
+  const nome=fotosNomeCompleto(row);
+  const apelido=fotosApelido(row);
+  const nasc=fotosNascimento(row);
+  const ano=fotosAnoAtleta(row);
+  const fallback=fotosFallbackAtleta(row);
+  const temFoto=fotosTemFotoAtleta(row);
+  const preloadKey=fotosChaveThumb(index);
+  const srcInicial=temFoto?(fotosPreloadCache.get(preloadKey)||fotosFotoOriginalAtleta(row)):fallback;
+  return `<article class="foto-atleta-card"><button type="button" class="foto-img-box" onclick="abrirFotoAtletaDetalhe(${index})" title="Ampliar foto"><img src="${escapeHtmlJogos(srcInicial)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${fallback}'" alt="${escapeHtmlJogos(nome)}"></button>${apelido?`<strong class="foto-apelido">${escapeHtmlJogos(apelido)}</strong>`:''}<b>${escapeHtmlJogos(nome)}</b><span>${escapeHtmlJogos(nasc)}</span><small>${escapeHtmlJogos(ano)}</small></article>`;
+ }).join('')}</div></section>`).join('')||'<p class="fotos-empty">Nenhum atleta encontrado nesta categoria/filtro.</p>';
+ modal.innerHTML=`<div class="fotos-list-card"><div class="fotos-list-top"><button onclick="renderFotosCategorias()"><i class="fa-solid fa-arrow-left"></i> Voltar</button><strong>${cat.label}</strong><button onclick="closeFotosModal()">×</button></div>${filtrosAnos}<div class="fotos-list-body">${conteudo}</div></div>`;
+ iniciarLazyFotosAtletas();
+}
+
+
+function abrirFotoAtletaDetalhe(index){
+ const row=excelData[index]||{};
+ const nome=fotosNomeCompleto(row);
+ const apelido=fotosApelido(row);
+ const nasc=fotosNascimento(row);
+ const ano=fotosAnoAtleta(row);
+ const pos=fotosValorFlex(row,['posição 1','posicao 1','posição','posicao'])||'-';
+ const cidade=fotosValorFlex(row,['cidade'])||'-';
+ const foto=fotosImagemAtleta(row)||fotosFallbackAtleta(row);
+ const avals=(typeof relatorioIndividualMetricasAtleta==='function')?relatorioIndividualMetricasAtleta(index):[];
+ const ult=avals[avals.length-1]||null;
+ const ant=avals.length>1?avals[avals.length-2]:null;
+ const fmt=(v)=>escapeHtmlJogos(v===undefined||v===null||String(v).trim()===''?'-':v);
+ const delta=(key,menorMelhor=false,unit='')=>{
+  if(!ult||!ant)return '';
+  const a=relatoriosNum(ult[key]), b=relatoriosNum(ant[key]);
+  if(isNaN(a)||isNaN(b))return '';
+  const dif=a-b;
+  if(Math.abs(dif)<0.0001)return '<em class="fd-delta neutro">0</em>';
+  const bom=menorMelhor?dif<0:dif>0;
+  const cls=bom?'bom':'ruim';
+  const sinal=dif>0?'+':'';
+  return `<em class="fd-delta ${cls}">${sinal}${dif.toFixed(2).replace('.',',')}${unit}</em>`;
+ };
+ const card=(label,key,unit='',menorMelhor=false)=>`<div class="fd-res-card"><span>${label}</span><strong>${fmt(ult?ult[key]:'')}${ult&&ult[key]?unit:''}</strong>${delta(key,menorMelhor,unit)}</div>`;
+ const resumo=ult?`<div class="fd-section-title">Resumo da Última Avaliação</div><div class="fd-resumo-grid">${card('Peso','peso',' Kg')}${card('Altura','altura',' m')}${card('Alt. Predita','predita',' m')}${card('% Gordura','gordura','',true)}${card('Resistência','distancia',' m')}${card('Potência','melhorSalto',' m')}${card('Aceleração','aceleracao',' s',true)}${card('Velocidade','velocidade',' s',true)}${card('Agilidade','agilidade',' s',true)}</div>`:'<div class="fd-empty">Sem avaliações físicas cadastradas.</div>';
+ const comparativo=avals.length?`<div class="fd-section-title">Comparativo das Avaliações</div><div class="fd-comp-wrap"><table class="fd-comparativo"><thead><tr><th>Data</th><th>Peso</th><th>Altura</th><th>Gordura</th><th>Dist.</th><th>Salto</th><th>Acel.</th><th>Veloc.</th><th>Agil.</th></tr></thead><tbody>${avals.map(a=>`<tr><td>${fmt(a.label)}</td><td>${fmt(a.peso)}</td><td>${fmt(a.altura)}</td><td>${fmt(a.gordura)}</td><td>${fmt(a.distancia)}</td><td>${fmt(a.melhorSalto)}</td><td>${fmt(a.aceleracao)}</td><td>${fmt(a.velocidade)}</td><td>${fmt(a.agilidade)}</td></tr>`).join('')}</tbody></table></div>`:'';
+ let modal=document.getElementById('foto-detalhe-modal');
+ if(!modal){modal=document.createElement('div');modal.id='foto-detalhe-modal';modal.className='foto-detalhe-overlay';document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal)fecharFotoAtletaDetalhe();});}
+ modal.innerHTML=`<div class="foto-detalhe-card foto-detalhe-card-completo"><button class="foto-detalhe-close" onclick="fecharFotoAtletaDetalhe()">×</button><div class="foto-detalhe-img"><img src="${foto}" onerror="this.src='${fotosFallbackAtleta(row)}'" alt="${escapeHtmlJogos(nome)}"></div><div class="foto-detalhe-info"><h2>${escapeHtmlJogos(apelido||nome)}</h2><h3>${escapeHtmlJogos(nome)}</h3><div class="fd-basic-grid"><p><strong>Ano:</strong> ${escapeHtmlJogos(ano)}</p><p><strong>Nascimento:</strong> ${escapeHtmlJogos(nasc)}</p><p><strong>Posição:</strong> ${escapeHtmlJogos(pos)}</p><p><strong>Cidade:</strong> ${escapeHtmlJogos(cidade)}</p></div>${resumo}${comparativo}</div></div>`;
+ modal.style.display='flex';
+}
+function fecharFotoAtletaDetalhe(){const modal=document.getElementById('foto-detalhe-modal');if(modal)modal.style.display='none';}
