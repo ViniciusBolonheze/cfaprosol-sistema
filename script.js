@@ -3239,52 +3239,60 @@ function montarRelatorioJogosMarkup(jogos,professor){
  const body=`<div class="rj-page"><div class="rj-head"><img src="logo.png"><div class="rj-title"><h1>Relatório de Jogos - ${escapeHtmlJogos(professor)}</h1><h2>${ano}</h2></div><img src="logo.png"></div><div class="rj-campo">${campo||'<p style="text-align:center;color:#fff;font-weight:bold">Sem atletas com minutagem.</p>'}</div><div class="rj-summary"><div><b>${stats.total}</b>Jogos</div><div><b>${stats.vitorias}</b>Vitórias</div><div><b>${stats.empates}</b>Empates</div><div><b>${stats.derrotas}</b>Derrotas</div><div><b>${totalMin}'</b>Minutos</div><div><b>${aproveitamento}</b>Aproveitamento</div><div><b>${stats.golsFeitos}</b>Gols feitos</div><div><b>${stats.golsSofridos}</b>Gols sofridos</div></div><div class="rj-results">${relatorioJogosTabelaResultados('Vitórias',stats.vitoriasDetalhes,'win')}${relatorioJogosTabelaResultados('Empates',stats.empatesDetalhes,'draw')}${relatorioJogosTabelaResultados('Derrotas',stats.derrotasDetalhes,'loss')}</div><div class="rj-lists"><div class="green"><h4>Top 10 atletas mais tempo</h4>${relatorioJogosListaCompacta(topMais,'min')}</div><div><h4>Top 10 atletas menos tempo</h4>${relatorioJogosListaCompacta(topMenos,'min')}</div><div class="black"><h4>Gols</h4>${relatorioJogosListaCompacta(stats.goleadores,'gol')}</div><div class="yellow"><h4>Cartões</h4>${relatorioJogosListaCompacta(stats.cartoes,'cartao')}</div></div><div class="rj-foot">CFA Prosol • Relatório gerado automaticamente</div></div>`;
  return {style,body,title:`Relatório de Jogos - ${professor}`};
 }
+
+function pdfRelatorioCorGrupo(grupo){
+ const map={'Goleiros':[217,237,247],'Zagueiros':[201,231,255],'Lateral Dir.':[189,239,255],'Lateral Esq.':[189,239,255],'Laterais':[189,239,255],'Volantes':[216,197,242],'Meias':[158,224,113],'Atacantes':[255,210,31],'Ponta Dir.':[244,166,166],'Ponta Esq.':[244,166,166],'Extremos':[244,166,166],'Outros':[221,221,221]};
+ return map[grupo]||map['Outros'];
+}
+function pdfRelatorioLoadImage(src){
+ return new Promise(resolve=>{
+  const img=new Image();
+  img.onload=()=>{try{const c=document.createElement('canvas');c.width=img.naturalWidth||img.width;c.height=img.naturalHeight||img.height;c.getContext('2d').drawImage(img,0,0);resolve(c.toDataURL('image/png'));}catch(e){resolve(null);}};
+  img.onerror=()=>resolve(null);
+  img.src=src;
+ });
+}
+function pdfRelatorioResultadoLinhas(lista){
+ return (lista||[]).map(j=>`CFA Prosol ${j.gf} x ${j.gs} ${j.adversario||'Adversário'}`);
+}
+function pdfRelatorioDrawBoxTable(doc,x,y,w,h,title,rows,opts={}){
+ const header=opts.header||[88,17,26], headerText=opts.headerText||[249,198,20], fontSize=opts.fontSize||5.3, rowH=opts.rowH||3.2;
+ doc.setDrawColor(0);doc.setLineWidth(.18);doc.rect(x,y,w,h);
+ doc.setFillColor(...header);doc.rect(x,y,w,4.3,'F');
+ doc.setTextColor(...headerText);doc.setFont('helvetica','normal');doc.setFontSize(opts.headerSize||7);doc.text(title,x+w/2,y+3,{align:'center'});
+ doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(fontSize);
+ if(!rows||!rows.length)rows=['-'];
+ const maxRows=Math.max(1,Math.floor((h-4.6)/rowH));
+ const cols=[];for(let i=0;i<rows.length;i+=maxRows)cols.push(rows.slice(i,i+maxRows));
+ const colW=w/cols.length;
+ cols.forEach((col,ci)=>{let yy=y+4.3;col.forEach(r=>{doc.rect(x+ci*colW,yy,colW,rowH);if(Array.isArray(r)){doc.text(String(r[0]||''),x+ci*colW+.7,yy+2.25);doc.text(String(r[1]||''),x+(ci+1)*colW-.7,yy+2.25,{align:'right'});}else{doc.text(doc.splitTextToSize(String(r),colW-1.4)[0]||'',x+ci*colW+.7,yy+2.25);}yy+=rowH;});});
+}
+async function gerarRelatorioJogosPDFMobileDireto(jogos,professor){
+ const Ctor=window.jspdf&&window.jspdf.jsPDF;if(!Ctor)return false;
+ const doc=new Ctor({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+ const stats=calcularEstatisticasJogosProfessor(jogos), ano=relatorioJogosAno(jogos), totalMin=relatorioJogosTotalMinutos(jogos);
+ const aproveitamento=stats.total?(((stats.vitorias*3+stats.empates)/(stats.total*3))*100).toFixed(1).replace('.',',')+'%':'0%';
+ const logo=await pdfRelatorioLoadImage('logo.png'); const campoImg=await pdfRelatorioLoadImage('base_campo_relatorio.png')||await pdfRelatorioLoadImage('BASE CAMPO.png');
+ const W=210,H=297;if(logo){doc.addImage(logo,'PNG',13,5,18,18);doc.addImage(logo,'PNG',179,5,18,18);}doc.setTextColor(15);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text(`Relatório de Jogos - ${professor}`,W/2,12,{align:'center'});doc.setFontSize(10);doc.text(String(ano),W/2,18,{align:'center'});
+ const fx=55,fy=24,fw=100,fh=150;if(campoImg)doc.addImage(campoImg,'PNG',fx,fy,fw,fh);else{doc.setFillColor(75,143,60);doc.rect(fx,fy,fw,fh,'F');}
+ const atletas=relatorioJogosAtletasMinutagem(jogos), grupos={};atletas.forEach(a=>{(grupos[a.grupo]||(grupos[a.grupo]=[])).push(a);});
+ Object.keys(grupos).sort((a,b)=>relatorioJogosOrdemPosicao(a)-relatorioJogosOrdemPosicao(b)).forEach(grupo=>{const z=relatorioJogosZonaCampo(grupo), arr=grupos[grupo], color=pdfRelatorioCorGrupo(grupo);const zx=fx+z.l/100*fw,zy=fy+z.t/100*fh,zw=z.w/100*fw,zh=z.h/100*fh;let cols=2;if(['Lateral Dir.','Lateral Esq.','Ponta Dir.','Ponta Esq.'].includes(grupo))cols=1;if(grupo==='Goleiros')cols=arr.length;cols=Math.max(1,cols);const gap=.7,cw=Math.min(cols===1?22:(zw-(cols-1)*gap)/cols,24),ch=6.4,rows=Math.ceil(arr.length/cols),totalH=rows*ch+(rows-1)*gap,startY=zy+Math.max(0,(zh-totalH)/2);arr.forEach((a,i)=>{const c=i%cols,r=Math.floor(i/cols),rowCount=(r===rows-1)?arr.length-r*cols:cols,totalW=rowCount*cw+(rowCount-1)*gap,startX=zx+Math.max(0,(zw-totalW)/2),x=startX+c*(cw+gap),y=startY+r*(ch+gap);doc.setFillColor(...color);doc.roundedRect(x,y,cw,ch,1,1,'F');doc.setTextColor(0);doc.setFont('helvetica','bold');doc.setFontSize(5.4);doc.text(String(a.minutos),x+cw/2,y+2.2,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(5.0);doc.text(doc.splitTextToSize(a.apelido,cw-1)[0]||'',x+cw/2,y+5,{align:'center'});});});
+ const sy=fy+fh+3,sx=8,sw=(W-16-7*1.2)/8,sh=8;[['Jogos',stats.total],['Vitórias',stats.vitorias],['Empates',stats.empates],['Derrotas',stats.derrotas],['Minutos',`${totalMin}'`],['Aproveit.',aproveitamento],['Gols feitos',stats.golsFeitos],['Gols sofridos',stats.golsSofridos]].forEach((it,i)=>{const x=sx+i*(sw+1.2);doc.rect(x,sy,sw,sh);doc.setFont('helvetica','normal');doc.setFontSize(6.3);doc.text(String(it[1]),x+sw/2,sy+3,{align:'center'});doc.setFontSize(4.7);doc.text(String(it[0]),x+sw/2,sy+6.4,{align:'center'});});
+ const ry=sy+11,rh=30,rw=(W-16-2*1.5)/3;pdfRelatorioDrawBoxTable(doc,8,ry,rw,rh,'Vitórias',pdfRelatorioResultadoLinhas(stats.vitoriasDetalhes));pdfRelatorioDrawBoxTable(doc,8+rw+1.5,ry,rw,rh,'Empates',pdfRelatorioResultadoLinhas(stats.empatesDetalhes));pdfRelatorioDrawBoxTable(doc,8+2*(rw+1.5),ry,rw,rh,'Derrotas',pdfRelatorioResultadoLinhas(stats.derrotasDetalhes));
+ const ly=ry+33,lh=54,lw=(W-16-3*1.5)/4;pdfRelatorioDrawBoxTable(doc,8,ly,lw,lh,'Top 10 atletas mais tempo',stats.maisMinutos.slice(0,10).map(a=>[nomeExibicaoEstatisticaJogos(a),`${a.minutos} min`]),{header:[0,146,69],headerText:[255,255,255]});pdfRelatorioDrawBoxTable(doc,8+lw+1.5,ly,lw,lh,'Top 10 atletas menos tempo',stats.menosMinutos.slice(0,10).map(a=>[nomeExibicaoEstatisticaJogos(a),`${a.minutos} min`]),{header:[208,0,0],headerText:[255,255,255]});pdfRelatorioDrawBoxTable(doc,8+2*(lw+1.5),ly,lw,lh,'Gols',stats.goleadores.map(a=>[nomeExibicaoEstatisticaJogos(a),String(a.gols)]),{header:[0,0,0],headerText:[255,255,255]});pdfRelatorioDrawBoxTable(doc,8+3*(lw+1.5),ly,lw,lh,'Cartões',stats.cartoes.map(a=>[nomeExibicaoEstatisticaJogos(a),`${a.amarelo} CA / ${a.vermelho} CV`]),{header:[241,196,15],headerText:[0,0,0],fontSize:5.0});
+ doc.setFontSize(6);doc.setTextColor(80);doc.text('CFA Prosol • Relatório gerado automaticamente',W/2,H-5,{align:'center'});
+ const filename=prosolSanitizeFilename(`Relatório de Jogos - ${professor}`)+'.pdf';const blob=doc.output('blob');const file=new File([blob],filename,{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:`Relatório de Jogos - ${professor}`,text:'Relatório de Jogos CFA Prosol'});else doc.save(filename);return true;
+}
 async function abrirRelatorioJogosProfessor(){
  const professor=professorJogosAtual||'Geral';
  const {data,error}=await _supabase.from('jogos').select('id,professor,numero_jogo,nome,dados,criado_em').eq('professor',professor).order('numero_jogo',{ascending:true});
  if(error){console.error(error);alert('Erro ao carregar jogos para o relatório.');return;}
  if(!data||!data.length){alert('Nenhum jogo salvo para gerar relatório.');return;}
+ if(typeof prosolIsMobile==='function'&&prosolIsMobile()&&window.jspdf&&window.jspdf.jsPDF){try{if(await gerarRelatorioJogosPDFMobileDireto(data,professor))return;}catch(e){console.error('Falha no PDF direto mobile:',e);}}
  const {style,body,title}=montarRelatorioJogosMarkup(data,professor);
- if(typeof prosolIsMobile==='function'&&prosolIsMobile()&&typeof html2pdf!=='undefined'){
-  // Em alguns celulares, html2canvas gera PDF branco se o conteúdo estiver fora da tela
-  // (ex.: left:-99999px). Por isso renderizamos temporariamente no viewport,
-  // aguardamos as imagens carregarem e só então exportamos/compartilhamos.
-  const wrap=document.createElement('div');
-  wrap.className='relatorio-jogos-mobile-export-wrap';
-  wrap.innerHTML=style+body;
-  wrap.style.cssText='position:absolute;left:0;top:0;width:202mm;min-height:289mm;background:#fff;z-index:2147483647;overflow:hidden;';
-  document.body.appendChild(wrap);
-  const page=wrap.querySelector('.rj-page')||wrap;
-  const preloadCampo=new Image();
-  preloadCampo.src='base_campo_relatorio.png';
-  await new Promise(resolve=>{
-   if(preloadCampo.complete) return resolve();
-   preloadCampo.onload=resolve;preloadCampo.onerror=resolve;
-   setTimeout(resolve,900);
-  });
-  await Promise.all(Array.from(wrap.querySelectorAll('img')).map(img=>new Promise(resolve=>{
-   if(img.complete) return resolve();
-   img.onload=resolve;img.onerror=resolve;setTimeout(resolve,900);
-  })));
-  await new Promise(resolve=>setTimeout(resolve,350));
-  const opt={margin:0,filename:prosolSanitizeFilename(title)+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#fff',scrollX:0,scrollY:0},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['avoid-all']}};
-  try{
-   const blob=await html2pdf().from(page).set(opt).outputPdf('blob');
-   const file=new File([blob],prosolSanitizeFilename(title)+'.pdf',{type:'application/pdf'});
-   if(navigator.canShare&&navigator.canShare({files:[file]})) await navigator.share({files:[file],title:title,text:'Relatório de Jogos CFA Prosol'});
-   else html2pdf().from(page).set(opt).save();
-  }catch(e){
-   console.error(e);
-   html2pdf().from(page).set(opt).save();
-  }finally{
-   wrap.remove();
-  }
-  return;
- }
  const w=window.open('','_blank','width=900,height=1100');if(!w)return alert('Permita pop-ups para gerar o relatório.');
  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${style}</head><body>${body}<script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);w.document.close();
 }
-
 async function salvarJogoSupabase(){
  const professor=professorJogosAtual||'Geral';
  const editando=window.__jogoEditandoAtual||null;
