@@ -2971,9 +2971,9 @@ async function carregarJogosSalvosProfessor(){
   box.innerHTML='<div class="jogos-salvos-card"><strong>Banco de jogos ainda não configurado.</strong><br><small>Crie a tabela <b>jogos</b> no Supabase usando o SQL que combinamos.</small></div>';
   return;
  }
- if(!data||!data.length){box.innerHTML='<div class="jogos-salvos-card">Nenhum jogo salvo para este professor.</div>'+renderEstatisticasJogosProfessor(calcularEstatisticasJogosProfessor([]));return;}
+ if(!data||!data.length){box.innerHTML='<div class="jogos-salvos-card">Nenhum jogo salvo para este professor.</div>'+renderEstatisticasJogosProfessor(calcularEstatisticasJogosProfessor([]))+renderBotaoRelatorioJogosProfessor(false);return;}
  const stats=calcularEstatisticasJogosProfessor(data);
- box.innerHTML=`<div class="jogos-salvos-card"><h3>Jogos salvos</h3>${data.map(j=>`<div class="jogo-salvo-item"><strong>${escapeHtmlJogos(j.nome)}</strong><div class="jogo-salvo-acoes"><button title="Editar jogo" onclick="editarJogoSalvoDireto('${j.id}')"><i class="fa-solid fa-pen"></i></button><button title="Ver detalhes" onclick="verDetalhesJogoSalvo('${j.id}')"><i class="fa-solid fa-magnifying-glass"></i></button><button title="Excluir jogo" class="excluir-jogo-salvo" onclick="excluirJogoSalvo('${j.id}')"><i class="fa-solid fa-xmark"></i></button></div></div>`).join('')}</div>${renderEstatisticasJogosProfessor(stats)}`;
+ box.innerHTML=`<div class="jogos-salvos-card"><h3>Jogos salvos</h3>${data.map(j=>`<div class="jogo-salvo-item"><strong>${escapeHtmlJogos(j.nome)}</strong><div class="jogo-salvo-acoes"><button title="Editar jogo" onclick="editarJogoSalvoDireto('${j.id}')"><i class="fa-solid fa-pen"></i></button><button title="Ver detalhes" onclick="verDetalhesJogoSalvo('${j.id}')"><i class="fa-solid fa-magnifying-glass"></i></button><button title="Excluir jogo" class="excluir-jogo-salvo" onclick="excluirJogoSalvo('${j.id}')"><i class="fa-solid fa-xmark"></i></button></div></div>`).join('')}</div>${renderEstatisticasJogosProfessor(stats)}${renderBotaoRelatorioJogosProfessor(true)}`;
 }
 async function editarJogoSalvoDireto(id){
  const jogo=await buscarJogoSalvoPorId(id);if(!jogo)return;
@@ -3014,19 +3014,41 @@ function chaveAtletaEstatisticaJogos(atleta){
 function nomeExibicaoEstatisticaJogos(atleta){
  return atleta.apelido||atleta.nomeCompleto||'Atleta';
 }
+function detalhesEventoJogoTexto(detalhes, tipo){
+ if(!detalhes||!detalhes.length)return '';
+ return detalhes.map(d=>{
+  const qtd=Number(d.qtd)||0;
+  let label=tipo;
+  if(tipo==='gol')label=qtd>1?'gols':'gol';
+  if(tipo==='CA')label='CA';
+  if(tipo==='CV')label='CV';
+  return `${d.data||'-'} - ${d.adversario||'Adversário'}: ${qtd} ${label}`;
+ }).join('\n');
+}
+function detalhesResultadoJogosTexto(lista){
+ if(!lista||!lista.length)return 'Nenhum jogo.';
+ return lista.map(j=>`${j.data||'-'} - CFA Prosol - ${j.gf} x ${j.gs} ${j.adversario||'Adversário'}`).join('\n');
+}
 function calcularEstatisticasJogosProfessor(jogos){
- const stats={total:0,vitorias:0,derrotas:0,empates:0,golsFeitos:0,golsSofridos:0,atletas:{},maisMinutos:[],menosMinutos:[],goleadores:[],cartoes:[]};
+ const stats={total:0,vitorias:0,derrotas:0,empates:0,golsFeitos:0,golsSofridos:0,vitoriasDetalhes:[],empatesDetalhes:[],derrotasDetalhes:[],atletas:{},maisMinutos:[],menosMinutos:[],goleadores:[],cartoes:[]};
  (jogos||[]).forEach(j=>{
-  const p=j.dados&&j.dados.placar?j.dados.placar:{};
+  const dados=j.dados||{};
+  const p=dados.placar||{};
   const gf=parseInt(p.cfa_prosol??0,10)||0;
   const gs=parseInt(p.adversario??0,10)||0;
+  const dataJogo=dados.data||formatarDataJogoBR(dados.data_iso||'')||'';
+  const adversario=dados.adversario||'Adversário';
+  const detalheResultado={data:dataJogo,adversario,gf,gs,nome:j.nome||dados.nome||''};
   stats.total++;
   stats.golsFeitos+=gf;
   stats.golsSofridos+=gs;
-  if(gf>gs)stats.vitorias++;
-  else if(gf<gs)stats.derrotas++;
-  else stats.empates++;
-  (j.dados?.atletas||[]).forEach(a=>{
+  if(gf>gs){stats.vitorias++;stats.vitoriasDetalhes.push(detalheResultado);}
+  else if(gf<gs){stats.derrotas++;stats.derrotasDetalhes.push(detalheResultado);}
+  else {stats.empates++;stats.empatesDetalhes.push(detalheResultado);}
+  (dados.atletas||[]).forEach(a=>{
+   // Se o atleta foi removido do banco principal, mantém o resultado do jogo,
+   // mas não exibe mais este atleta nos cards/listas individuais do relatório.
+   if (localizarAtletaSalvoEmJogo(a) < 0) return;
    const key=chaveAtletaEstatisticaJogos(a);
    if(!stats.atletas[key]){
     stats.atletas[key]={
@@ -3037,19 +3059,29 @@ function calcularEstatisticasJogosProfessor(jogos){
      minutos:0,
      gols:0,
      amarelo:0,
-     vermelho:0
+     vermelho:0,
+     golsDetalhes:[],
+     amareloDetalhes:[],
+     vermelhoDetalhes:[]
     };
    }
    const item=stats.atletas[key];
-   item.minutos+=parseInt(a.minutos??0,10)||0;
-   item.gols+=parseInt(a.gols??0,10)||0;
-   item.amarelo+=parseInt(a.amarelo??0,10)||0;
-   item.vermelho+=parseInt(a.vermelho??0,10)||0;
+   const minutos=parseInt(a.minutos??0,10)||0;
+   const gols=parseInt(a.gols??0,10)||0;
+   const amarelo=parseInt(a.amarelo??0,10)||0;
+   const vermelho=parseInt(a.vermelho??0,10)||0;
+   item.minutos+=minutos;
+   item.gols+=gols;
+   item.amarelo+=amarelo;
+   item.vermelho+=vermelho;
+   if(gols>0)item.golsDetalhes.push({data:dataJogo,adversario,qtd:gols});
+   if(amarelo>0)item.amareloDetalhes.push({data:dataJogo,adversario,qtd:amarelo});
+   if(vermelho>0)item.vermelhoDetalhes.push({data:dataJogo,adversario,qtd:vermelho});
   });
  });
  const atletas=Object.values(stats.atletas);
- stats.maisMinutos=[...atletas].sort((a,b)=>b.minutos-a.minutos||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR')).slice(0,10);
- stats.menosMinutos=[...atletas].sort((a,b)=>a.minutos-b.minutos||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR')).slice(0,10);
+ stats.maisMinutos=[...atletas].sort((a,b)=>b.minutos-a.minutos||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR'));
+ stats.menosMinutos=[...atletas].sort((a,b)=>a.minutos-b.minutos||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR'));
  stats.goleadores=[...atletas].filter(a=>a.gols>0).sort((a,b)=>b.gols-a.gols||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR'));
  stats.cartoes=[...atletas].filter(a=>a.amarelo>0||a.vermelho>0).sort((a,b)=>(b.amarelo+b.vermelho)-(a.amarelo+a.vermelho)||nomeExibicaoEstatisticaJogos(a).localeCompare(nomeExibicaoEstatisticaJogos(b),'pt-BR'));
  return stats;
@@ -3060,15 +3092,169 @@ function renderListaMinutosJogos(lista,tipo){
 }
 function renderListaGolsJogos(lista){
  if(!lista||!lista.length)return '<div class="estat-vazio">Nenhum gol registrado.</div>';
- return `<div class="estat-lista-atletas">${lista.map(a=>`<div class="estat-atleta-row"><span>${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))} <small>${escapeHtmlJogos(a.ano||'')}</small></span><strong>${a.gols} gol${a.gols>1?'s':''}</strong></div>`).join('')}</div>`;
+ return `<div class="estat-lista-atletas">${lista.map(a=>{const detalhe=escapeHtmlJogos(detalhesEventoJogoTexto(a.golsDetalhes,'gol'));return `<div class="estat-atleta-row"><span>${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))} <small>${escapeHtmlJogos(a.ano||'')}</small></span><strong class="estat-tooltip" data-tooltip="${detalhe}">${a.gols} gol${a.gols>1?'s':''}</strong></div>`;}).join('')}</div>`;
 }
 function renderListaCartoesJogos(lista){
  if(!lista||!lista.length)return '<div class="estat-vazio">Nenhum cartão registrado.</div>';
- return `<div class="estat-lista-atletas">${lista.map(a=>`<div class="estat-atleta-row"><span>${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))} <small>${escapeHtmlJogos(a.ano||'')}</small></span><strong><em class="estat-ca">CA ${a.amarelo}</em> <em class="estat-cv">CV ${a.vermelho}</em></strong></div>`).join('')}</div>`;
+ return `<div class="estat-lista-atletas">${lista.map(a=>{const detCA=escapeHtmlJogos(detalhesEventoJogoTexto(a.amareloDetalhes,'CA'));const detCV=escapeHtmlJogos(detalhesEventoJogoTexto(a.vermelhoDetalhes,'CV'));return `<div class="estat-atleta-row"><span>${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))} <small>${escapeHtmlJogos(a.ano||'')}</small></span><strong>${a.amarelo>0?`<em class="estat-ca estat-tooltip" data-tooltip="${detCA}">CA ${a.amarelo}</em>`:`<em class="estat-ca">CA 0</em>`} ${a.vermelho>0?`<em class="estat-cv estat-tooltip" data-tooltip="${detCV}">CV ${a.vermelho}</em>`:`<em class="estat-cv">CV 0</em>`}</strong></div>`;}).join('')}</div>`;
 }
 function renderEstatisticasJogosProfessor(stats){
- return `<div class="jogos-estatisticas-card"><h3>Estatísticas</h3><div class="jogos-estatisticas-grid"><div><strong>${stats.total}</strong><span>Total de jogos</span></div><div><strong>${stats.vitorias}</strong><span>Vitórias</span></div><div><strong>${stats.derrotas}</strong><span>Derrotas</span></div><div><strong>${stats.empates}</strong><span>Empates</span></div><div><strong>${stats.golsFeitos}</strong><span>Gols feitos</span></div><div><strong>${stats.golsSofridos}</strong><span>Gols sofridos</span></div></div><div class="jogos-estatisticas-detalhes"><div class="estat-detalhe-card"><h4>10 atletas com mais tempo</h4>${renderListaMinutosJogos(stats.maisMinutos,'mais')}</div><div class="estat-detalhe-card"><h4>10 atletas com menos tempo</h4>${renderListaMinutosJogos(stats.menosMinutos,'menos')}</div><div class="estat-detalhe-card"><h4>Atletas com gols</h4>${renderListaGolsJogos(stats.goleadores)}</div><div class="estat-detalhe-card"><h4>Cartões amarelos e vermelhos</h4>${renderListaCartoesJogos(stats.cartoes)}</div></div></div>`;
+ const detVitorias=escapeHtmlJogos(detalhesResultadoJogosTexto(stats.vitoriasDetalhes));
+ const detEmpates=escapeHtmlJogos(detalhesResultadoJogosTexto(stats.empatesDetalhes));
+ const detDerrotas=escapeHtmlJogos(detalhesResultadoJogosTexto(stats.derrotasDetalhes));
+ return `<div class="jogos-estatisticas-card"><h3>Estatísticas</h3><div class="jogos-estatisticas-grid"><div><strong>${stats.total}</strong><span>Total de jogos</span></div><div class="estat-tooltip" data-tooltip="${detVitorias}"><strong>${stats.vitorias}</strong><span>Vitórias</span></div><div class="estat-tooltip" data-tooltip="${detDerrotas}"><strong>${stats.derrotas}</strong><span>Derrotas</span></div><div class="estat-tooltip" data-tooltip="${detEmpates}"><strong>${stats.empates}</strong><span>Empates</span></div><div><strong>${stats.golsFeitos}</strong><span>Gols feitos</span></div><div><strong>${stats.golsSofridos}</strong><span>Gols sofridos</span></div></div><div class="jogos-estatisticas-detalhes"><div class="estat-detalhe-card"><h4>Atletas com mais tempo</h4>${renderListaMinutosJogos(stats.maisMinutos,'mais')}</div><div class="estat-detalhe-card"><h4>Atletas com menos tempo</h4>${renderListaMinutosJogos(stats.menosMinutos,'menos')}</div><div class="estat-detalhe-card"><h4>Atletas com gols</h4>${renderListaGolsJogos(stats.goleadores)}</div><div class="estat-detalhe-card"><h4>Cartões amarelos e vermelhos</h4>${renderListaCartoesJogos(stats.cartoes)}</div></div></div>`;
 }
+
+function renderBotaoRelatorioJogosProfessor(habilitado=true){
+ return `<div class="relatorio-jogos-area"><button class="relatorio-jogos-btn" onclick="abrirRelatorioJogosProfessor()" ${habilitado?'':'disabled'}><i class="fa-solid fa-clipboard-list"></i> Relatório de Jogos</button></div>`;
+}
+function relatorioJogosGrupoPosicao(row){
+ const p=String(posicaoAtletaJogos(row)||'').toLowerCase();
+ if(p.includes('goleiro'))return 'Goleiros';
+ if(p.includes('zagueiro'))return 'Zagueiros';
+ if(p.includes('lateral')&&(p.includes('dir')||p.includes('direito')))return 'Lateral Dir.';
+ if(p.includes('lateral')&&(p.includes('esq')||p.includes('esquerdo')))return 'Lateral Esq.';
+ if(p.includes('lateral'))return 'Laterais';
+ if(p.includes('volante'))return 'Volantes';
+ if(p.includes('meia'))return 'Meias';
+ if(p.includes('atacante'))return 'Atacantes';
+ if((p.includes('extremo')||p.includes('ponta'))&&(p.includes('dir')||p.includes('direito')))return 'Ponta Dir.';
+ if((p.includes('extremo')||p.includes('ponta'))&&(p.includes('esq')||p.includes('esquerdo')))return 'Ponta Esq.';
+ if(p.includes('extremo')||p.includes('ponta'))return 'Extremos';
+ return 'Outros';
+}
+function relatorioJogosOrdemPosicao(grupo){
+ const ordem=['Goleiros','Zagueiros','Lateral Dir.','Lateral Esq.','Laterais','Volantes','Meias','Atacantes','Ponta Dir.','Ponta Esq.','Extremos','Outros'];
+ const i=ordem.indexOf(grupo);return i<0?99:i;
+}
+function relatorioJogosClassePosicao(grupo){
+ const map={'Goleiros':'pos-goleiros','Zagueiros':'pos-zagueiros','Lateral Dir.':'pos-laterais','Lateral Esq.':'pos-laterais','Laterais':'pos-laterais','Volantes':'pos-volantes','Meias':'pos-meias','Atacantes':'pos-atacantes','Ponta Dir.':'pos-extremos','Ponta Esq.':'pos-extremos','Extremos':'pos-extremos','Outros':'pos-outros'};
+ return map[grupo]||'pos-outros';
+}
+function relatorioJogosZonaCampo(grupo){
+ const zonas={
+  // Linha defensiva: zagueiros sempre abaixo dos goleiros
+  'Goleiros':{l:24,t:2,w:52,h:8},
+  'Zagueiros':{l:27,t:12,w:46,h:18},
+
+  // Laterais nas faixas, abaixo dos zagueiros
+  'Lateral Dir.':{l:2,t:31,w:27,h:22},
+  'Lateral Esq.':{l:71,t:31,w:27,h:22},
+  'Laterais':{l:32,t:31,w:36,h:14},
+
+  // Corredor central em sequência vertical, sem sobreposição
+  'Volantes':{l:32,t:34,w:36,h:18},
+  'Meias':{l:32,t:53,w:36,h:18},
+  'Atacantes':{l:32,t:72,w:36,h:12},
+
+  // Pontas/extremos abaixo dos laterais
+  'Ponta Dir.':{l:3,t:64,w:27,h:26},
+  'Ponta Esq.':{l:70,t:64,w:27,h:26},
+  'Extremos':{l:32,t:84,w:36,h:10},
+  'Outros':{l:32,t:93,w:36,h:7}
+ };
+ return zonas[grupo]||zonas['Outros'];
+}
+function relatorioJogosLayoutCards(grupo){
+ if(grupo==='Goleiros')return 'layout-row';
+ if(['Zagueiros','Volantes','Meias','Atacantes','Laterais','Extremos','Outros'].includes(grupo))return 'layout-2';
+ if(['Lateral Dir.','Lateral Esq.','Ponta Dir.','Ponta Esq.'].includes(grupo))return 'layout-1';
+ return 'layout-2';
+}
+function relatorioJogosAno(jogos){
+ const anos=[...(new Set((jogos||[]).map(j=>String(j.dados?.data_iso||j.dados?.data||'').match(/(20\d{2})/)?.[1]).filter(Boolean)))];
+ if(anos.length===1)return anos[0];
+ if(anos.length>1)return anos.join(' / ');
+ return String(new Date().getFullYear());
+}
+function relatorioJogosTotalMinutos(jogos){
+ return (jogos||[]).reduce((s,j)=>{
+  const min=parseInt(j.dados?.minutos_jogo??0,10);
+  if(!isNaN(min)&&min>0)return s+min;
+  const atletas=j.dados?.atletas||[];
+  const maxAtleta=Math.max(0,...atletas.map(a=>parseInt(a.minutos||0,10)||0));
+  return s+maxAtleta;
+ },0);
+}
+function relatorioJogosAtletasMinutagem(jogos){
+ const mapa={};
+ (jogos||[]).forEach(j=>{
+  (j.dados?.atletas||[]).forEach(a=>{
+   const min=parseInt(a.minutos||0,10)||0;
+   if(min<=0)return;
+   const idx=localizarAtletaSalvoEmJogo(a);
+   if(idx<0)return; // não mostra atletas que já foram excluídos do banco principal
+   const key=chaveAtletaEstatisticaJogos(a);
+   if(!mapa[key]){
+    const row=excelData[idx]||{};
+    const grupo=relatorioJogosGrupoPosicao(row);
+    mapa[key]={apelido:a.apelido||a.nomeCompleto||'Atleta',nomeCompleto:a.nomeCompleto||'',ano:a.ano||'',nascimento:a.nascimento||'',minutos:0,grupo};
+   }
+   mapa[key].minutos+=min;
+  });
+ });
+ return Object.values(mapa).sort((a,b)=>relatorioJogosOrdemPosicao(a.grupo)-relatorioJogosOrdemPosicao(b.grupo)||b.minutos-a.minutos||a.apelido.localeCompare(b.apelido,'pt-BR'));
+}
+function relatorioJogosTabelaResultados(titulo,lista,classe){
+ const itens=lista||[];
+ if(!itens.length)return `<div class="rj-result-box ${classe}"><h4>${titulo}</h4><table><tr><td colspan="2">-</td></tr></table></div>`;
+ const maxLinhas=7;
+ const colunas=[];
+ for(let i=0;i<itens.length;i+=maxLinhas)colunas.push(itens.slice(i,i+maxLinhas));
+ const tabelas=colunas.map(col=>`<table>${col.map(j=>`<tr><td>CFA Prosol ${j.gf} x ${j.gs} ${escapeHtmlJogos(j.adversario||'Adversário')}</td></tr>`).join('')}</table>`).join('');
+ return `<div class="rj-result-box ${classe}"><h4>${titulo}</h4><div class="rj-result-cols cols-${Math.min(colunas.length,4)}">${tabelas}</div></div>`;
+}
+function simboloCartaoRelatorio(cor){
+ const cls=cor==='amarelo'?'rj-card-yellow':'rj-card-red';
+ return `<i class="${cls}"></i>`;
+}
+function relatorioJogosListaCompacta(lista,tipo){
+ if(!lista||!lista.length)return '<div class="rj-list-cols cols-1"><table><tr><td colspan="2">-</td></tr></table></div>';
+ const maxLinhas=10;
+ const colunas=[];
+ for(let i=0;i<lista.length;i+=maxLinhas)colunas.push(lista.slice(i,i+maxLinhas));
+ const tabelas=colunas.map(col=>`<table>${col.map(a=>{
+  if(tipo==='min')return `<tr><td>${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))}</td><td>${a.minutos} min</td></tr>`;
+  if(tipo==='gol')return `<tr><td>${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))}</td><td>${a.gols}</td></tr>`;
+  return `<tr><td>${escapeHtmlJogos(nomeExibicaoEstatisticaJogos(a))}</td><td>${a.amarelo} ${simboloCartaoRelatorio('amarelo')} / ${a.vermelho} ${simboloCartaoRelatorio('vermelho')}</td></tr>`;
+ }).join('')}</table>`).join('');
+ return `<div class="rj-list-cols cols-${Math.min(colunas.length,4)}">${tabelas}</div>`;
+}
+function montarRelatorioJogosMarkup(jogos,professor){
+ const stats=calcularEstatisticasJogosProfessor(jogos);
+ const ano=relatorioJogosAno(jogos);
+ const totalMin=relatorioJogosTotalMinutos(jogos);
+ const aproveitamento=stats.total?(((stats.vitorias*3+stats.empates)/(stats.total*3))*100).toFixed(1).replace('.',',')+'%':'0%';
+ const atletasCampo=relatorioJogosAtletasMinutagem(jogos);
+ const grupos={};
+ atletasCampo.forEach(a=>{if(!grupos[a.grupo])grupos[a.grupo]=[];grupos[a.grupo].push(a);});
+ const campo=Object.keys(grupos).sort((a,b)=>relatorioJogosOrdemPosicao(a)-relatorioJogosOrdemPosicao(b)).map(grupo=>{
+  const z=relatorioJogosZonaCampo(grupo);
+  const cards=grupos[grupo].map(a=>`<em class="${relatorioJogosClassePosicao(grupo)}"><b>${a.minutos}</b><span>${escapeHtmlJogos(a.apelido)}</span></em>`).join('');
+  return `<div class="rj-zone" style="left:${z.l}%;top:${z.t}%;width:${z.w}%;height:${z.h}%"><div class="rj-cards ${relatorioJogosLayoutCards(grupo)}">${cards}</div></div>`;
+ }).join('');
+ const topMais=stats.maisMinutos.slice(0,10);
+ const topMenos=stats.menosMinutos.slice(0,10);
+ const style=`<style>@page{size:A4 portrait;margin:4mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;margin:0;color:#111;background:#fff;font-weight:400}.rj-page{width:202mm;height:289mm;margin:0 auto;padding:1.5mm 3mm;overflow:hidden}.rj-head{display:grid;grid-template-columns:23mm 1fr 23mm;align-items:center;height:24mm}.rj-head img{width:18mm;margin:auto}.rj-title{text-align:center}.rj-title h1{font-size:23.7px;margin:0 0 2px;font-weight:700}.rj-title h2{font-size:16.9px;margin:0;font-weight:900}.rj-campo{height:142mm;width:101mm;margin:2mm auto 0;border:2px solid #3e7d2b;background:#4b8f3c url('base_campo_relatorio.png') center/100% 100% no-repeat;position:relative;overflow:hidden}.rj-zone{position:absolute;z-index:2;display:flex;align-items:center;justify-content:center;overflow:visible}.rj-cards{display:flex;flex-wrap:wrap;gap:.75mm;align-items:center;justify-content:center;max-height:100%;overflow:visible}.rj-cards.layout-1{display:grid;grid-template-columns:1fr;align-content:center;justify-items:center}.rj-cards.layout-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:center;justify-items:center}.rj-cards.layout-row{display:flex;flex-wrap:nowrap;justify-content:center;align-items:center}.rj-cards em{font-style:normal;border-radius:3px;padding:.55mm 1mm;min-width:16mm;max-width:25mm;text-align:center;font-size:9.4px;line-height:1.05;color:#111;font-weight:400;box-shadow:0 1px 2px rgba(0,0,0,.25)}.rj-cards em b{display:block;font-size:11.1px;font-weight:400}.rj-cards em span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pos-goleiros{background:#d9edf7}.pos-zagueiros{background:#c9e7ff}.pos-laterais{background:#bdefff}.pos-volantes{background:#d8c5f2}.pos-meias{background:#9ee071}.pos-atacantes{background:#ffd21f}.pos-extremos{background:#f4a6a6}.pos-outros{background:#ddd}.rj-summary{display:grid;grid-template-columns:repeat(8,1fr);gap:1mm;margin:1.4mm 0}.rj-summary div{border:1px solid #111;text-align:center;font-size:9.1px;padding:.65mm;background:#f6f6f6;font-weight:400}.rj-summary b{display:block;font-size:12.5px;font-weight:400}.rj-results{display:flex;gap:1mm;height:30mm;overflow:hidden;justify-content:center;align-items:flex-start}.rj-result-box{border:1px solid #111;overflow:hidden;flex:0 1 auto;width:max-content;max-width:120mm;min-width:36mm;background:#fff}.rj-result-box h4{margin:0;background:#58111a;color:#f9c614;font-size:10px;padding:.8mm;text-align:center;font-weight:400}.rj-result-box table,.rj-lists table{width:100%;border-collapse:collapse;font-size:8.6px;font-weight:400}.rj-result-cols{display:flex;gap:.6mm;align-items:flex-start;width:100%}.rj-result-cols table{width:auto;min-width:max-content;flex:0 0 auto}.rj-result-cols.cols-1{display:block;width:100%}.rj-result-cols.cols-1 table{width:100%;min-width:100%;table-layout:auto}.rj-list-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:.6mm;align-items:flex-start;width:100%;overflow:hidden}.rj-list-cols table{width:100%!important;min-width:0;table-layout:auto}.rj-list-cols.cols-1{display:block;width:100%}.rj-list-cols.cols-1 table{width:100%!important;min-width:100%;table-layout:auto}.rj-list-cols td:first-child{width:auto}.rj-list-cols td:last-child{width:8mm;text-align:center}.rj-result-box td,.rj-lists td{border:1px solid #333;padding:.42mm;line-height:1.06;font-weight:400}.rj-result-box td{white-space:nowrap;padding-left:.65mm;padding-right:.65mm}.rj-lists td{white-space:nowrap}.rj-result-box tr td:last-child{border-right:1px solid #333}.rj-result-box table{border-right:1px solid #333}.rj-card-yellow,.rj-card-red{display:inline-block;width:3.2mm;height:4.4mm;border-radius:.5mm;vertical-align:-.7mm;border:1px solid #111}.rj-card-yellow{background:#f1c40f}.rj-card-red{background:#d63031}.rj-lists{display:grid;grid-template-columns:repeat(4,1fr);gap:1mm;margin-top:1mm;height:61mm;overflow:hidden}.rj-lists>div{border:1px solid #111;overflow:hidden}.rj-lists h4{margin:0;background:#d00000;color:#fff;font-size:9.8px;text-align:center;padding:.8mm;font-weight:400}.rj-lists .green h4{background:#009245}.rj-lists .black h4{background:#111}.rj-lists .yellow h4{background:#f1c40f;color:#111}.rj-lists tbody{vertical-align:top}.rj-foot{font-size:9.1px;font-weight:400;text-align:center;margin-top:.8mm;color:#555}</style>`;
+ const body=`<div class="rj-page"><div class="rj-head"><img src="logo.png"><div class="rj-title"><h1>Relatório de Jogos - ${escapeHtmlJogos(professor)}</h1><h2>${ano}</h2></div><img src="logo.png"></div><div class="rj-campo">${campo||'<p style="text-align:center;color:#fff;font-weight:bold">Sem atletas com minutagem.</p>'}</div><div class="rj-summary"><div><b>${stats.total}</b>Jogos</div><div><b>${stats.vitorias}</b>Vitórias</div><div><b>${stats.empates}</b>Empates</div><div><b>${stats.derrotas}</b>Derrotas</div><div><b>${totalMin}'</b>Minutos</div><div><b>${aproveitamento}</b>Aproveitamento</div><div><b>${stats.golsFeitos}</b>Gols feitos</div><div><b>${stats.golsSofridos}</b>Gols sofridos</div></div><div class="rj-results">${relatorioJogosTabelaResultados('Vitórias',stats.vitoriasDetalhes,'win')}${relatorioJogosTabelaResultados('Empates',stats.empatesDetalhes,'draw')}${relatorioJogosTabelaResultados('Derrotas',stats.derrotasDetalhes,'loss')}</div><div class="rj-lists"><div class="green"><h4>Top 10 atletas mais tempo</h4>${relatorioJogosListaCompacta(topMais,'min')}</div><div><h4>Top 10 atletas menos tempo</h4>${relatorioJogosListaCompacta(topMenos,'min')}</div><div class="black"><h4>Gols</h4>${relatorioJogosListaCompacta(stats.goleadores,'gol')}</div><div class="yellow"><h4>Cartões</h4>${relatorioJogosListaCompacta(stats.cartoes,'cartao')}</div></div><div class="rj-foot">CFA Prosol • Relatório gerado automaticamente</div></div>`;
+ return {style,body,title:`Relatório de Jogos - ${professor}`};
+}
+async function abrirRelatorioJogosProfessor(){
+ const professor=professorJogosAtual||'Geral';
+ const {data,error}=await _supabase.from('jogos').select('id,professor,numero_jogo,nome,dados,criado_em').eq('professor',professor).order('numero_jogo',{ascending:true});
+ if(error){console.error(error);alert('Erro ao carregar jogos para o relatório.');return;}
+ if(!data||!data.length){alert('Nenhum jogo salvo para gerar relatório.');return;}
+ const {style,body,title}=montarRelatorioJogosMarkup(data,professor);
+ if(typeof prosolIsMobile==='function'&&prosolIsMobile()&&typeof html2pdf!=='undefined'){
+  const wrap=document.createElement('div');wrap.innerHTML=style+body;document.body.appendChild(wrap);wrap.style.position='fixed';wrap.style.left='-99999px';wrap.style.top='0';
+  const opt={margin:0,filename:prosolSanitizeFilename(title)+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#fff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}};
+  try{const blob=await html2pdf().from(wrap).set(opt).outputPdf('blob');const file=new File([blob],prosolSanitizeFilename(title)+'.pdf',{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title,text:'Relatório de Jogos CFA Prosol'});else html2pdf().from(wrap).set(opt).save();}catch(e){console.error(e);html2pdf().from(wrap).set(opt).save();}finally{wrap.remove();}
+  return;
+ }
+ const w=window.open('','_blank','width=900,height=1100');if(!w)return alert('Permita pop-ups para gerar o relatório.');
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${style}</head><body>${body}<script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);w.document.close();
+}
+
 async function salvarJogoSupabase(){
  const professor=professorJogosAtual||'Geral';
  const editando=window.__jogoEditandoAtual||null;
@@ -4370,3 +4556,71 @@ function abrirFotoAtletaDetalhe(index){
  modal.style.display='flex';
 }
 function fecharFotoAtletaDetalhe(){const modal=document.getElementById('foto-detalhe-modal');if(modal)modal.style.display='none';}
+
+
+/* === Tooltips flutuantes das estatísticas de jogos === */
+function inicializarTooltipFlutuanteEstatisticasJogos(){
+    if (window.__tooltipEstatisticasJogosInicializado) return;
+    window.__tooltipEstatisticasJogosInicializado = true;
+
+    let tooltip = document.getElementById('estat-tooltip-flutuante');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'estat-tooltip-flutuante';
+        tooltip.className = 'estat-tooltip-flutuante';
+        document.body.appendChild(tooltip);
+    }
+
+    function posicionarTooltip(event) {
+        if (!tooltip || tooltip.style.display !== 'block') return;
+        const margem = 12;
+        const rect = tooltip.getBoundingClientRect();
+        let x = event.clientX + margem;
+        let y = event.clientY + margem;
+
+        if (x + rect.width > window.innerWidth - 8) {
+            x = event.clientX - rect.width - margem;
+        }
+        if (y + rect.height > window.innerHeight - 8) {
+            y = event.clientY - rect.height - margem;
+        }
+        tooltip.style.left = Math.max(8, x) + 'px';
+        tooltip.style.top = Math.max(8, y) + 'px';
+    }
+
+    document.addEventListener('mouseover', (event) => {
+        const alvo = event.target.closest && event.target.closest('.estat-tooltip');
+        if (!alvo || !alvo.dataset.tooltip) return;
+        tooltip.textContent = alvo.dataset.tooltip;
+        tooltip.style.display = 'block';
+        posicionarTooltip(event);
+    });
+
+    document.addEventListener('mousemove', (event) => {
+        if (tooltip.style.display === 'block') posicionarTooltip(event);
+    });
+
+    document.addEventListener('mouseout', (event) => {
+        const alvo = event.target.closest && event.target.closest('.estat-tooltip');
+        if (!alvo) return;
+        tooltip.style.display = 'none';
+    });
+
+    // No celular/tablet, toque para mostrar e toque fora para fechar.
+    document.addEventListener('click', (event) => {
+        const alvo = event.target.closest && event.target.closest('.estat-tooltip');
+        if (!alvo) {
+            if (tooltip) tooltip.style.display = 'none';
+            return;
+        }
+        if (!alvo.dataset.tooltip) return;
+        tooltip.textContent = alvo.dataset.tooltip;
+        tooltip.style.display = 'block';
+        posicionarTooltip(event);
+    });
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarTooltipFlutuanteEstatisticasJogos);
+} else {
+    inicializarTooltipFlutuanteEstatisticasJogos();
+}

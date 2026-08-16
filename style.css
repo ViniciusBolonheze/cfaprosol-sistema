@@ -3284,3 +3284,137 @@ body {
     .fotos-header-icon{width:22px;height:22px;}
     .fotos-header-icon svg{width:15px;height:15px;}
 }
+
+/* Jogos: tooltip de gols/cartões nas estatísticas */
+.estat-tooltip{
+    position:relative;
+    cursor:help;
+}
+.estat-tooltip::after{
+    content:attr(data-tooltip);
+    position:absolute;
+    right:0;
+    bottom:calc(100% + 8px);
+    min-width:220px;
+    max-width:320px;
+    white-space:pre-line;
+    background:#111;
+    color:#fff;
+    padding:8px 10px;
+    border-radius:6px;
+    font-size:11px;
+    line-height:1.35;
+    font-weight:bold;
+    opacity:0;
+    pointer-events:none;
+    transform:translateY(4px);
+    transition:.15s ease;
+    z-index:30000;
+    box-shadow:0 4px 14px rgba(0,0,0,.35);
+}
+.estat-tooltip::before{
+    content:'';
+    position:absolute;
+    right:12px;
+    bottom:calc(100% + 2px);
+    border:6px solid transparent;
+    border-top-color:#111;
+    opacity:0;
+    transition:.15s ease;
+    z-index:30001;
+}
+.estat-tooltip:hover::after,
+.estat-tooltip:hover::before{
+    opacity:1;
+    transform:translateY(0);
+}
+.estat-atleta-row strong .estat-tooltip{
+    margin-left:3px;
+}
+@media(max-width:900px){
+    .estat-tooltip::after{right:auto;left:0;min-width:190px;max-width:260px;font-size:10px;}
+    .estat-tooltip::before{right:auto;left:12px;}
+}
+
+
+/* Tooltip flutuante das estatísticas de jogos: não fica cortado pelo quadro com rolagem */
+.estat-tooltip::after,
+.estat-tooltip::before{
+    display:none!important;
+    content:none!important;
+}
+.estat-tooltip-flutuante{
+    position:fixed;
+    display:none;
+    z-index:999999;
+    max-width:min(340px, calc(100vw - 24px));
+    background:#111;
+    color:#fff;
+    padding:9px 11px;
+    border-radius:7px;
+    box-shadow:0 6px 20px rgba(0,0,0,.45);
+    font-size:12px;
+    line-height:1.38;
+    font-weight:bold;
+    white-space:pre-line;
+    pointer-events:none;
+}
+@media(max-width:900px){
+    .estat-tooltip-flutuante{
+        font-size:11px;
+        max-width:260px;
+    }
+}
+
+
+/* Botão Relatório de Jogos - visual com prancheta */
+.relatorio-jogos-area{
+    width:min(980px,94vw);
+    margin:18px auto 92px;
+    display:flex;
+    justify-content:center;
+}
+.relatorio-jogos-btn{
+    border:0;
+    border-radius:18px;
+    padding:15px 28px;
+    min-width:280px;
+    background:linear-gradient(135deg,#58111a 0%,#7b112a 52%,#f9c614 53%,#e0a900 100%);
+    color:#fff;
+    font-size:16px;
+    font-weight:900;
+    letter-spacing:.3px;
+    cursor:pointer;
+    box-shadow:0 8px 22px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.18);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    text-transform:uppercase;
+}
+.relatorio-jogos-btn i{
+    width:32px;
+    height:32px;
+    border-radius:8px;
+    background:#fff;
+    color:#58111a;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+    box-shadow:0 2px 6px rgba(0,0,0,.25);
+}
+.relatorio-jogos-btn:hover{
+    transform:translateY(-2px);
+    filter:brightness(1.05);
+    box-shadow:0 10px 26px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.22);
+}
+.relatorio-jogos-btn:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+    filter:grayscale(.5);
+}
+@media(max-width:900px){
+    .relatorio-jogos-area{margin:14px auto 120px;}
+    .relatorio-jogos-btn{width:100%;min-width:0;font-size:13px;padding:13px 18px;}
+}
