@@ -3246,9 +3246,39 @@ async function abrirRelatorioJogosProfessor(){
  if(!data||!data.length){alert('Nenhum jogo salvo para gerar relatório.');return;}
  const {style,body,title}=montarRelatorioJogosMarkup(data,professor);
  if(typeof prosolIsMobile==='function'&&prosolIsMobile()&&typeof html2pdf!=='undefined'){
-  const wrap=document.createElement('div');wrap.innerHTML=style+body;document.body.appendChild(wrap);wrap.style.position='fixed';wrap.style.left='-99999px';wrap.style.top='0';
-  const opt={margin:0,filename:prosolSanitizeFilename(title)+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#fff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}};
-  try{const blob=await html2pdf().from(wrap).set(opt).outputPdf('blob');const file=new File([blob],prosolSanitizeFilename(title)+'.pdf',{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title,text:'Relatório de Jogos CFA Prosol'});else html2pdf().from(wrap).set(opt).save();}catch(e){console.error(e);html2pdf().from(wrap).set(opt).save();}finally{wrap.remove();}
+  // Em alguns celulares, html2canvas gera PDF branco se o conteúdo estiver fora da tela
+  // (ex.: left:-99999px). Por isso renderizamos temporariamente no viewport,
+  // aguardamos as imagens carregarem e só então exportamos/compartilhamos.
+  const wrap=document.createElement('div');
+  wrap.className='relatorio-jogos-mobile-export-wrap';
+  wrap.innerHTML=style+body;
+  wrap.style.cssText='position:absolute;left:0;top:0;width:202mm;min-height:289mm;background:#fff;z-index:2147483647;overflow:hidden;';
+  document.body.appendChild(wrap);
+  const page=wrap.querySelector('.rj-page')||wrap;
+  const preloadCampo=new Image();
+  preloadCampo.src='base_campo_relatorio.png';
+  await new Promise(resolve=>{
+   if(preloadCampo.complete) return resolve();
+   preloadCampo.onload=resolve;preloadCampo.onerror=resolve;
+   setTimeout(resolve,900);
+  });
+  await Promise.all(Array.from(wrap.querySelectorAll('img')).map(img=>new Promise(resolve=>{
+   if(img.complete) return resolve();
+   img.onload=resolve;img.onerror=resolve;setTimeout(resolve,900);
+  })));
+  await new Promise(resolve=>setTimeout(resolve,350));
+  const opt={margin:0,filename:prosolSanitizeFilename(title)+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#fff',scrollX:0,scrollY:0},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['avoid-all']}};
+  try{
+   const blob=await html2pdf().from(page).set(opt).outputPdf('blob');
+   const file=new File([blob],prosolSanitizeFilename(title)+'.pdf',{type:'application/pdf'});
+   if(navigator.canShare&&navigator.canShare({files:[file]})) await navigator.share({files:[file],title:title,text:'Relatório de Jogos CFA Prosol'});
+   else html2pdf().from(page).set(opt).save();
+  }catch(e){
+   console.error(e);
+   html2pdf().from(page).set(opt).save();
+  }finally{
+   wrap.remove();
+  }
   return;
  }
  const w=window.open('','_blank','width=900,height=1100');if(!w)return alert('Permita pop-ups para gerar o relatório.');
