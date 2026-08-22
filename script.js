@@ -248,7 +248,7 @@ function navigateTo(screenId, event) {
         document.getElementById('grupos-screen').classList.add('active-screen');
         renderGruposScreen();
     } else {
-        if (screenId === 'relatorios') { openRelatoriosModal(); return; }
+        if (screenId === 'relatorios') { openRelatoriosMenuModal(); return; }
         if (screenId === 'jogos') { openJogosProfessorModal(); return; }
         if (screenId === 'prancheta') {
             openPranchetaModal();
@@ -3517,6 +3517,400 @@ function openRelatoriosModal(){
  renderRelatoriosTabela();
 }
 function closeRelatoriosModal(){const m=document.getElementById('relatorios-modal');if(m)m.style.display='none';}
+
+/* === MENU RELATÓRIOS + TRABALHO DIÁRIO === */
+const TRABALHOS_DIARIOS_BUCKET = 'trabalhos-diarios';
+let trabalhoDiarioEstado = {};
+let trabalhoDiarioAtletasModal = { categoriaId: null, filtroAno: 'todos', busca: '' };
+
+function categoriasTrabalhoDiarioConfig(){
+ return {
+  sub11:{label:'Sub 11',anos:['2015','2016','2017','2018']},
+  sub12:{label:'Sub 12',anos:['2014']},
+  sub13:{label:'Sub 13',anos:['2013']},
+  sub16:{label:'Sub 16',anos:['2012','2011','2010','2009']}
+ };
+}
+function openRelatoriosMenuModal(){
+ document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active-screen');s.style.display='';});
+ document.getElementById('home-screen')?.classList.add('active-screen');
+ let m=document.getElementById('relatorios-menu-modal');
+ if(!m){m=document.createElement('div');m.id='relatorios-menu-modal';m.className='relatorios-menu-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeRelatoriosMenuModal();});}
+ m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button></div></div>`;
+ m.style.display='flex';
+}
+function closeRelatoriosMenuModal(){const m=document.getElementById('relatorios-menu-modal');if(m)m.style.display='none';}
+function normalizarTextoTrabalho(valor){return String(valor||'').trim().replace(/\s+/g,' ');}
+function valorFlexTrabalho(row,termos){const chave=Object.keys(row||{}).find(k=>termos.some(t=>String(k).toLowerCase().includes(String(t).toLowerCase())));return chave?row[chave]:'';}
+function trabalhoAnoAtleta(row){return normalizarTextoTrabalho(valorColunaExata(row,'Ano')||valorFlexTrabalho(row,['ano']));}
+function trabalhoNomeCompleto(row){return normalizarTextoTrabalho(valorFlexTrabalho(row,['nome completo'])||valorColunaExata(row,'NOME COMPLETO')||valorFlexTrabalho(row,['nome']));}
+function trabalhoApelido(row){return normalizarTextoTrabalho(valorFlexTrabalho(row,['apelido'])||valorColunaExata(row,'APELIDO')||trabalhoNomeCompleto(row));}
+function trabalhoNascimento(row){return normalizarTextoTrabalho(convertExcelDate(valorFlexTrabalho(row,['data de nascimento','nascimento']))||valorFlexTrabalho(row,['data de nascimento','nascimento']));}
+function trabalhoIdentidadeAtleta(index){const row=excelData[index]||{};return {nomeCompleto:trabalhoNomeCompleto(row),apelido:trabalhoApelido(row),nascimento:trabalhoNascimento(row),ano:trabalhoAnoAtleta(row)};}
+function trabalhoChaveAtleta(id){return normalizarTextoTrabalho(id?.nomeCompleto||'')+'||'+normalizarTextoTrabalho(id?.nascimento||'');}
+function trabalhoChaveExtraAtleta(id){return normalizarTextoTrabalho(id?.nomeCompleto||'')+'||'+normalizarTextoTrabalho(id?.ano||'');}
+function localizarAtletaTrabalhoPorNomeAno(extra){
+ const nome=normalizarTextoTrabalho(extra?.nomeCompleto||extra?.nome_completo||extra?.nome||'');
+ const ano=normalizarTextoTrabalho(extra?.ano||'');
+ if(!nome||!ano)return null;
+ return trabalhoTodosAtletas().find(item=>item.id.nomeCompleto===nome&&item.id.ano===ano)||null;
+}
+function aplicarExtrasSalvosTrabalho(catId, extras){
+ const estado=trabalhoDiarioEstado[catId];
+ if(!estado||!Array.isArray(extras))return;
+ extras.forEach(extra=>{
+  const item=localizarAtletaTrabalhoPorNomeAno(extra);
+  if(item)estado.selecionados.add(trabalhoChaveAtleta(item.id));
+ });
+}
+function trabalhoAtletasPorAnos(anos){return (excelData||[]).map((row,index)=>({row,index,id:trabalhoIdentidadeAtleta(index)})).filter(a=>a.id.nomeCompleto&&a.id.nascimento&&anos.includes(a.id.ano)).sort((a,b)=>a.id.ano.localeCompare(b.id.ano)||a.id.apelido.localeCompare(b.id.apelido,'pt-BR'));}
+function trabalhoTodosAtletas(){return (excelData||[]).map((row,index)=>({row,index,id:trabalhoIdentidadeAtleta(index)})).filter(a=>a.id.nomeCompleto&&a.id.nascimento).sort((a,b)=>a.id.ano.localeCompare(b.id.ano)||a.id.apelido.localeCompare(b.id.apelido,'pt-BR'));}
+function inicializarEstadoTrabalhoDiario(){
+ const cats=categoriasTrabalhoDiarioConfig();
+ Object.keys(cats).forEach(id=>{
+  if(!trabalhoDiarioEstado[id]){
+   const padrao=trabalhoAtletasPorAnos(cats[id].anos).map(a=>trabalhoChaveAtleta(a.id));
+   trabalhoDiarioEstado[id]={file:null,selecionados:new Set(padrao),padrao:new Set(padrao),registro:null};
+  }
+ });
+}
+function trabalhoDiarioExpiraEm(registro){
+ const base=new Date(registro?.atualizado_em||registro?.criado_em||Date.now());
+ if(isNaN(base))return null;
+ const exp=new Date(base);
+ exp.setHours(18,0,0,0);
+ if(base.getTime()>=exp.getTime()) exp.setDate(exp.getDate()+1);
+ return exp;
+}
+function trabalhoDiarioExpirado(registro){
+ const exp=trabalhoDiarioExpiraEm(registro);
+ return exp ? Date.now()>=exp.getTime() : false;
+}
+async function excluirRegistroTrabalhoDiario(registro){
+ try{
+  if(registro?.storage_path) await _supabase.storage.from(TRABALHOS_DIARIOS_BUCKET).remove([registro.storage_path]);
+ }catch(e){console.warn('Não foi possível remover arquivo expirado:',e);}
+ try{
+  if(registro?.categoria_id) await _supabase.from('trabalhos_diarios').delete().eq('categoria_id',registro.categoria_id);
+ }catch(e){console.warn('Não foi possível remover registro expirado:',e);}
+}
+async function carregarTrabalhosDiariosAtuais(){
+ try{
+  const {data,error}=await _supabase.from('trabalhos_diarios').select('*');
+  if(error){console.warn('Tabela trabalhos_diarios não carregada:',error.message);return;}
+  for(const r of (data||[])){
+   if(!trabalhoDiarioEstado[r.categoria_id]) continue;
+   trabalhoDiarioEstado[r.categoria_id].registro=r;
+   // Mantém pré-selecionados os atletas extras usados no envio anterior.
+   aplicarExtrasSalvosTrabalho(r.categoria_id, r.atletas || []);
+  }
+ }catch(e){console.warn('Erro ao carregar trabalhos diários:',e);}
+}
+async function openTrabalhoDiarioModal(){
+ inicializarEstadoTrabalhoDiario();
+ await carregarTrabalhosDiariosAtuais();
+ let m=document.getElementById('trabalho-diario-modal');
+ if(!m){m=document.createElement('div');m.id='trabalho-diario-modal';m.className='trabalho-diario-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeTrabalhoDiarioModal();});}
+ const cats=categoriasTrabalhoDiarioConfig();
+ m.innerHTML=`<div class="trabalho-diario-card"><button class="trabalho-diario-close" onclick="closeTrabalhoDiarioModal()">×</button><h2>Trabalho Diário</h2><p class="trabalho-diario-sub">Envie o PDF do trabalho por categoria. Cada novo envio substitui o trabalho anterior da categoria.</p><div class="trabalho-diario-grid">${Object.keys(cats).map(id=>renderTrabalhoDiarioCategoriaHTML(id)).join('')}</div></div>`;
+ m.style.display='flex';
+}
+function closeTrabalhoDiarioModal(){const m=document.getElementById('trabalho-diario-modal');if(m)m.style.display='none';}
+function trabalhoExtrasSelecionados(catId){
+ const estado=trabalhoDiarioEstado[catId];
+ if(!estado)return [];
+ return Array.from(estado.selecionados)
+  .filter(key=>!estado.padrao.has(key))
+  .map(key=>trabalhoTodosAtletas().find(item=>trabalhoChaveAtleta(item.id)===key))
+  .filter(Boolean)
+  .sort((a,b)=>a.id.ano.localeCompare(b.id.ano)||a.id.apelido.localeCompare(b.id.apelido,'pt-BR'));
+}
+function renderTrabalhoExtrasHTML(catId){
+ const extras=trabalhoExtrasSelecionados(catId);
+ if(!extras.length)return `<div class="td-extras" id="td-extras-${catId}"></div>`;
+ return `<div class="td-extras" id="td-extras-${catId}">${extras.map(a=>{const key=encodeURIComponent(trabalhoChaveAtleta(a.id));return `<span><button type="button" class="td-extra-remove" title="Remover atleta extra" onclick="removerExtraTrabalhoDiario('${catId}',decodeURIComponent('${key}'))">×</button>+ ${escapeHtmlJogos(a.id.apelido || a.id.nomeCompleto)} - ${escapeHtmlJogos(a.id.ano)}</span>`;}).join('')}</div>`;
+}
+async function removerExtraTrabalhoDiario(catId,key){
+ const estado=trabalhoDiarioEstado[catId];
+ if(!estado||estado.padrao.has(key))return;
+ estado.selecionados.delete(key);
+ atualizarContadorTrabalho(catId);
+ // Persiste a remoção dos extras no registro atual, sem precisar reenviar PDF.
+ if(estado.registro){
+  const extras=destinatariosTrabalho(catId);
+  const {error}=await _supabase.from('trabalhos_diarios').update({atletas:extras,atualizado_em:new Date().toISOString()}).eq('categoria_id',catId);
+  if(error){console.error(error);alert('Não foi possível salvar a remoção do atleta extra.');return;}
+  estado.registro.atletas=extras;
+ }
+}
+function renderTrabalhoDiarioCategoriaHTML(catId){
+ const cat=categoriasTrabalhoDiarioConfig()[catId];
+ const estado=trabalhoDiarioEstado[catId];
+ const count=estado?estado.padrao.size:0;
+ const reg=estado&&estado.registro;
+ const status=reg?`<button type="button" class="td-status ok td-status-link" onclick="abrirTrabalhoAtual('${catId}')" title="Abrir PDF atual"><strong>Atual:</strong> ${escapeHtmlJogos(reg.arquivo_nome||'PDF enviado')}<br><small>${reg.atualizado_em?new Date(reg.atualizado_em).toLocaleString('pt-BR'):''} • Extras: ${(reg.atletas||[]).length}</small></button>`:`<div class="td-status">Nenhum trabalho enviado.</div>`;
+ return `<section class="td-cat-panel" data-cat="${catId}"><h3>${cat.label}</h3><div class="td-anos">Padrão: ${cat.anos.join(', ')}</div>${status}<label class="td-file-label">PDF do trabalho<input type="file" accept="application/pdf,.pdf" onchange="selecionarArquivoTrabalhoDiario('${catId}',this)"></label><div class="td-file-name" id="td-file-${catId}">Nenhum arquivo selecionado</div><div class="td-actions"><button type="button" onclick="abrirSelecionarAtletasTrabalho('${catId}')"><i class="fa-solid fa-user-plus"></i> Atletas <span id="td-count-${catId}">${count}</span></button><button type="button" class="enviar" onclick="enviarTrabalhoDiario('${catId}')"><i class="fa-solid fa-upload"></i> Enviar/Substituir</button>${reg?`<button type="button" class="excluir-trabalho" onclick="excluirTrabalhoAtual('${catId}')"><i class="fa-solid fa-trash"></i> Excluir trabalho atual</button>`:''}</div>${renderTrabalhoExtrasHTML(catId)}</section>`;
+}
+function abrirTrabalhoAtual(catId){
+ const reg=trabalhoDiarioEstado[catId]&&trabalhoDiarioEstado[catId].registro;
+ if(!reg)return alert('Nenhum trabalho atual para abrir.');
+ let url=reg.public_url||'';
+ if(!url&&reg.storage_path){
+  try{const {data}= _supabase.storage.from(TRABALHOS_DIARIOS_BUCKET).getPublicUrl(reg.storage_path);url=data&&data.publicUrl?data.publicUrl:'';}catch(e){console.warn(e);}
+ }
+ if(!url)return alert('Não encontrei o link do PDF atual.');
+ window.open(url,'_blank','noopener,noreferrer');
+}
+async function excluirTrabalhoAtual(catId){
+ const estado=trabalhoDiarioEstado[catId];
+ const reg=estado&&estado.registro;
+ if(!reg)return alert('Nenhum trabalho atual para excluir.');
+ if(!confirm('Excluir o trabalho atual de '+(reg.categoria_label||catId)+'?'))return;
+ const btn=document.querySelector(`.td-cat-panel[data-cat="${catId}"] .excluir-trabalho`);
+ if(btn){btn.disabled=true;btn.textContent='Excluindo...';}
+ try{
+  await removerArquivoAntigoTrabalho(catId);
+  const {error}=await _supabase.from('trabalhos_diarios').delete().eq('categoria_id',catId);
+  if(error)throw error;
+  estado.registro=null;
+  estado.file=null;
+  alert('Trabalho atual excluído com sucesso.');
+  openTrabalhoDiarioModal();
+ }catch(e){
+  console.error(e);
+  alert('Erro ao excluir trabalho atual.');
+ }finally{
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-trash"></i> Excluir trabalho atual';}
+ }
+}
+function selecionarArquivoTrabalhoDiario(catId,input){inicializarEstadoTrabalhoDiario();const file=input.files&&input.files[0];trabalhoDiarioEstado[catId].file=file||null;const el=document.getElementById('td-file-'+catId);if(el)el.textContent=file?file.name:'Nenhum arquivo selecionado';}
+function abrirSelecionarAtletasTrabalho(catId){
+ inicializarEstadoTrabalhoDiario();
+ trabalhoDiarioAtletasModal={categoriaId:catId,filtroAno:'todos',busca:''};
+ let m=document.getElementById('trabalho-atletas-modal');
+ if(!m){m=document.createElement('div');m.id='trabalho-atletas-modal';m.className='trabalho-atletas-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeSelecionarAtletasTrabalho();});}
+ renderSelecionarAtletasTrabalho();
+ m.style.display='flex';
+}
+function closeSelecionarAtletasTrabalho(){const m=document.getElementById('trabalho-atletas-modal');if(m)m.style.display='none';}
+function renderSelecionarAtletasTrabalho(){
+ const catId=trabalhoDiarioAtletasModal.categoriaId;
+ const cats=categoriasTrabalhoDiarioConfig();const cat=cats[catId];const estado=trabalhoDiarioEstado[catId];
+ const anos=[...new Set((excelData||[]).map(trabalhoAnoAtleta).filter(Boolean))].sort();
+ const filtroAno=trabalhoDiarioAtletasModal.filtroAno;
+ const busca=normalizarTextoTrabalho(trabalhoDiarioAtletasModal.busca).toLowerCase();
+ const atletas=trabalhoTodosAtletas().filter(a=>(filtroAno==='todos'||a.id.ano===filtroAno)&&(!busca||(`${a.id.apelido} ${a.id.nomeCompleto}`).toLowerCase().includes(busca)));
+ const lista=atletas.map(a=>{const key=trabalhoChaveAtleta(a.id);const isPadrao=estado.padrao.has(key);const checked=estado.selecionados.has(key);return `<label class="trabalho-atleta-item ${isPadrao?'padrao':''}"><input type="checkbox" data-key="${encodeURIComponent(key)}" ${checked?'checked':''} ${isPadrao?'disabled':''} onchange="toggleAtletaTrabalho('${catId}',decodeURIComponent(this.dataset.key),this.checked)"><span>${escapeHtmlJogos(a.id.apelido)} <small>${escapeHtmlJogos(a.id.ano)}${isPadrao?' • padrão':''}</small></span></label>`;}).join('')||'<p class="td-empty">Nenhum atleta encontrado.</p>';
+ const m=document.getElementById('trabalho-atletas-modal');
+ m.innerHTML=`<div class="trabalho-atletas-card"><button class="trabalho-diario-close" onclick="closeSelecionarAtletasTrabalho()">×</button><h2>Atletas - ${cat.label}</h2><p>Os atletas padrão da categoria ficam marcados. Selecione atletas extras para receber também. Eles ficarão marcados nos próximos envios.</p><div class="trabalho-atletas-filtros"><select onchange="trabalhoDiarioAtletasModal.filtroAno=this.value;renderSelecionarAtletasTrabalho()"><option value="todos">Todos os anos</option>${anos.map(a=>`<option value="${a}" ${a===filtroAno?'selected':''}>${a}</option>`).join('')}</select><input placeholder="Buscar atleta..." value="${escapeHtmlJogos(trabalhoDiarioAtletasModal.busca)}" oninput="trabalhoDiarioAtletasModal.busca=this.value;renderSelecionarAtletasTrabalho()"></div><div class="trabalho-atletas-lista">${lista}</div><div class="trabalho-atletas-footer"><strong>Padrão: ${estado.padrao.size} • Extras: ${trabalhoExtrasSelecionados(catId).length}</strong><button onclick="closeSelecionarAtletasTrabalho();atualizarContadorTrabalho('${catId}')">Concluir</button></div></div>`;
+}
+function toggleAtletaTrabalho(catId,key,checked){const estado=trabalhoDiarioEstado[catId];if(!estado||estado.padrao.has(key))return;if(checked)estado.selecionados.add(key);else estado.selecionados.delete(key);}
+function atualizarContadorTrabalho(catId){const estado=trabalhoDiarioEstado[catId];const el=document.getElementById('td-count-'+catId);if(el&&estado)el.textContent=estado.padrao.size;const extras=document.getElementById('td-extras-'+catId);if(extras)extras.outerHTML=renderTrabalhoExtrasHTML(catId);}
+function destinatariosTrabalho(catId){
+ const estado=trabalhoDiarioEstado[catId];
+ const keys=estado?Array.from(estado.selecionados):[];
+ // Salva no Supabase APENAS os atletas extras. Os atletas padrão serão definidos pelos anos_padrao.
+ return keys
+  .filter(key=>!estado.padrao.has(key))
+  .map(key=>{
+   const a=trabalhoTodosAtletas().find(item=>trabalhoChaveAtleta(item.id)===key);
+   return a?{nomeCompleto:a.id.nomeCompleto,ano:a.id.ano}:null;
+  })
+  .filter(Boolean);
+}
+async function removerArquivoAntigoTrabalho(catId){
+ const reg=trabalhoDiarioEstado[catId]&&trabalhoDiarioEstado[catId].registro;
+ if(reg&&reg.storage_path){try{await _supabase.storage.from(TRABALHOS_DIARIOS_BUCKET).remove([reg.storage_path]);}catch(e){console.warn('Não foi possível remover PDF antigo:',e);}}
+}
+async function enviarTrabalhoDiario(catId){
+ inicializarEstadoTrabalhoDiario();
+ const cat=categoriasTrabalhoDiarioConfig()[catId];const estado=trabalhoDiarioEstado[catId];
+ if(!estado.file)return alert('Selecione um PDF para enviar.');
+ if(estado.file.type && estado.file.type!=='application/pdf' && !estado.file.name.toLowerCase().endsWith('.pdf'))return alert('Envie apenas arquivo PDF.');
+ const atletas=destinatariosTrabalho(catId);
+ if(!estado.selecionados.size)return alert('Nenhum atleta selecionado para este trabalho.');
+ const btn=document.querySelector(`.td-cat-panel[data-cat="${catId}"] .enviar`);if(btn){btn.disabled=true;btn.textContent='Enviando...';}
+ try{
+  await removerArquivoAntigoTrabalho(catId);
+  const safeName=estado.file.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_.-]+/gi,'_');
+  const path=`${catId}/${Date.now()}_${safeName}`;
+  const up=await _supabase.storage.from(TRABALHOS_DIARIOS_BUCKET).upload(path,estado.file,{upsert:true,contentType:'application/pdf'});
+  if(up.error)throw up.error;
+  const {data:pub}= _supabase.storage.from(TRABALHOS_DIARIOS_BUCKET).getPublicUrl(path);
+  const payload={categoria_id:catId,categoria_label:cat.label,anos_padrao:cat.anos,arquivo_nome:estado.file.name,storage_path:path,public_url:pub&&pub.publicUrl?pub.publicUrl:'',atletas,atualizado_em:new Date().toISOString()};
+  const res=await _supabase.from('trabalhos_diarios').upsert(payload,{onConflict:'categoria_id'});
+  if(res.error)throw res.error;
+  estado.registro=payload;estado.file=null;
+  alert('Trabalho enviado para '+cat.label+' com sucesso.');
+  openTrabalhoDiarioModal();
+ }catch(e){console.error(e);alert('Erro ao enviar trabalho. Verifique tabela/bucket no Supabase.');}
+ finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-upload"></i> Enviar/Substituir';}}
+}
+
+
+
+/* === PLANEJAMENTO SEMANAL === */
+const PLANEJAMENTOS_SEMANAIS_BUCKET = 'planejamentos-semanais';
+let planejamentoSemanalEstado = {};
+let planejamentoSemanalAtletasModal = { categoriaId: null, filtroAno: 'todos', busca: '' };
+function inicializarEstadoPlanejamentoSemanal(){
+ const cats=categoriasTrabalhoDiarioConfig();
+ Object.keys(cats).forEach(id=>{
+  if(!planejamentoSemanalEstado[id]){
+   const padrao=trabalhoAtletasPorAnos(cats[id].anos).map(a=>trabalhoChaveAtleta(a.id));
+   planejamentoSemanalEstado[id]={file:null,selecionados:new Set(padrao),padrao:new Set(padrao),registro:null};
+  }
+ });
+}
+function aplicarExtrasSalvosPlanejamento(catId, extras){
+ const estado=planejamentoSemanalEstado[catId];
+ if(!estado||!Array.isArray(extras))return;
+ extras.forEach(extra=>{
+  const item=localizarAtletaTrabalhoPorNomeAno(extra);
+  if(item)estado.selecionados.add(trabalhoChaveAtleta(item.id));
+ });
+}
+async function carregarPlanejamentosSemanaisAtuais(){
+ try{
+  const {data,error}=await _supabase.from('planejamentos_semanais').select('*');
+  if(error){console.warn('Tabela planejamentos_semanais não carregada:',error.message);return;}
+  for(const r of (data||[])){
+   if(!planejamentoSemanalEstado[r.categoria_id]) continue;
+   planejamentoSemanalEstado[r.categoria_id].registro=r;
+   aplicarExtrasSalvosPlanejamento(r.categoria_id, r.atletas || []);
+  }
+ }catch(e){console.warn('Erro ao carregar planejamentos semanais:',e);}
+}
+async function openPlanejamentoSemanalModal(){
+ inicializarEstadoPlanejamentoSemanal();
+ await carregarPlanejamentosSemanaisAtuais();
+ let m=document.getElementById('planejamento-semanal-modal');
+ if(!m){m=document.createElement('div');m.id='planejamento-semanal-modal';m.className='trabalho-diario-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closePlanejamentoSemanalModal();});}
+ const cats=categoriasTrabalhoDiarioConfig();
+ m.innerHTML=`<div class="trabalho-diario-card planejamento-semanal-card"><button class="trabalho-diario-close" onclick="closePlanejamentoSemanalModal()">×</button><h2>Planejamento Semanal</h2><p class="trabalho-diario-sub">Envie o PDF do planejamento semanal por categoria. Cada novo envio substitui o planejamento anterior da categoria.</p><div class="trabalho-diario-grid">${Object.keys(cats).map(id=>renderPlanejamentoSemanalCategoriaHTML(id)).join('')}</div></div>`;
+ m.style.display='flex';
+}
+function closePlanejamentoSemanalModal(){const m=document.getElementById('planejamento-semanal-modal');if(m)m.style.display='none';}
+function planejamentoExtrasSelecionados(catId){
+ const estado=planejamentoSemanalEstado[catId];
+ if(!estado)return [];
+ return Array.from(estado.selecionados)
+  .filter(key=>!estado.padrao.has(key))
+  .map(key=>trabalhoTodosAtletas().find(item=>trabalhoChaveAtleta(item.id)===key))
+  .filter(Boolean)
+  .sort((a,b)=>a.id.ano.localeCompare(b.id.ano)||a.id.apelido.localeCompare(b.id.apelido,'pt-BR'));
+}
+function renderPlanejamentoExtrasHTML(catId){
+ const extras=planejamentoExtrasSelecionados(catId);
+ if(!extras.length)return `<div class="td-extras" id="ps-extras-${catId}"></div>`;
+ return `<div class="td-extras" id="ps-extras-${catId}">${extras.map(a=>{const key=encodeURIComponent(trabalhoChaveAtleta(a.id));return `<span><button type="button" class="td-extra-remove" title="Remover atleta extra" onclick="removerExtraPlanejamento('${catId}',decodeURIComponent('${key}'))">×</button>+ ${escapeHtmlJogos(a.id.apelido || a.id.nomeCompleto)} - ${escapeHtmlJogos(a.id.ano)}</span>`;}).join('')}</div>`;
+}
+async function removerExtraPlanejamento(catId,key){
+ const estado=planejamentoSemanalEstado[catId];
+ if(!estado||estado.padrao.has(key))return;
+ estado.selecionados.delete(key);
+ atualizarContadorPlanejamento(catId);
+ if(estado.registro){
+  const extras=destinatariosPlanejamento(catId);
+  const {error}=await _supabase.from('planejamentos_semanais').update({atletas:extras,atualizado_em:new Date().toISOString()}).eq('categoria_id',catId);
+  if(error){console.error(error);alert('Não foi possível salvar a remoção do atleta extra.');return;}
+  estado.registro.atletas=extras;
+ }
+}
+function renderPlanejamentoSemanalCategoriaHTML(catId){
+ const cat=categoriasTrabalhoDiarioConfig()[catId];
+ const estado=planejamentoSemanalEstado[catId];
+ const count=estado?estado.padrao.size:0;
+ const reg=estado&&estado.registro;
+ const status=reg?`<button type="button" class="td-status ok td-status-link" onclick="abrirPlanejamentoAtual('${catId}')" title="Abrir PDF atual"><strong>Atual:</strong> ${escapeHtmlJogos(reg.arquivo_nome||'PDF enviado')}<br><small>${reg.atualizado_em?new Date(reg.atualizado_em).toLocaleString('pt-BR'):''} • Extras: ${(reg.atletas||[]).length}</small></button>`:`<div class="td-status">Nenhum planejamento enviado.</div>`;
+ return `<section class="td-cat-panel" data-cat="${catId}"><h3>${cat.label}</h3><div class="td-anos">Padrão: ${cat.anos.join(', ')}</div>${status}<label class="td-file-label">PDF do planejamento<input type="file" accept="application/pdf,.pdf" onchange="selecionarArquivoPlanejamento('${catId}',this)"></label><div class="td-file-name" id="ps-file-${catId}">Nenhum arquivo selecionado</div><div class="td-actions"><button type="button" onclick="abrirSelecionarAtletasPlanejamento('${catId}')"><i class="fa-solid fa-user-plus"></i> Atletas <span id="ps-count-${catId}">${count}</span></button><button type="button" class="enviar" onclick="enviarPlanejamentoSemanal('${catId}')"><i class="fa-solid fa-upload"></i> Enviar/Substituir</button>${reg?`<button type="button" class="excluir-trabalho" onclick="excluirPlanejamentoAtual('${catId}')"><i class="fa-solid fa-trash"></i> Excluir planejamento atual</button>`:''}</div>${renderPlanejamentoExtrasHTML(catId)}</section>`;
+}
+function selecionarArquivoPlanejamento(catId,input){inicializarEstadoPlanejamentoSemanal();const file=input.files&&input.files[0];planejamentoSemanalEstado[catId].file=file||null;const el=document.getElementById('ps-file-'+catId);if(el)el.textContent=file?file.name:'Nenhum arquivo selecionado';}
+function abrirSelecionarAtletasPlanejamento(catId){
+ inicializarEstadoPlanejamentoSemanal();
+ planejamentoSemanalAtletasModal={categoriaId:catId,filtroAno:'todos',busca:''};
+ let m=document.getElementById('planejamento-atletas-modal');
+ if(!m){m=document.createElement('div');m.id='planejamento-atletas-modal';m.className='trabalho-atletas-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeSelecionarAtletasPlanejamento();});}
+ renderSelecionarAtletasPlanejamento();
+ m.style.display='flex';
+}
+function closeSelecionarAtletasPlanejamento(){const m=document.getElementById('planejamento-atletas-modal');if(m)m.style.display='none';}
+function renderSelecionarAtletasPlanejamento(){
+ const catId=planejamentoSemanalAtletasModal.categoriaId;
+ const cats=categoriasTrabalhoDiarioConfig();const cat=cats[catId];const estado=planejamentoSemanalEstado[catId];
+ const anos=[...new Set((excelData||[]).map(trabalhoAnoAtleta).filter(Boolean))].sort();
+ const filtroAno=planejamentoSemanalAtletasModal.filtroAno;
+ const busca=normalizarTextoTrabalho(planejamentoSemanalAtletasModal.busca).toLowerCase();
+ const atletas=trabalhoTodosAtletas().filter(a=>(filtroAno==='todos'||a.id.ano===filtroAno)&&(!busca||(`${a.id.apelido} ${a.id.nomeCompleto}`).toLowerCase().includes(busca)));
+ const lista=atletas.map(a=>{const key=trabalhoChaveAtleta(a.id);const isPadrao=estado.padrao.has(key);const checked=estado.selecionados.has(key);return `<label class="trabalho-atleta-item ${isPadrao?'padrao':''}"><input type="checkbox" data-key="${encodeURIComponent(key)}" ${checked?'checked':''} ${isPadrao?'disabled':''} onchange="toggleAtletaPlanejamento('${catId}',decodeURIComponent(this.dataset.key),this.checked)"><span>${escapeHtmlJogos(a.id.apelido)} <small>${escapeHtmlJogos(a.id.ano)}${isPadrao?' • padrão':''}</small></span></label>`;}).join('')||'<p class="td-empty">Nenhum atleta encontrado.</p>';
+ const m=document.getElementById('planejamento-atletas-modal');
+ m.innerHTML=`<div class="trabalho-atletas-card"><button class="trabalho-diario-close" onclick="closeSelecionarAtletasPlanejamento()">×</button><h2>Atletas - ${cat.label}</h2><p>Os atletas padrão da categoria ficam marcados. Selecione atletas extras para receber também. Eles ficarão marcados nos próximos envios.</p><div class="trabalho-atletas-filtros"><select onchange="planejamentoSemanalAtletasModal.filtroAno=this.value;renderSelecionarAtletasPlanejamento()"><option value="todos">Todos os anos</option>${anos.map(a=>`<option value="${a}" ${a===filtroAno?'selected':''}>${a}</option>`).join('')}</select><input placeholder="Buscar atleta..." value="${escapeHtmlJogos(planejamentoSemanalAtletasModal.busca)}" oninput="planejamentoSemanalAtletasModal.busca=this.value;renderSelecionarAtletasPlanejamento()"></div><div class="trabalho-atletas-lista">${lista}</div><div class="trabalho-atletas-footer"><strong>Padrão: ${estado.padrao.size} • Extras: ${planejamentoExtrasSelecionados(catId).length}</strong><button onclick="closeSelecionarAtletasPlanejamento();atualizarContadorPlanejamento('${catId}')">Concluir</button></div></div>`;
+}
+function toggleAtletaPlanejamento(catId,key,checked){const estado=planejamentoSemanalEstado[catId];if(!estado||estado.padrao.has(key))return;if(checked)estado.selecionados.add(key);else estado.selecionados.delete(key);}
+function atualizarContadorPlanejamento(catId){const estado=planejamentoSemanalEstado[catId];const el=document.getElementById('ps-count-'+catId);if(el&&estado)el.textContent=estado.padrao.size;const extras=document.getElementById('ps-extras-'+catId);if(extras)extras.outerHTML=renderPlanejamentoExtrasHTML(catId);}
+function destinatariosPlanejamento(catId){
+ const estado=planejamentoSemanalEstado[catId];
+ const keys=estado?Array.from(estado.selecionados):[];
+ return keys
+  .filter(key=>!estado.padrao.has(key))
+  .map(key=>{
+   const a=trabalhoTodosAtletas().find(item=>trabalhoChaveAtleta(item.id)===key);
+   return a?{nomeCompleto:a.id.nomeCompleto,ano:a.id.ano}:null;
+  })
+  .filter(Boolean);
+}
+async function removerArquivoAntigoPlanejamento(catId){
+ const reg=planejamentoSemanalEstado[catId]&&planejamentoSemanalEstado[catId].registro;
+ if(reg&&reg.storage_path){try{await _supabase.storage.from(PLANEJAMENTOS_SEMANAIS_BUCKET).remove([reg.storage_path]);}catch(e){console.warn('Não foi possível remover PDF antigo:',e);}}
+}
+function abrirPlanejamentoAtual(catId){
+ const reg=planejamentoSemanalEstado[catId]&&planejamentoSemanalEstado[catId].registro;
+ if(!reg)return alert('Nenhum planejamento atual para abrir.');
+ let url=reg.public_url||'';
+ if(!url&&reg.storage_path){try{const {data}= _supabase.storage.from(PLANEJAMENTOS_SEMANAIS_BUCKET).getPublicUrl(reg.storage_path);url=data&&data.publicUrl?data.publicUrl:'';}catch(e){console.warn(e);}}
+ if(!url)return alert('Não encontrei o link do PDF atual.');
+ window.open(url,'_blank','noopener,noreferrer');
+}
+async function excluirPlanejamentoAtual(catId){
+ const estado=planejamentoSemanalEstado[catId];const reg=estado&&estado.registro;
+ if(!reg)return alert('Nenhum planejamento atual para excluir.');
+ if(!confirm('Excluir o planejamento atual de '+(reg.categoria_label||catId)+'?'))return;
+ const btn=document.querySelector(`.td-cat-panel[data-cat="${catId}"] .excluir-trabalho`);if(btn){btn.disabled=true;btn.textContent='Excluindo...';}
+ try{
+  await removerArquivoAntigoPlanejamento(catId);
+  const {error}=await _supabase.from('planejamentos_semanais').delete().eq('categoria_id',catId);
+  if(error)throw error;
+  estado.registro=null;estado.file=null;
+  alert('Planejamento atual excluído com sucesso.');
+  openPlanejamentoSemanalModal();
+ }catch(e){console.error(e);alert('Erro ao excluir planejamento atual.');}
+ finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-trash"></i> Excluir planejamento atual';}}
+}
+async function enviarPlanejamentoSemanal(catId){
+ inicializarEstadoPlanejamentoSemanal();
+ const cat=categoriasTrabalhoDiarioConfig()[catId];const estado=planejamentoSemanalEstado[catId];
+ if(!estado.file)return alert('Selecione um PDF para enviar.');
+ if(estado.file.type && estado.file.type!=='application/pdf' && !estado.file.name.toLowerCase().endsWith('.pdf'))return alert('Envie apenas arquivo PDF.');
+ const atletas=destinatariosPlanejamento(catId);
+ if(!estado.selecionados.size)return alert('Nenhum atleta selecionado para este planejamento.');
+ const btn=document.querySelector(`#planejamento-semanal-modal .td-cat-panel[data-cat="${catId}"] .enviar`);if(btn){btn.disabled=true;btn.textContent='Enviando...';}
+ try{
+  await removerArquivoAntigoPlanejamento(catId);
+  const safeName=estado.file.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_.-]+/gi,'_');
+  const path=`${catId}/${Date.now()}_${safeName}`;
+  const up=await _supabase.storage.from(PLANEJAMENTOS_SEMANAIS_BUCKET).upload(path,estado.file,{upsert:true,contentType:'application/pdf'});
+  if(up.error)throw up.error;
+  const {data:pub}= _supabase.storage.from(PLANEJAMENTOS_SEMANAIS_BUCKET).getPublicUrl(path);
+  const payload={categoria_id:catId,categoria_label:cat.label,anos_padrao:cat.anos,arquivo_nome:estado.file.name,storage_path:path,public_url:pub&&pub.publicUrl?pub.publicUrl:'',atletas,atualizado_em:new Date().toISOString()};
+  const res=await _supabase.from('planejamentos_semanais').upsert(payload,{onConflict:'categoria_id'});
+  if(res.error)throw res.error;
+  estado.registro=payload;estado.file=null;
+  alert('Planejamento enviado para '+cat.label+' com sucesso.');
+  openPlanejamentoSemanalModal();
+ }catch(e){console.error(e);alert('Erro ao enviar planejamento. Verifique tabela/bucket no Supabase.');}
+ finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-upload"></i> Enviar/Substituir';}}
+}
+
 function relatoriosResetSort(){window.__relatoriosSort={key:'anoNome',dir:'asc'};window.__relatorioAtletaSelecionadoIndex=null;}
 function relatoriosSortBy(key){
  const s=window.__relatoriosSort||{key:'nome',dir:'asc'};

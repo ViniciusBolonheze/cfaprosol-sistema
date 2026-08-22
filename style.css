@@ -3418,3 +3418,81 @@ body {
     .relatorio-jogos-area{margin:14px auto 120px;}
     .relatorio-jogos-btn{width:100%;min-width:0;font-size:13px;padding:13px 18px;}
 }
+
+
+/* === Menu Relatórios e Trabalho Diário === */
+.relatorios-menu-overlay,.trabalho-diario-overlay,.trabalho-atletas-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:18500;padding:16px}.relatorios-menu-card{position:relative;width:min(520px,94vw);background:#fff;border-radius:14px;padding:26px 24px;box-shadow:0 15px 45px rgba(0,0,0,.35);border-top:7px solid #58111a}.relatorios-menu-close,.trabalho-diario-close{position:absolute;right:12px;top:10px;width:34px;height:34px;border:0;border-radius:50%;background:#58111a;color:#fff;font-size:22px;cursor:pointer}.relatorios-menu-card h2{margin:0;color:#58111a;font-size:24px}.relatorios-menu-card p{margin:6px 0 18px;color:#555}.relatorios-menu-options{display:grid;grid-template-columns:1fr 1fr;gap:14px}.relatorios-menu-options button{border:1px solid #e1d8ca;background:#fff;border-radius:12px;padding:20px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:145px;box-shadow:0 3px 10px rgba(0,0,0,.08)}.relatorios-menu-options button:hover{border-color:#f9c614;transform:translateY(-2px)}.relatorios-menu-options i{font-size:30px;color:#58111a}.relatorios-menu-options span{font-size:17px;font-weight:900;color:#111}.relatorios-menu-options small{font-size:12px;color:#666}.trabalho-diario-card{position:relative;width:min(1050px,96vw);max-height:92vh;overflow:auto;background:#fff;border-radius:14px;padding:24px;box-shadow:0 15px 45px rgba(0,0,0,.35);border-top:7px solid #58111a}.trabalho-diario-card h2{margin:0;color:#58111a}.trabalho-diario-sub{color:#555;margin:6px 0 16px}.trabalho-diario-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.td-cat-panel{border:1px solid #ddd;border-radius:12px;padding:14px;background:#fafafa}.td-cat-panel h3{margin:0 0 6px;color:#b30000}.td-anos{font-size:11px;font-weight:bold;color:#555;margin-bottom:8px}.td-status{font-size:11px;background:#fff;border:1px dashed #bbb;border-radius:7px;padding:8px;margin-bottom:10px;color:#666}.td-status.ok{border-color:#27ae60;color:#145a32;background:#f0fff5}.td-file-label{display:block;font-size:12px;font-weight:bold;color:#58111a}.td-file-label input{display:block;margin-top:5px;width:100%;font-size:12px}.td-file-name{font-size:11px;color:#555;margin:7px 0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.td-actions{display:flex;gap:8px;flex-wrap:wrap}.td-actions button{border:0;border-radius:6px;padding:8px 10px;font-size:12px;font-weight:bold;cursor:pointer;background:#0984e3;color:#fff}.td-actions button.enviar{background:#27ae60}.td-actions button:disabled{opacity:.6;cursor:wait}.trabalho-atletas-card{position:relative;width:min(700px,95vw);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;padding:22px;box-shadow:0 15px 45px rgba(0,0,0,.35);border-top:7px solid #58111a}.trabalho-atletas-card h2{margin:0;color:#58111a}.trabalho-atletas-card p{font-size:12px;color:#555}.trabalho-atletas-filtros{display:grid;grid-template-columns:150px 1fr;gap:8px;margin:12px 0}.trabalho-atletas-filtros select,.trabalho-atletas-filtros input{padding:8px;border:1px solid #bbb;border-radius:6px}.trabalho-atletas-lista{border:1px solid #ddd;border-radius:8px;max-height:430px;overflow:auto}.trabalho-atleta-item{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid #eee;cursor:pointer}.trabalho-atleta-item:hover{background:#f7fbff}.trabalho-atleta-item.padrao{background:#fff8df}.trabalho-atleta-item small{color:#777}.trabalho-atletas-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.trabalho-atletas-footer button{border:0;border-radius:6px;background:#58111a;color:#fff;padding:9px 14px;font-weight:bold}.td-empty{padding:12px;color:#666;text-align:center}@media(max-width:800px){.relatorios-menu-options{grid-template-columns:1fr}.trabalho-diario-grid{grid-template-columns:1fr}.trabalho-atletas-filtros{grid-template-columns:1fr}}
+
+
+/* Trabalho Diário: exibição de atletas extras abaixo do botão */
+.td-extras{
+    margin-top:8px;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:3px;
+    min-height:12px;
+}
+.td-extras span{
+    color:#d00000;
+    font-size:11px;
+    font-weight:900;
+    line-height:1.1;
+}
+@media(max-width:800px){
+    .td-extras span{font-size:10px;}
+}
+
+
+/* Trabalho Diário: botão X para remover extra */
+.td-extras span{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+}
+.td-extra-remove{
+    width:16px;
+    height:16px;
+    border:1px solid #d00000;
+    border-radius:50%;
+    background:#fff;
+    color:#d00000;
+    font-size:11px;
+    line-height:13px;
+    font-weight:900;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+}
+.td-extra-remove:hover{
+    background:#d00000;
+    color:#fff;
+}
+
+
+/* Trabalho Diário: abrir PDF atual e excluir trabalho */
+.td-status-link{
+    width:100%;
+    display:block;
+    text-align:left;
+    cursor:pointer;
+    font-family:inherit;
+}
+.td-status-link:hover{
+    filter:brightness(.98);
+    box-shadow:0 0 0 2px rgba(39,174,96,.22) inset;
+}
+.td-actions button.excluir-trabalho{
+    background:#d63031;
+    color:#fff;
+}
+.td-actions button.excluir-trabalho:hover{
+    filter:brightness(.95);
+}
+
+
+/* Planejamento Semanal usa a mesma estrutura do Trabalho Diário */
+.planejamento-semanal-card{border-top-color:#f9c614!important;}
+.planejamento-semanal-card h2{color:#58111a;}
