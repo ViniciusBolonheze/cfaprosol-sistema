@@ -8,7 +8,7 @@
     <link rel="shortcut icon" type="image/png" href="logo.png">
     <link rel="apple-touch-icon" href="logo.png">
     <meta name="theme-color" content="#58111a">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=modern-v3-ajustes-19">
     <!-- FontAwesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS (XLSX) para leitura de arquivos do Excel -->
@@ -37,7 +37,7 @@
         .modal-footer p { margin: 3px 0; }
     </style>
 </head>
-<body>
+<body class="modern-v3">
     <div id="relogio-inatividade-sistema" title="Tempo para atualização automática">↻ 10:00</div>
 
     <!-- Cabeçalho Superior -->
@@ -45,15 +45,14 @@
         <div class="header-content-top">
             <div class="header-icons-row">
                 <div class="instagram-icon" title="Abrir Instagram" role="button" tabindex="0"><i class="fab fa-instagram"></i></div>
-                <button class="fotos-header-btn" onclick="openFotosModal()" title="Fotos dos atletas" aria-label="Fotos dos atletas">
-                    <span class="fotos-header-icon" aria-hidden="true">
+                <button class="fotos-header-btn home-header-btn" onclick="modernV3Navigate('home', event)" title="Voltar à tela inicial" aria-label="Voltar à tela inicial">
+                    <span class="fotos-header-icon home-header-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" focusable="false">
-                            <path d="M4 7.5C4 6.12 5.12 5 6.5 5h2.1l.75-1.15C9.72 3.32 10.32 3 10.96 3h2.08c.64 0 1.24.32 1.61.85L15.4 5h2.1C18.88 5 20 6.12 20 7.5v9C20 17.88 18.88 19 17.5 19h-11C5.12 19 4 17.88 4 16.5v-9Z"/>
-                            <circle cx="12" cy="12" r="3.35"/>
-                            <circle cx="17.2" cy="8.05" r="1.05"/>
+                            <path d="M3 11.5 12 4l9 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <path d="M5.5 10.5V20h5.2v-5.4h2.6V20h5.2v-9.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
                         </svg>
                     </span>
-                    <span>Fotos</span>
+                    <span>Início</span>
                 </button>
             </div>
             <div class="date-display">segunda-feira, 10 de agosto de 2026</div>
@@ -364,7 +363,7 @@
 
 		<div style="text-align: center; margin: 25px 0; width: 100%;">
     <button onclick="gerarFichasTreino()" style="background: #27ae60; color: #fff; padding: 14px 28px; font-size: 16px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: inline-flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-file-signature"></i> GERAR FICHAS
+        <span class="grupos-gerar-icone" aria-hidden="true">📝</span> GERAR FICHAS
     			</button>
 		</div>
             </div>
@@ -427,9 +426,19 @@
                 <div class="form-row">
                     <label>Posição:</label>
                     <select id="add-posicao">
-                        <option value="Goleiro">Goleiro</option><option value="Zagueiro">Zagueiro</option>
-                        <option value="Lateral">Lateral</option><option value="Volante">Volante</option>
-                        <option value="Meia" selected>Meia</option><option value="Atacante">Atacante</option>
+                        <option value="Goleiro">Goleiro</option>
+                        <option value="Zagueiro">Zagueiro</option>
+                        <option value="Zagueiro Dir.">Zagueiro Dir.</option>
+                        <option value="Zagueiro Esq.">Zagueiro Esq.</option>
+                        <option value="Lateral Dir.">Lateral Dir.</option>
+                        <option value="Lateral Esq.">Lateral Esq.</option>
+                        <option value="Volante">Volante</option>
+                        <option value="1º Volante">1º Volante</option>
+                        <option value="2º Volante">2º Volante</option>
+                        <option value="Meia" selected>Meia</option>
+                        <option value="Atacante">Atacante</option>
+                        <option value="Ponta Dir.">Ponta Dir.</option>
+                        <option value="Ponta Esq.">Ponta Esq.</option>
                         <option value="Extremo">Extremo</option>
                     </select>
                 </div>
@@ -439,7 +448,7 @@
                 <div class="form-row">
                     <label>Foto do Atleta:</label>
                     <div class="upload-group">
-                        <label class="btn-select-file" id="file-label-text">Selecionar Foto</label>
+                        <label class="btn-select-file" id="file-label-text" for="add-foto">Selecionar Foto</label>
                         <input type="file" id="add-foto" accept="image/*" onchange="previewAthletePhoto(this)">
                     </div>
                 </div>
@@ -547,6 +556,6 @@
         </div>
     </div>
 </div>
-    <script src="script.js?v=20260823-psr-pse-relatorios"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2f522d4fbb2f227',t:'MTc4NzQzNTg3Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script src="script.js?v=modern-v3-ajustes-19"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2f522d4fbb2f227',t:'MTc4NzQzNTg3Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2fdc58849730303',t:'MTc4NzUyNjQyNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

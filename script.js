@@ -196,10 +196,15 @@ function printFicha() {
 
 /* === NAVEGAÇÃO === */
 function enterSystem() {
+    document.body.classList.add('app-v3-mode');
+    if (typeof modernV3EnsureMenu === 'function') modernV3EnsureMenu();
+    if (typeof modernV3BuildHome === 'function') modernV3BuildHome();
     document.getElementById('login-screen').classList.remove('active-screen');
     document.getElementById('home-screen').classList.add('active-screen');
     document.getElementById('main-nav').style.display = 'flex';
     document.getElementById('yellow-bar-nav').style.display = 'block';
+    modernV3ManualSidebarClosed=false;
+    document.body.classList.remove('modern-v3-sidebar-collapsed');
 }
 
 function navigateTo(screenId, event) {
@@ -516,19 +521,274 @@ function renderAtletasScreen() {
 
         const itemDiv = document.createElement('div');
         itemDiv.className = 'athlete-item' + (selectedAthleteIndex === globalIndex ? ' selected' : '');
+        itemDiv.draggable = true;
+        itemDiv.dataset.atletaIndex = String(globalIndex);
+        itemDiv.addEventListener('dragstart', (event) => {
+            event.dataTransfer.setData('text/plain', String(globalIndex));
+            event.dataTransfer.effectAllowed = 'move';
+            itemDiv.classList.add('arrastando-atleta');
+        });
+        itemDiv.addEventListener('dragend', () => itemDiv.classList.remove('arrastando-atleta'));
         if(selectedAthleteIndex === globalIndex) { itemDiv.style.backgroundColor = '#0984e3'; itemDiv.style.color = '#fff'; }
         
         // 4. Insere o nome junto com os ícones (ficha, lesão e/ou cartão vermelho)
         itemDiv.innerHTML = `<span>${nomeExibicao} ${iconeFicha} ${iconeLesao} ${iconeCartaoVermelho}</span> <span>${anoAtleta}</span>`;
         
-        itemDiv.onclick = () => { selectedAthleteIndex = globalIndex; renderAtletasScreen(); };
+        itemDiv.onclick = () => {
+            selectedAthleteIndex = globalIndex;
+            renderAtletasScreen();
+            setTimeout(() => mostrarCardAtletaSelecionado(globalIndex), 0);
+        };
         if (posLists[targetBox]) posLists[targetBox].appendChild(itemDiv);
     });
+    configurarDropAtletasPosicoes(posLists);
+    if (selectedAthleteIndex !== null && selectedAthleteIndex !== undefined) {
+        setTimeout(() => mostrarCardAtletaSelecionado(selectedAthleteIndex), 0);
+    } else {
+        esconderTooltipAtletaCadastro();
+    }
+}
+
+
+function atletasTooltipEscape(valor){
+    if (typeof escapeHtmlJogos === 'function') return escapeHtmlJogos(valor);
+    return String(valor ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));
+}
+function valorFlexAtletaCadastro(row, termos){
+    const chave = Object.keys(row || {}).find(k => termos.some(t => String(k).toLowerCase().includes(String(t).toLowerCase())));
+    return chave ? row[chave] : '';
+}
+function valorExatoAtletaCadastro(row, nome){
+    const chave = Object.keys(row || {}).find(k => String(k).toLowerCase().trim() === String(nome).toLowerCase().trim());
+    return chave ? row[chave] : '';
+}
+function ultimaAvaliacaoAtletaCadastro(row){
+    let max = 1;
+    for(let i=1;i<=30;i++){
+        const bases=['Data','Altura','peso','alturapredita','altura','Peso'];
+        const tem=bases.some(base=>{
+            const nomes=[base+i,base+'_'+i].map(x=>x.toLowerCase());
+            const chave=Object.keys(row||{}).find(k=>nomes.includes(String(k).toLowerCase()));
+            return chave && row[chave] !== undefined && row[chave] !== null && String(row[chave]).trim() !== '' && String(row[chave]).trim() !== '-';
+        });
+        if(tem)max=i;
+    }
+    const get=(base)=>{
+        const nomes=[base+max,base+'_'+max].map(x=>x.toLowerCase());
+        const chave=Object.keys(row||{}).find(k=>nomes.includes(String(k).toLowerCase()));
+        const val=chave?row[chave]:'';
+        return (val!==undefined&&val!==null&&String(val).trim()!=='')?String(val).trim():'-';
+    };
+    return {numero:max,peso:get('peso'),altura:get('Altura'),alturaPredita:get('alturapredita')};
+}
+function htmlTooltipAtletaCadastro(globalIndex){
+    const row=excelData[globalIndex]||{};
+    const nome=valorExatoAtletaCadastro(row,'NOME COMPLETO')||valorFlexAtletaCadastro(row,['nome completo'])||valorFlexAtletaCadastro(row,['nome'])||'Sem nome';
+    const apelido=valorFlexAtletaCadastro(row,['apelido'])||nome;
+    const nascimento=convertExcelDate(valorFlexAtletaCadastro(row,['data de nascimento','nascimento']))||'-';
+    const cidade=valorExatoAtletaCadastro(row,'CIDADE')||valorFlexAtletaCadastro(row,['cidade'])||'-';
+    const foto=valorFlexAtletaCadastro(row,['foto','imagem'])||'logo.png';
+    const av=ultimaAvaliacaoAtletaCadastro(row);
+    return `<div class="atleta-hover-tooltip-head"><img src="${atletasTooltipEscape(foto)}" onerror="this.src='logo.png'" alt="${atletasTooltipEscape(apelido)}"><div><div class="atleta-hover-tooltip-title">${atletasTooltipEscape(apelido)}</div><div class="atleta-hover-tooltip-name">${atletasTooltipEscape(nome)}</div></div></div>
+        <div class="atleta-hover-tooltip-grid">
+            <span>Nascimento</span><b>${atletasTooltipEscape(nascimento)}</b>
+            <span>Peso</span><b>${atletasTooltipEscape(av.peso)}${av.peso!=='-'?' kg':''}</b>
+            <span>Altura</span><b>${atletasTooltipEscape(av.altura)}${av.altura!=='-'?' m':''}</b>
+            <span>Alt. Predita</span><b>${atletasTooltipEscape(av.alturaPredita)}${av.alturaPredita!=='-'?' m':''}</b>
+            <span>Cidade</span><b>${atletasTooltipEscape(cidade)}</b>
+        </div>`;
+}
+function obterTooltipAtletaCadastro(){
+    let el=document.getElementById('atleta-hover-tooltip');
+    if(!el){
+        el=document.createElement('div');
+        el.id='atleta-hover-tooltip';
+        el.className='atleta-hover-tooltip';
+        document.body.appendChild(el);
+    }
+    return el;
+}
+function posicionarTooltipAtletaCadastro(event){
+    const el=document.getElementById('atleta-hover-tooltip');
+    if(!el || el.style.display==='none')return;
+    const margem=14;
+    const rect=el.getBoundingClientRect();
+    let x=event.clientX+margem;
+    let y=event.clientY+margem;
+    if(x+rect.width>window.innerWidth-8) x=event.clientX-rect.width-margem;
+    if(y+rect.height>window.innerHeight-8) y=event.clientY-rect.height-margem;
+    el.style.left=Math.max(8,x)+'px';
+    el.style.top=Math.max(8,y)+'px';
+}
+function mostrarTooltipAtletaCadastro(event, globalIndex){
+    mostrarCardAtletaSelecionado(globalIndex, event);
+}
+function posicionarCardAtletaSelecionado(globalIndex, event){
+    const el=document.getElementById('atleta-hover-tooltip');
+    if(!el || el.style.display==='none')return;
+    let alvo=document.querySelector(`.athlete-item.selected[data-atleta-index="${globalIndex}"]`);
+    let rect=alvo ? alvo.getBoundingClientRect() : null;
+    const margem=12;
+    const card=el.getBoundingClientRect();
+    let x, y;
+    if(rect){
+        x=rect.right+margem;
+        y=rect.top;
+        if(x+card.width>window.innerWidth-8) x=rect.left-card.width-margem;
+        if(y+card.height>window.innerHeight-8) y=window.innerHeight-card.height-8;
+    }else if(event){
+        x=event.clientX+margem;
+        y=event.clientY+margem;
+    }else{
+        el.style.display='none';
+        return;
+    }
+    el.style.left=Math.max(8,x)+'px';
+    el.style.top=Math.max(8,y)+'px';
+}
+function mostrarCardAtletaSelecionado(globalIndex, event){
+    if(globalIndex===null || globalIndex===undefined || !excelData[globalIndex]){esconderTooltipAtletaCadastro();return;}
+    const el=obterTooltipAtletaCadastro();
+    el.innerHTML=htmlTooltipAtletaCadastro(globalIndex);
+    el.style.display='block';
+    posicionarCardAtletaSelecionado(globalIndex, event);
+}
+function moverTooltipAtletaCadastro(event){/* Agora o card aparece ao selecionar, não ao passar o mouse. */}
+function esconderTooltipAtletaCadastro(){const el=document.getElementById('atleta-hover-tooltip');if(el)el.style.display='none';}
+
+function limparSelecaoAtletaCadastro(renderizar=true){
+    esconderTooltipAtletaCadastro();
+    if(selectedAthleteIndex!==null && selectedAthleteIndex!==undefined){
+        selectedAthleteIndex=null;
+        const atletasScreen=document.getElementById('atletas-screen');
+        if(renderizar && atletasScreen && atletasScreen.classList.contains('active-screen')) renderAtletasScreen();
+    }
+}
+function cliqueMantemSelecaoAtleta(alvo){
+    const botao=alvo.closest ? alvo.closest('button') : null;
+    const acao=botao ? String(botao.getAttribute('onclick')||'') : '';
+    return /openEditAthleteModal|openFichaAtleta|openAnotacoesModal|deleteSelectedAthlete/.test(acao);
+}
+function limparSelecaoAtletaAoClicarFora(event){
+    const alvo=event.target;
+    // Se clicou em outro atleta, o próprio clique do atleta atualiza seleção e card.
+    if(alvo.closest && alvo.closest('.athlete-item')) return;
+
+    // Clicou em Editar / Ver Ficha / Anotações / Excluir:
+    // esconde o card, mas mantém o atleta selecionado para a ação funcionar.
+    if(alvo.closest && cliqueMantemSelecaoAtleta(alvo)){
+        esconderTooltipAtletaCadastro();
+        return;
+    }
+
+    // Cliques dentro de modais não devem alterar estado enquanto a ação está em andamento.
+    if(alvo.closest && alvo.closest('.vba-modal-overlay,.modal-overlay,.atleta-posicao-drop-overlay,#fichaModal,#modal-anotacoes')){
+        esconderTooltipAtletaCadastro();
+        return;
+    }
+
+    // Qualquer outro local/botão limpa card e seleção.
+    limparSelecaoAtletaCadastro(true);
+}
+if(!window.__limparSelecaoAtletaForaReady){
+    window.__limparSelecaoAtletaForaReady=true;
+    document.addEventListener('click',limparSelecaoAtletaAoClicarFora);
 }
 
 function deleteSelectedAthlete() {
     if (selectedAthleteIndex === null) { alert('Selecione um atleta na lista.'); return; }
     if (confirm('Deseja realmente excluir o atleta?')) { excelData.splice(selectedAthleteIndex, 1); selectedAthleteIndex = null; saveToStorage(); renderAtletasScreen(); }
+}
+
+function atletasPosicaoOpcoes(grupo){
+    const mapa = {
+        goleiros: [{label:'Goleiro', pos1:'Goleiro', pos2:'Goleiro'}],
+        zagueiros: [
+            {label:'Zagueiro', pos1:'Zagueiro', pos2:'Zagueiro'},
+            {label:'Zagueiro Dir.', pos1:'Zagueiro', pos2:'Zagueiro Dir.'},
+            {label:'Zagueiro Esq.', pos1:'Zagueiro', pos2:'Zagueiro Esq.'}
+        ],
+        laterais: [
+            {label:'Lateral Dir.', pos1:'Lateral', pos2:'Lateral Dir.'},
+            {label:'Lateral Esq.', pos1:'Lateral', pos2:'Lateral Esq.'}
+        ],
+        volantes: [
+            {label:'Volante', pos1:'Volante', pos2:'Volante'},
+            {label:'1º volante', pos1:'Volante', pos2:'1º volante'},
+            {label:'2º volante', pos1:'Volante', pos2:'2º volante'}
+        ],
+        meias: [
+            {label:'Meia', pos1:'Meia', pos2:'Meia'},
+            {label:'Meia central', pos1:'Meia', pos2:'Meia central'},
+            {label:'Meia atacante', pos1:'Meia', pos2:'Meia atacante'}
+        ],
+        atacantes: [
+            {label:'Atacante', pos1:'Atacante', pos2:'Atacante'},
+            {label:'Centroavante', pos1:'Atacante', pos2:'Centroavante'},
+            {label:'Segundo atacante', pos1:'Atacante', pos2:'Segundo atacante'}
+        ],
+        extremos: [
+            {label:'Ponta Dir.', pos1:'Extremo', pos2:'Ponta Dir.'},
+            {label:'Ponta Esq.', pos1:'Extremo', pos2:'Ponta Esq.'},
+            {label:'Extremo', pos1:'Extremo', pos2:'Extremo'}
+        ]
+    };
+    return mapa[grupo] || mapa.meias;
+}
+function garantirColunaAtleta(nomeColuna){
+    if(!excelColumns.includes(nomeColuna)) excelColumns.push(nomeColuna);
+}
+function aplicarNovaPosicaoAtleta(globalIndex, opcao){
+    const row = excelData[globalIndex];
+    if(!row || !opcao) return;
+    garantirColunaAtleta('Posição 1');
+    garantirColunaAtleta('Posição 2');
+    row['Posição 1'] = opcao.pos1;
+    row['Posição 2'] = opcao.pos2 || opcao.pos1;
+    selectedAthleteIndex = globalIndex;
+    saveToStorage();
+    renderAtletasScreen();
+}
+function abrirPopupPosicaoAtleta(globalIndex, grupo){
+    const row = excelData[globalIndex];
+    if(!row) return;
+    const opcoes = atletasPosicaoOpcoes(grupo);
+    if(opcoes.length === 1){ aplicarNovaPosicaoAtleta(globalIndex, opcoes[0]); return; }
+    const apelidoKey = Object.keys(row).find(k=>k.toLowerCase().includes('apelido')) || Object.keys(row).find(k=>k.toLowerCase().includes('nome'));
+    const nome = apelidoKey ? row[apelidoKey] : 'Atleta';
+    let modal = document.getElementById('atleta-posicao-drop-modal');
+    if(!modal){
+        modal = document.createElement('div');
+        modal.id = 'atleta-posicao-drop-modal';
+        modal.className = 'atleta-posicao-drop-overlay';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e=>{ if(e.target===modal) fecharPopupPosicaoAtleta(); });
+    }
+    modal.innerHTML = `<div class="atleta-posicao-drop-card"><button class="atleta-posicao-drop-close" onclick="fecharPopupPosicaoAtleta()">×</button><h3>Definir posição</h3><p>${escapeHtmlJogos(nome)} foi movido. Escolha a função:</p><div class="atleta-posicao-drop-options">${opcoes.map((op,i)=>`<button onclick="confirmarPopupPosicaoAtleta(${globalIndex},'${grupo}',${i})">${escapeHtmlJogos(op.label)}</button>`).join('')}</div></div>`;
+    modal.style.display='flex';
+}
+function confirmarPopupPosicaoAtleta(globalIndex, grupo, idx){
+    const opcao = atletasPosicaoOpcoes(grupo)[idx];
+    fecharPopupPosicaoAtleta();
+    aplicarNovaPosicaoAtleta(globalIndex, opcao);
+}
+function fecharPopupPosicaoAtleta(){const modal=document.getElementById('atleta-posicao-drop-modal');if(modal)modal.style.display='none';}
+function configurarDropAtletasPosicoes(posLists){
+    Object.entries(posLists || {}).forEach(([grupo, lista])=>{
+        if(!lista) return;
+        const alvo = lista.closest('.pos-box') || lista;
+        [lista, alvo].forEach(el=>{
+            el.ondragover = (event)=>{event.preventDefault(); el.classList.add('pos-drop-hover');};
+            el.ondragleave = ()=>el.classList.remove('pos-drop-hover');
+            el.ondrop = (event)=>{
+                event.preventDefault();
+                el.classList.remove('pos-drop-hover');
+                const idx = parseInt(event.dataTransfer.getData('text/plain'),10);
+                if(Number.isNaN(idx) || !excelData[idx]) return;
+                abrirPopupPosicaoAtleta(idx, grupo);
+            };
+        });
+    });
 }
 function setAddAthleteModalMode(mode) {
     const modal = document.getElementById('add-athlete-modal');
@@ -542,11 +802,49 @@ function valorCampoAtleta(row, termos) {
     const chave = Object.keys(row || {}).find(k => termos.some(t => String(k).toLowerCase().trim() === String(t).toLowerCase().trim() || String(k).toLowerCase().includes(String(t).toLowerCase())));
     return chave && row[chave] !== undefined && row[chave] !== null ? row[chave] : '';
 }
+
+const OPCOES_POSICAO_ATLETA_COMPLETAS = ['Goleiro','Zagueiro','Zagueiro Dir.','Zagueiro Esq.','Lateral Dir.','Lateral Esq.','Volante','1º Volante','2º Volante','Meia','Atacante','Ponta Dir.','Ponta Esq.','Extremo'];
+function normalizarPosicaoAtletaValor(valor){
+    const txt = String(valor||'').trim();
+    if(!txt)return '';
+    const n = txt.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
+    const mapa = {
+        'goleiro':'Goleiro',
+        'zagueiro':'Zagueiro',
+        'zagueiro dir':'Zagueiro Dir.','zagueiro dir.':'Zagueiro Dir.','zagueiro direito':'Zagueiro Dir.',
+        'zagueiro esq':'Zagueiro Esq.','zagueiro esq.':'Zagueiro Esq.','zagueiro esquerdo':'Zagueiro Esq.',
+        'lateral':'Lateral Dir.',
+        'lateral dir':'Lateral Dir.','lateral dir.':'Lateral Dir.','lateral direito':'Lateral Dir.',
+        'lateral esq':'Lateral Esq.','lateral esq.':'Lateral Esq.','lateral esquerdo':'Lateral Esq.',
+        'volante':'Volante','1 volante':'1º Volante','1º volante':'1º Volante','primeiro volante':'1º Volante',
+        '2 volante':'2º Volante','2º volante':'2º Volante','segundo volante':'2º Volante',
+        'meia':'Meia','atacante':'Atacante',
+        'ponta dir':'Ponta Dir.','ponta dir.':'Ponta Dir.','ponta direito':'Ponta Dir.','extremo direito':'Ponta Dir.',
+        'ponta esq':'Ponta Esq.','ponta esq.':'Ponta Esq.','ponta esquerdo':'Ponta Esq.','extremo esquerdo':'Ponta Esq.',
+        'extremo':'Extremo'
+    };
+    return mapa[n] || txt;
+}
+function garantirOpcoesPosicaoAtletaModal(){
+    const select=document.getElementById('add-posicao');
+    if(!select)return;
+    const valorAtual=normalizarPosicaoAtletaValor(select.value)||'Meia';
+    select.innerHTML=OPCOES_POSICAO_ATLETA_COMPLETAS.map(pos=>`<option value="${pos}">${pos}</option>`).join('');
+    select.value=OPCOES_POSICAO_ATLETA_COMPLETAS.includes(valorAtual)?valorAtual:'Meia';
+}
+function posicaoEdicaoAtleta(row){
+    const pos2=normalizarPosicaoAtletaValor(valorCampoAtleta(row,['Posição 2','posicao 2']));
+    const pos1=normalizarPosicaoAtletaValor(valorCampoAtleta(row,['Posição 1','posicao 1','posição','posicao']));
+    if(pos2 && OPCOES_POSICAO_ATLETA_COMPLETAS.includes(pos2))return pos2;
+    if(pos1 && OPCOES_POSICAO_ATLETA_COMPLETAS.includes(pos1))return pos1;
+    return 'Meia';
+}
 function openAddAthleteModal() {
     editingAthleteIndex = null;
     uploadedPhotoBase64 = '';
     const form = document.getElementById('athlete-form');
     if (form) form.reset();
+    garantirOpcoesPosicaoAtletaModal();
     const fileLabel = document.getElementById('file-label-text');
     if (fileLabel) fileLabel.textContent = 'Selecionar Foto';
     setAddAthleteModalMode('add');
@@ -561,17 +859,18 @@ function openEditAthleteModal() {
     const row = excelData[editingAthleteIndex];
     const form = document.getElementById('athlete-form');
     if (form) form.reset();
+    garantirOpcoesPosicaoAtletaModal();
     document.getElementById('add-ano').value = valorCampoAtleta(row, ['Ano']) || '2010';
     document.getElementById('add-nome').value = valorCampoAtleta(row, ['NOME COMPLETO', 'nome completo', 'nome']);
     document.getElementById('add-apelido').value = valorCampoAtleta(row, ['APELIDO', 'apelido']);
     document.getElementById('add-nascimento').value = convertExcelDate(valorCampoAtleta(row, ['Data de nascimento', 'nascimento']));
-    document.getElementById('add-posicao').value = valorCampoAtleta(row, ['Posição 1', 'posicao 1', 'posição', 'posicao']) || 'Meia';
+    document.getElementById('add-posicao').value = posicaoEdicaoAtleta(row);
     document.getElementById('add-cidade').value = valorCampoAtleta(row, ['CIDADE', 'cidade']);
     document.getElementById('add-contato').value = valorCampoAtleta(row, ['Contato', 'contato']);
     document.getElementById('add-rg').value = valorCampoAtleta(row, ['RG', 'rg']);
     uploadedPhotoBase64 = valorCampoAtleta(row, ['Foto', 'foto', 'imagem']);
     const fileLabel = document.getElementById('file-label-text');
-    if (fileLabel) fileLabel.textContent = uploadedPhotoBase64 ? 'Foto atual mantida' : 'Selecionar Foto';
+    if (fileLabel) fileLabel.textContent = uploadedPhotoBase64 ? 'Substituir foto' : 'Enviar foto';
     const fileInput = document.getElementById('add-foto');
     if (fileInput) fileInput.value = '';
     setAddAthleteModalMode('edit');
@@ -584,7 +883,14 @@ function closeAddAthleteModal() {
     setAddAthleteModalMode('add');
 }
 function previewAthletePhoto(input) {
-    if (input.files && input.files[0]) { document.getElementById('file-label-text').textContent = input.files[0].name; const reader = new FileReader(); reader.onload = function(e) { uploadedPhotoBase64 = e.target.result; }; reader.readAsDataURL(input.files[0]); }
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const label = document.getElementById('file-label-text');
+        if (label) label.textContent = 'Nova foto: ' + file.name;
+        const reader = new FileReader();
+        reader.onload = function(e) { uploadedPhotoBase64 = e.target.result; };
+        reader.readAsDataURL(file);
+    }
 }
 function saveNewAthlete(event) {
     event.preventDefault();
@@ -600,7 +906,10 @@ function saveNewAthlete(event) {
     row['NOME COMPLETO'] = document.getElementById('add-nome').value;
     row['APELIDO'] = document.getElementById('add-apelido').value;
     row['Data de nascimento'] = document.getElementById('add-nascimento').value;
-    row['Posição 1'] = document.getElementById('add-posicao').value;
+    const posicaoSelecionada = normalizarPosicaoAtletaValor(document.getElementById('add-posicao').value) || 'Meia';
+    row['Posição 1'] = posicaoSelecionada;
+    row['Posição 2'] = posicaoSelecionada;
+    if(!excelColumns.includes('Posição 2')) excelColumns.push('Posição 2');
     row['CIDADE'] = document.getElementById('add-cidade').value;
     row['Contato'] = document.getElementById('add-contato').value;
     row['RG'] = document.getElementById('add-rg').value;
@@ -1320,8 +1629,12 @@ function gerarFichasTreino() {
         }
         // ==========================================
 
-        document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-        document.getElementById('fichas-treino-screen').style.display = 'block';
+        document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active-screen'); s.style.display = 'none'; });
+        const fichasScreen = document.getElementById('fichas-treino-screen');
+        fichasScreen.style.display = 'block';
+        fichasScreen.classList.add('active-screen');
+        const mainContent = document.querySelector('.main-content');
+        if(mainContent) mainContent.scrollTo(0,0);
         window.scrollTo(0, 0);
 
         // -> SALVA AUTOMATICAMENTE NO SUPABASE APÓS GERAR AS FICHAS
@@ -1329,8 +1642,12 @@ function gerarFichasTreino() {
 }
 
 function voltarParaGrupos() {
-    document.getElementById('fichas-treino-screen').style.display = 'none';
-    document.getElementById('grupos-screen').style.display = 'block';
+    const fichas=document.getElementById('fichas-treino-screen');
+    const grupos=document.getElementById('grupos-screen');
+    if(fichas){fichas.style.display='none';fichas.classList.remove('active-screen');}
+    if(grupos){grupos.style.display='block';grupos.classList.add('active-screen');}
+    const mainContent=document.querySelector('.main-content');
+    if(mainContent) mainContent.scrollTo(0,0);
 }
 
 // Salva as anotações de forma segura
@@ -1886,7 +2203,7 @@ function renderFichaGrupo() {
             tr.dataset.globalIndex = item.index;
             
             const tdAction = document.createElement('td');
-            tdAction.innerHTML = `<button style="background:none; border:none; color:#e53935; cursor:pointer;" onclick="removerAtletaDoGrupo('${grupoNome}', ${item.index})"><i class="fa-solid fa-trash"></i></button>`;
+            tdAction.innerHTML = `<button class="grupo-remove-atleta-btn" title="Remover atleta do grupo" onclick="removerAtletaDoGrupo('${grupoNome}', ${item.index})">×</button>`;
             
             const tdNome = document.createElement('td'); tdNome.textContent = nomeExibicao; tdNome.style.fontWeight = 'bold';
             const tdAno = document.createElement('td'); tdAno.textContent = anoAtleta;
@@ -2612,8 +2929,12 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 function openJogosProfessorModal(){
  let m=document.getElementById('jogos-professor-modal');if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='jogos-professor-modal';document.body.appendChild(m)}
  const professores=['Christian Rondina','Eric Bergmann','Roberto Fonseca Jr.','Roberto Fonseca Jr. Sub 14','Vinícius Bolonheze'];
- m.innerHTML=`<div class="jogos-professor-card"><h3>Selecione o professor</h3><p>Escolha o banco de dados que deseja acessar:</p><div>${professores.map(p=>`<button onclick="selecionarProfessorJogos('${p}')">${p}</button>`).join('')}</div><button class="cancelar-jogos" onclick="document.getElementById('jogos-professor-modal').style.display='none'">Cancelar</button></div>`;
+ m.innerHTML=`<div class="jogos-professor-card"><h3>Selecione o professor</h3><p>Escolha o banco de dados que deseja acessar:</p><div>${professores.map(p=>`<button onclick="selecionarProfessorJogos('${p}')">${p}</button>`).join('')}</div><button class="cancelar-jogos" onclick="fecharJogosProfessorModal()">Cancelar</button></div>`;
  m.style.display='flex';
+}
+function fecharJogosProfessorModal(){
+ const m=document.getElementById('jogos-professor-modal');if(m)m.style.display='none';
+ if(typeof modernV3VoltarInicio==='function') modernV3VoltarInicio();
 }
 function selecionarProfessorJogos(professor){
  professorJogosAtual=professor;const m=document.getElementById('jogos-professor-modal');if(m)m.style.display='none';
@@ -3512,7 +3833,7 @@ function openRelatoriosModal(){
  const maxEval=relatoriosMaxAvaliacao();
  window.__relatoriosSort={key:'anoNome',dir:'asc'};
  window.__relatorioAtletaSelecionadoIndex=null;
- m.innerHTML=`<div class="relatorios-card"><div class="relatorios-top"><div class="relatorios-left"><select id="relatorio-tipo-select" onchange="relatoriosResetSort();renderRelatoriosTabela()">${Object.keys(tipos).map(k=>`<option value="${k}">${tipos[k]}</option>`).join('')}</select></div><h2 id="relatorios-titulo">Medidas Antropométricas</h2><div class="relatorios-anos">${relatoriosAnosDisponiveis().map(a=>`<label><input type="checkbox" class="relatorio-ano-chk" value="${a}" onchange="renderRelatoriosTabela()"> ${a}</label>`).join('')}</div><div class="relatorios-actions"><button onclick="closeRelatoriosModal()">Fechar</button><button onclick="exportarRelatorioPDF()">PDF</button></div></div><div class="relatorios-table-wrap"><table id="relatorios-table"><thead><tr id="relatorios-head"></tr></thead><tbody id="relatorios-body"></tbody></table></div><div class="relatorios-bottom"><select id="relatorio-eval-select" onchange="renderRelatoriosTabela()">${Array.from({length:maxEval},(_,i)=>i+1).map(n=>`<option value="${n}" ${n===maxEval?'selected':''}>Avaliação ${n}</option>`).join('')}</select><button id="btn-relatorio-individual" class="relatorio-individual-btn" onclick="gerarRelatorioFisicoIndividual()" disabled>Relatório Físico Individual</button></div></div>`;
+ m.innerHTML=`<div class="relatorios-card"><div class="relatorios-top"><div class="relatorios-left"><select id="relatorio-tipo-select" onchange="relatoriosResetSort();renderRelatoriosTabela()">${Object.keys(tipos).map(k=>`<option value="${k}" ${k==='todos'?'selected':''}>${tipos[k]}</option>`).join('')}</select></div><h2 id="relatorios-titulo">Todos</h2><div class="relatorios-anos">${relatoriosAnosDisponiveis().map(a=>`<label><input type="checkbox" class="relatorio-ano-chk" value="${a}" onchange="renderRelatoriosTabela()"> ${a}</label>`).join('')}</div><div class="relatorios-actions"><button onclick="closeRelatoriosModal()">Fechar</button><button onclick="exportarRelatorioPDF()">PDF</button></div></div><div class="relatorios-table-wrap"><table id="relatorios-table"><thead><tr id="relatorios-head"></tr></thead><tbody id="relatorios-body"></tbody></table></div><div class="relatorios-bottom"><select id="relatorio-eval-select" onchange="renderRelatoriosTabela()">${Array.from({length:maxEval},(_,i)=>i+1).map(n=>`<option value="${n}" ${n===maxEval?'selected':''}>Avaliação ${n}</option>`).join('')}</select><button id="btn-relatorio-individual" class="relatorio-individual-btn" onclick="gerarRelatorioFisicoIndividual()" disabled>Relatório Físico Individual</button></div></div>`;
  m.style.display='flex';
  renderRelatoriosTabela();
 }
@@ -4021,11 +4342,26 @@ function rvAtletaViuDocumento(tipo,atleta,doc,acessosRows){
  }
  return false;
 }
+
+function rvBRCompleto(valor){const d=rvParseDate(valor);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}
+function rvDiaSemanaTexto(valor){return rvParseDate(valor).toLocaleDateString('pt-BR',{weekday:'long'}).replace(/^./,c=>c.toUpperCase());}
+function rvNomeAnoAtleta(atleta){return `${atleta?.id?.apelido||atleta?.id?.nomeCompleto||''}${atleta?.id?.ano?` - ${atleta.id.ano}`:''}`;}
+function rvRenderListaVisualizacao(tipo,doc,atletas,acessosRows){
+ const tituloData=tipo==='planejamento_semanal'
+  ? `Semana ${rvBRCompleto(doc.week||doc.date)}`
+  : `${rvBRCompleto(doc.date)} — ${rvDiaSemanaTexto(doc.date)}`;
+ const ordenados=[...(atletas||[])].sort((a,b)=>String(a.id.apelido||a.id.nomeCompleto||'').localeCompare(String(b.id.apelido||b.id.nomeCompleto||''),'pt-BR'));
+ const vistos=[];const ausentes=[];
+ ordenados.forEach(a=>{(rvAtletaViuDocumento(tipo,a,doc,acessosRows)?vistos:ausentes).push(a);});
+ const lista=(arr,ok)=>arr.length?arr.map(a=>`<li class="${ok?'ok':'no'}"><span>${ok?'✓':'×'}</span>${escapeHtmlJogos(rvNomeAnoAtleta(a))}</li>`).join(''):`<li class="empty">Nenhum atleta.</li>`;
+ const rotuloOk=tipo==='planejamento_semanal'?'Visualizaram':'Visualizaram';
+ return `<div class="rv-list-report"><div class="rv-list-date">📅 ${escapeHtmlJogos(tituloData)}</div><div class="rv-list-obs"><strong>Observações:</strong> -</div><div class="rv-list-cols"><section class="rv-list-col ok"><h3>${rotuloOk} (${vistos.length})</h3><ul>${lista(vistos,true)}</ul></section><section class="rv-list-col no"><h3>Ausentes (${ausentes.length})</h3><ul>${lista(ausentes,false)}</ul></section></div></div>`;
+}
 async function abrirRelatorioVisualizacaoDocumento(tipo,catId){
  const cfg=rvConfigTipo(tipo);let reg=cfg.estado?.[catId]?.registro;
  if(!reg){const {data}=await _supabase.from(cfg.tabela).select('*').eq('categoria_id',catId).maybeSingle();reg=data;}
  if(!reg)return alert('Nenhum documento atual encontrado para esta categoria.');
- relatorioVisualizacaoState={tipo,catId,modo:'dia',registro:reg};
+ relatorioVisualizacaoState={tipo,catId,modo:tipo==='planejamento_semanal'?'semana':'dia',registro:reg};
  await renderRelatorioVisualizacaoDocumento();
 }
 async function renderRelatorioVisualizacaoDocumento(){
@@ -4034,15 +4370,25 @@ async function renderRelatorioVisualizacaoDocumento(){
  const {data:acessos,error}=await _supabase.from('portal_documentos_acessos').select('*').eq('tipo',tipo).eq('categoria_id',catId);
  if(error){console.error(error);alert('Erro ao carregar relatório de visualização.');return;}
  const atletas=rvDestinatarios(registro);const docs=rvGerarDocumentos(tipo,modo,registro);
- const headDocs=docs.map(d=>`<th>${escapeHtmlJogos(d.label)}</th>`).join('');
- const rows=atletas.map(a=>`<tr><td>${escapeHtmlJogos(a.id.apelido||a.id.nomeCompleto)} <small>${escapeHtmlJogos(a.id.ano||'')}</small></td>${docs.map(d=>`<td class="rv-check">${rvAtletaViuDocumento(tipo,a,d,acessos||[])?'<span>V</span>':''}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="2">Nenhum atleta encontrado.</td></tr>';
+ const listaUnica=(tipo==='trabalho_diario'&&modo==='dia')||(tipo==='planejamento_semanal'&&modo==='semana');
+ let conteudo='';
+ if(listaUnica){
+  conteudo=rvRenderListaVisualizacao(tipo,docs[0],atletas,acessos||[]);
+ }else{
+  const headDocs=docs.map(d=>`<th>${escapeHtmlJogos(d.label)}</th>`).join('');
+  const rows=atletas.map(a=>`<tr><td>${escapeHtmlJogos(a.id.apelido||a.id.nomeCompleto)} <small>${escapeHtmlJogos(a.id.ano||'')}</small></td>${docs.map(d=>`<td class="rv-check">${rvAtletaViuDocumento(tipo,a,d,acessos||[])?'<span>V</span>':''}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="2">Nenhum atleta encontrado.</td></tr>';
+  conteudo=`<div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Atleta</th>${headDocs}</tr></thead><tbody>${rows}</tbody></table></div>`;
+ }
  let modal=document.getElementById('relatorio-visualizacao-modal');if(!modal){modal=document.createElement('div');modal.id='relatorio-visualizacao-modal';modal.className='relatorio-visualizacao-overlay';document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal)closeRelatorioVisualizacao();});}
- modal.innerHTML=`<div class="relatorio-visualizacao-card"><button class="relatorios-menu-close" onclick="closeRelatorioVisualizacao()">×</button><div class="rv-header"><img src="logo.png"><div><h2>Relatório de visualização</h2><strong>${escapeHtmlJogos(cfg.titulo)} - ${escapeHtmlJogos(cat.label)}</strong></div><img src="logo.png"></div><div class="rv-filtros"><button class="${modo==='dia'?'active':''}" onclick="setRelatorioVisualizacaoModo('dia')">Dia</button><button class="${modo==='semana'?'active':''}" onclick="setRelatorioVisualizacaoModo('semana')">Semana</button><button class="${modo==='mes'?'active':''}" onclick="setRelatorioVisualizacaoModo('mes')">Mês</button><button onclick="imprimirRelatorioVisualizacao()">PDF/Imprimir</button></div><div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Atleta</th>${headDocs}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+ const filtros=tipo==='planejamento_semanal'
+  ? `<button class="${modo==='semana'?'active':''}" onclick="setRelatorioVisualizacaoModo('semana')">Semana</button><button class="${modo==='mes'?'active':''}" onclick="setRelatorioVisualizacaoModo('mes')">Mês</button>`
+  : `<button class="${modo==='dia'?'active':''}" onclick="setRelatorioVisualizacaoModo('dia')">Dia</button><button class="${modo==='semana'?'active':''}" onclick="setRelatorioVisualizacaoModo('semana')">Semana</button><button class="${modo==='mes'?'active':''}" onclick="setRelatorioVisualizacaoModo('mes')">Mês</button>`;
+ modal.innerHTML=`<div class="relatorio-visualizacao-card"><button class="relatorios-menu-close" onclick="closeRelatorioVisualizacao()">×</button><div class="rv-header"><img src="logo.png"><div><h2>Relatório de visualização</h2><strong>${escapeHtmlJogos(cfg.titulo)} - ${escapeHtmlJogos(cat.label)}</strong></div><img src="logo.png"></div><div class="rv-filtros">${filtros}<button onclick="imprimirRelatorioVisualizacao()">PDF/Imprimir</button></div>${conteudo}</div>`;
  modal.style.display='flex';
 }
-function setRelatorioVisualizacaoModo(modo){relatorioVisualizacaoState.modo=modo;renderRelatorioVisualizacaoDocumento();}
+function setRelatorioVisualizacaoModo(modo){if(relatorioVisualizacaoState.tipo==='planejamento_semanal'&&modo==='dia')modo='semana';relatorioVisualizacaoState.modo=modo;renderRelatorioVisualizacaoDocumento();}
 function closeRelatorioVisualizacao(){const m=document.getElementById('relatorio-visualizacao-modal');if(m)m.style.display='none';}
-function imprimirRelatorioVisualizacao(){const card=document.querySelector('#relatorio-visualizacao-modal .relatorio-visualizacao-card');if(!card)return;const w=window.open('','_blank','width=1000,height=800');w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relatório de visualização</title><style>body{font-family:Arial,sans-serif;margin:12px}.relatorios-menu-close,.rv-filtros{display:none}.rv-header{display:flex;align-items:center;justify-content:center;gap:20px}.rv-header img{width:60px}.rv-header h2{text-align:center;margin:0}.rv-header strong{display:block;text-align:center}.rv-table{width:100%;border-collapse:collapse;font-size:12px}.rv-table th{background:#58111a;color:#f9c614}.rv-table th,.rv-table td{border:1px solid #999;padding:5px;text-align:center}.rv-table td:first-child{text-align:left}.rv-check span{color:green;font-weight:bold;font-size:16px}</style></head><body>${card.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);w.document.close();}
+function imprimirRelatorioVisualizacao(){const card=document.querySelector('#relatorio-visualizacao-modal .relatorio-visualizacao-card');if(!card)return;const w=window.open('','_blank','width=1000,height=800');w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relatório de visualização</title><style>body{font-family:Arial,sans-serif;margin:12px}.relatorios-menu-close,.rv-filtros{display:none}.rv-header{display:flex;align-items:center;justify-content:center;gap:20px}.rv-header img{width:60px}.rv-header h2{text-align:center;margin:0}.rv-header strong{display:block;text-align:center}.rv-table{width:100%;border-collapse:collapse;font-size:12px}.rv-table th{background:#58111a;color:#f9c614}.rv-table th,.rv-table td{border:1px solid #999;padding:5px;text-align:center}.rv-table td:first-child{text-align:left}.rv-check span{color:green;font-weight:bold;font-size:16px}.rv-list-report{border:1px solid #d8e8c4;background:#fbfff7;padding:10px}.rv-list-date{font-size:17px;color:#5c8a2a;font-weight:bold;border-bottom:1px solid #e5eadf;padding:6px}.rv-list-obs{font-size:13px;margin:8px 0}.rv-list-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}.rv-list-col h3{font-size:14px;margin:6px 0}.rv-list-col.ok h3,.rv-list-col.ok li{color:#078c49}.rv-list-col.no h3,.rv-list-col.no li{color:#c00000}.rv-list-col ul{list-style:none;padding:0;margin:0}.rv-list-col li{font-size:12px;line-height:1.35;margin:2px 0}.rv-list-col li.empty{color:#777}@media(max-width:700px){.rv-list-cols{grid-template-columns:1fr}}</style></head><body>${card.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);w.document.close();}
 
 
 /* === RELATÓRIO PSR / PSE - PORTAL DO ATLETA === */
@@ -4185,23 +4531,30 @@ function rppRenderTabelaNotas(atletas){
  }).join('')||`<tr><td colspan="${cols.length}" class="rpp-empty">Nenhum atleta nas categorias selecionadas.</td></tr>`;
  return `<table class="rpp-table"><thead><tr>${cols.map(c=>rppSortHeader(c.k,c.l)).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
 }
+function rppNomeAnoAtleta(atleta){return `${atleta?.id?.apelido||atleta?.id?.nomeCompleto||''}${atleta?.id?.ano?` - ${atleta.id.ano}`:''}`;}
+function rppDiaSemanaTexto(valor){return rppParseData(valor).toLocaleDateString('pt-BR',{weekday:'long'}).replace(/^./,c=>c.toUpperCase());}
+function rppRenderListaPresencaDiaria(atletas){
+ const ordenados=[...(atletas||[])].sort(rppCompareNome);
+ if(!ordenados.length)return `<div class="rpp-list-report"><div class="rpp-empty">Selecione uma categoria para visualizar o relatório.</div></div>`;
+ const respondidos=[];const ausentes=[];
+ ordenados.forEach(a=>{(rppRespondido(rppRespostaAtletaData(a,relatorioPsrPseState.data))?respondidos:ausentes).push(a);});
+ const lista=(arr,ok)=>arr.length?arr.map(a=>`<li class="${ok?'ok':'no'}"><span>${ok?'✓':'×'}</span>${rppEscape(rppNomeAnoAtleta(a))}</li>`).join(''):'<li class="empty">Nenhum atleta.</li>';
+ return `<div class="rpp-list-report"><div class="rpp-list-date">📅 ${rppBR(relatorioPsrPseState.data,true)} — ${rppEscape(rppDiaSemanaTexto(relatorioPsrPseState.data))}</div><div class="rpp-list-obs"><strong>Observações:</strong> -</div><div class="rpp-list-cols"><section class="rpp-list-col ok"><h3>Respondido (${respondidos.length})</h3><ul>${lista(respondidos,true)}</ul></section><section class="rpp-list-col no"><h3>Ausentes (${ausentes.length})</h3><ul>${lista(ausentes,false)}</ul></section></div></div>`;
+}
 function rppRenderTabelaResumo(atletas){
  const periodo=rppPeriodoAtual();
  const dias=periodo.dias;
  const view=relatorioPsrPseState.view;
- const headDias=view==='diario'?rppSortHeader('respondeu',rppBR(relatorioPsrPseState.data)):dias.map(d=>rppSortHeader('dia:'+d,rppBR(d))).join('');
- const totalHead=view==='diario'?'':rppSortHeader('total','Total');
- const pctHead=view==='diario'?'':'<th><button type="button" disabled>%</button></th>';
+ if(view==='diario')return rppRenderListaPresencaDiaria(atletas);
+ const headDias=dias.map(d=>rppSortHeader('dia:'+d,rppBR(d))).join('');
+ const totalHead=rppSortHeader('total','Total');
+ const pctHead='<th><button type="button" disabled>%</button></th>';
  const rows=rppOrdenarAtletas(atletas).map(a=>{
-  if(view==='diario'){
-   const respondeu=rppRespondido(rppRespostaAtletaData(a,relatorioPsrPseState.data));
-   return `<tr><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td><td>${rppVX(respondeu)}</td></tr>`;
-  }
   let total=0;
   const cells=dias.map(d=>{const ok=rppRespondido(rppRespostaAtletaData(a,d));if(ok)total++;return `<td>${rppVX(ok)}</td>`;}).join('');
   const pct=dias.length?Math.round((total/dias.length)*100):0;
   return `<tr><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td>${cells}<td><strong>${total}/${dias.length}</strong></td><td>${pct}%</td></tr>`;
- }).join('')||`<tr><td colspan="${view==='diario'?3:dias.length+4}" class="rpp-empty">Nenhum atleta nas categorias selecionadas.</td></tr>`;
+ }).join('')||`<tr><td colspan="${dias.length+4}" class="rpp-empty">Nenhum atleta nas categorias selecionadas.</td></tr>`;
  return `<table class="rpp-table rpp-table-resumo"><thead><tr>${rppSortHeader('nome','Nome')}${rppSortHeader('ano','Ano')}${headDias}${totalHead}${pctHead}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function rppTituloView(){
@@ -4290,7 +4643,7 @@ function imprimirRelatorioPsrPse(){
  const area=document.getElementById('rpp-print-area');if(!area)return;
  const titulo=rppTituloView();const paisagem=relatorioPsrPseState.view==='mensal'||relatorioPsrPseState.view==='semanal';
  const w=window.open('','_blank','width=1200,height=850');
- w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${rppEscape(titulo)}</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:12px;color:#111}.rpp-print-title{display:flex!important;align-items:center;justify-content:center;gap:18px;margin-bottom:12px}.rpp-print-title img{width:58px;height:58px;object-fit:contain}.rpp-print-title h2{margin:0;text-align:center;color:#58111a;font-size:22px}.rpp-print-title p{margin:3px 0 0;text-align:center;font-weight:bold}.rpp-table{width:100%;border-collapse:collapse;font-size:11px}.rpp-table th{background:#58111a;color:#f9c614}.rpp-table th,.rpp-table td{border:1px solid #999;padding:5px;text-align:center}.rpp-table th button{border:0;background:transparent;color:inherit;font:inherit;font-weight:bold}.rpp-table td.rpp-nome{text-align:left;font-weight:bold}.rpp-desc{text-align:left!important}.rpp-v{color:#009b49;font-weight:900;font-size:15px}.rpp-x{color:#d63031;font-weight:900;font-size:15px}.rpp-muted{color:#999}.rpp-table-wrap{overflow:visible}@page{size:${paisagem?'landscape':'portrait'};margin:8mm}</style></head><body>${area.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${rppEscape(titulo)}</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:12px;color:#111}.rpp-print-title{display:flex!important;align-items:center;justify-content:center;gap:18px;margin-bottom:12px}.rpp-print-title img{width:58px;height:58px;object-fit:contain}.rpp-print-title h2{margin:0;text-align:center;color:#58111a;font-size:22px}.rpp-print-title p{margin:3px 0 0;text-align:center;font-weight:bold}.rpp-table{width:100%;border-collapse:collapse;font-size:11px}.rpp-table th{background:#58111a;color:#f9c614}.rpp-table th,.rpp-table td{border:1px solid #999;padding:5px;text-align:center}.rpp-table th button{border:0;background:transparent;color:inherit;font:inherit;font-weight:bold}.rpp-table td.rpp-nome{text-align:left;font-weight:bold}.rpp-desc{text-align:left!important}.rpp-v{color:#009b49;font-weight:900;font-size:15px}.rpp-x{color:#d63031;font-weight:900;font-size:15px}.rpp-muted{color:#999}.rpp-table-wrap{overflow:visible}.rpp-list-report{border:1px solid #d8e8c4;background:#fbfff7;padding:10px}.rpp-list-date{font-size:17px;color:#5c8a2a;font-weight:bold;border-bottom:1px solid #e5eadf;padding:6px}.rpp-list-obs{font-size:13px;margin:8px 0}.rpp-list-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}.rpp-list-col h3{font-size:14px;margin:6px 0}.rpp-list-col.ok h3,.rpp-list-col.ok li{color:#078c49}.rpp-list-col.no h3,.rpp-list-col.no li{color:#c00000}.rpp-list-col ul{list-style:none;padding:0;margin:0}.rpp-list-col li{font-size:12px;line-height:1.35;margin:2px 0}.rpp-list-col li.empty{color:#777}@page{size:${paisagem?'landscape':'portrait'};margin:8mm}</style></head><body>${area.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);
  w.document.close();
 }
 
@@ -4301,7 +4654,7 @@ function relatoriosSortBy(key){
  window.__relatoriosSort=s;renderRelatoriosTabela();
 }
 function relatoriosDadosAtuais(){
- const tipo=document.getElementById('relatorio-tipo-select')?.value||'antropometricas';
+ const tipo=document.getElementById('relatorio-tipo-select')?.value||'todos';
  const evalNum=document.getElementById('relatorio-eval-select')?.value||relatoriosMaxAvaliacao();
  const anosMarcados=Array.from(document.querySelectorAll('#relatorios-modal .relatorio-ano-chk:checked')).map(x=>x.value);
  const anosFiltro=anosMarcados.length?anosMarcados:relatoriosAnosDisponiveis();
@@ -4634,7 +4987,10 @@ function openPranchetaModal() {
  modal.style.display='flex';
  renderPranchetaVirtual();
 }
-function closePranchetaModal(){const modal=document.getElementById('prancheta-modal');if(modal)modal.style.display='none';}
+function closePranchetaModal(){
+ const modal=document.getElementById('prancheta-modal');if(modal)modal.style.display='none';
+ if(typeof modernV3VoltarInicio==='function') modernV3VoltarInicio();
+}
 function renderPranchetaVirtual(){
  const box=document.getElementById('prancheta-modal-content')||document.getElementById('prancheta-content');
  if(!box)return;
@@ -5439,3 +5795,151 @@ if (document.readyState === 'loading') {
 } else {
     inicializarTooltipFlutuanteEstatisticasJogos();
 }
+
+
+/* === TESTE MODERNO V3 SEGURO ===
+   Casca visual dinâmica. Não altera banco, tabelas, Supabase ou regras internas. */
+let modernV3ManualSidebarClosed=false;
+function modernV3EnsureMenu(){
+ const nav=document.getElementById('main-nav');
+ if(!nav)return;
+ let floatBtn=document.getElementById('modern-v3-menu-float');
+ if(!floatBtn){
+  floatBtn=document.createElement('button');
+  floatBtn.id='modern-v3-menu-float';
+  floatBtn.className='modern-v3-menu-float';
+  floatBtn.type='button';
+  floatBtn.innerHTML='☰ Menu';
+  floatBtn.onclick=()=>modernV3OpenSidebar();
+  document.body.appendChild(floatBtn);
+ }
+ if(nav.dataset.modernV3Ready==='1')return;
+ nav.dataset.modernV3Ready='1';
+ nav.classList.add('modern-v3-sidebar');
+ nav.innerHTML=`
+  <div class="modern-v3-brand"><img src="logo.png" alt="CFA Prosol"><div><strong>CFA Prosol</strong><span>Sistema Principal</span></div><button class="modern-v3-fullscreen-btn" onclick="toggleFullScreen()" title="Tela Cheia"><span class="mv3-ico">⛶</span><span>Tela Cheia</span></button></div>
+  <button class="modern-v3-collapse-btn" onclick="modernV3CloseSidebar()"><span>Recolher menu</span><b>‹</b></button>
+  <button class="modern-v3-home nav-btn active" onclick="modernV3Navigate('home',event)"><span class="mv3-ico">⌂</span><span>Painel inicial</span></button>
+  <button class="modern-v3-group-title" onclick="modernV3ToggleGroup('mv3-atletas')"><span>Gestão de Atletas</span><b>▾</b></button>
+  <div class="modern-v3-group" id="mv3-atletas">
+   <button class="nav-btn" onclick="modernV3Navigate('atletas',event)"><span class="mv3-ico">👥</span><span>Atletas</span></button>
+   <button class="nav-btn" onclick="modernV3Navigate('excel-db',event)"><span class="mv3-ico">🗄️</span><span>Banco de Dados</span></button>
+   <button class="nav-btn" onclick="modernV3Action('fotos',event)"><span class="mv3-ico">📸</span><span>Fotos</span></button>
+  </div>
+  <button class="modern-v3-group-title" onclick="modernV3ToggleGroup('mv3-campo')"><span>Campo e Jogos</span><b>▾</b></button>
+  <div class="modern-v3-group" id="mv3-campo">
+   <button class="nav-btn" onclick="modernV3Navigate('convocacao',event)"><span class="mv3-ico">📋</span><span>Convocação</span></button>
+   <button class="nav-btn" onclick="modernV3Navigate('jogos',event)"><span class="mv3-ico">⚽</span><span>Jogos</span></button>
+   <button class="nav-btn" onclick="modernV3Navigate('prancheta',event)"><span class="mv3-ico">📐</span><span>Prancheta Virtual</span></button>
+  </div>
+  <button class="modern-v3-group-title" onclick="modernV3ToggleGroup('mv3-performance')"><span>Performance</span><b>▾</b></button>
+  <div class="modern-v3-group" id="mv3-performance">
+   <button class="nav-btn" onclick="modernV3Navigate('testes',event)"><span class="mv3-ico">🏃</span><span>Testes Físicos</span></button>
+   <button class="nav-btn" onclick="modernV3Navigate('grupos',event)"><span class="mv3-ico">🧩</span><span>Separação de Grupos</span></button>
+  </div>
+  <button class="modern-v3-group-title" onclick="modernV3ToggleGroup('mv3-relatorios')"><span>Central de Relatórios</span><b>▾</b></button>
+  <div class="modern-v3-group" id="mv3-relatorios">
+   <button class="nav-btn" onclick="modernV3Action('relatorio-fisico',event)"><span class="mv3-ico">📊</span><span>Relatório Físico</span></button>
+   <button class="nav-btn" onclick="modernV3Action('trabalho-diario',event)"><span class="mv3-ico">📄</span><span>Trabalho Diário</span></button>
+   <button class="nav-btn" onclick="modernV3Action('planejamento',event)"><span class="mv3-ico">🗓️</span><span>Planejamento Semanal</span></button>
+   <button class="nav-btn" onclick="modernV3Action('psr',event)"><span class="mv3-ico">💚</span><span>PSR</span></button>
+   <button class="nav-btn" onclick="modernV3Action('pse',event)"><span class="mv3-ico">🔥</span><span>PSE</span></button>
+  </div>`;
+}
+function modernV3ToggleGroup(id){
+ const g=document.getElementById(id);if(!g)return;
+ g.classList.toggle('closed');
+ const btn=g.previousElementSibling;if(btn)btn.classList.toggle('closed',g.classList.contains('closed'));
+}
+function modernV3IsHomeActive(){return !!document.getElementById('home-screen')?.classList.contains('active-screen');}
+function modernV3OpenSidebar(){modernV3ManualSidebarClosed=false;document.body.classList.remove('modern-v3-sidebar-collapsed');}
+function modernV3CloseSidebar(){modernV3ManualSidebarClosed=true;document.body.classList.add('modern-v3-sidebar-collapsed');}
+function modernV3AutoSidebar(screenId){
+ if(screenId==='home'){modernV3ManualSidebarClosed=false;document.body.classList.remove('modern-v3-sidebar-collapsed');}
+ else {modernV3ManualSidebarClosed=false;document.body.classList.add('modern-v3-sidebar-collapsed');}
+}
+function modernV3SetActive(btn){
+ document.querySelectorAll('#main-nav .nav-btn').forEach(b=>b.classList.remove('active'));
+ if(btn&&btn.classList&&btn.classList.contains('nav-btn'))btn.classList.add('active');
+}
+function modernV3Navigate(screenId,event){
+ if(typeof limparSelecaoAtletaCadastro==='function') limparSelecaoAtletaCadastro(false); else esconderTooltipAtletaCadastro();
+ document.body.classList.add('app-v3-mode');modernV3EnsureMenu();modernV3SetActive(event&&event.currentTarget);
+ // Módulos em modal: mantém a tela inicial ativa por trás e evita tela vazia ao fechar/cancelar.
+ if(['convocacao','jogos','prancheta','relatorios'].includes(screenId)){
+  modernV3PrepareHome();
+  if(screenId==='convocacao') openConvocacaoModal();
+  else if(screenId==='jogos') openJogosProfessorModal();
+  else if(screenId==='prancheta') openPranchetaModal();
+  else if(screenId==='relatorios') openRelatoriosMenuModal();
+  modernV3AutoSidebar(screenId);
+  return;
+ }
+ navigateTo(screenId,{target:event&&event.currentTarget});
+ modernV3AutoSidebar(screenId);
+}
+function modernV3PrepareHome(){
+ document.querySelectorAll('.screen').forEach(screen=>{screen.classList.remove('active-screen');screen.style.display='';});
+ const home=document.getElementById('home-screen');if(home)home.classList.add('active-screen');
+ const fichas=document.getElementById('fichas-treino-screen');if(fichas)fichas.style.display='none';
+}
+function modernV3VoltarInicio(){
+ document.body.classList.add('app-v3-mode');
+ modernV3EnsureMenu();
+ modernV3PrepareHome();
+ modernV3AutoSidebar('home');
+ document.querySelectorAll('#main-nav .nav-btn').forEach(b=>b.classList.remove('active'));
+ document.querySelector('#main-nav .modern-v3-home')?.classList.add('active');
+ const main=document.querySelector('.main-content');if(main)main.scrollTo(0,0);
+}
+function modernV3Action(action,event){
+ if(typeof limparSelecaoAtletaCadastro==='function') limparSelecaoAtletaCadastro(false); else esconderTooltipAtletaCadastro();
+ document.body.classList.add('app-v3-mode');modernV3EnsureMenu();modernV3SetActive(event&&event.currentTarget);
+ try{
+  if(action==='fotos'){modernV3AutoSidebar('fotos');openFotosModal();return;}
+  modernV3PrepareHome();
+  modernV3AutoSidebar(action);
+  if(action==='relatorio-fisico'){openRelatoriosModal();return;}
+  if(action==='trabalho-diario'){openTrabalhoDiarioModal();return;}
+  if(action==='planejamento'){openPlanejamentoSemanalModal();return;}
+  if(action==='psr'){openRelatorioPsrPse('psr');return;}
+  if(action==='pse'){openRelatorioPsrPse('pse');return;}
+ }catch(e){console.error(e);alert('Não foi possível abrir este módulo.');}
+}
+function modernV3BuildHome(){
+ const home=document.getElementById('home-screen');
+ if(!home||home.dataset.modernV3Home==='1')return;
+ home.dataset.modernV3Home='1';
+ home.innerHTML=`<div class="modern-v3-dashboard">
+  <section class="modern-v3-hero">
+   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button></div></div>
+   <img src="logo.png" alt="CFA Prosol">
+  </section>
+  <h3 class="modern-v3-block-title">Módulos principais</h3>
+  <div class="modern-v3-grid">
+   <button onclick="modernV3Navigate('atletas',event)"><i>👥</i><strong>Atletas</strong><small>Ficha, posições, edição e anotações.</small></button>
+   <button onclick="modernV3Navigate('convocacao',event)"><i>📋</i><strong>Convocação</strong><small>Lista, campo e controle de convocados.</small></button>
+   <button onclick="modernV3Navigate('jogos',event)"><i>⚽</i><strong>Jogos</strong><small>Jogos, estatísticas e relatórios.</small></button>
+   <button onclick="modernV3Navigate('testes',event)"><i>🏃</i><strong>Testes físicos</strong><small>Avaliações físicas, dados e grupos.</small></button>
+   <button onclick="modernV3Action('fotos',event)"><i>📸</i><strong>Fotos</strong><small>Galeria e fotos dos atletas.</small></button>
+   <button onclick="modernV3Navigate('prancheta',event)"><i>📐</i><strong>Prancheta</strong><small>Organização tática virtual.</small></button>
+  </div>
+ </div>`;
+}
+
+function modernV3AnyModalOpen(){
+ const selectors=['.escalacao-overlay','.relatorios-menu-overlay','.trabalho-diario-overlay','.trabalho-atletas-overlay','.relatorio-visualizacao-overlay','.rpp-overlay','.rpp-extra-overlay','.vba-modal-overlay','#convocacao-modal','#prancheta-modal','#jogos-professor-modal','#relatorios-modal','#trabalho-diario-modal','#planejamento-semanal-modal','#fotos-atletas-modal'];
+ return selectors.some(sel=>Array.from(document.querySelectorAll(sel)).some(el=>{
+  const st=getComputedStyle(el);
+  return st.display!=='none' && st.visibility!=='hidden' && st.opacity!=='0';
+ }));
+}
+function modernV3RestoreSidebarIfHomeFree(){
+ setTimeout(()=>{
+  if(modernV3IsHomeActive() && !modernV3AnyModalOpen() && !modernV3ManualSidebarClosed) document.body.classList.remove('modern-v3-sidebar-collapsed');
+ },160);
+}
+document.addEventListener('click',modernV3RestoreSidebarIfHomeFree,true);
+if(document.readyState==='loading'){
+ document.addEventListener('DOMContentLoaded',()=>{modernV3EnsureMenu();modernV3BuildHome();});
+}else{modernV3EnsureMenu();modernV3BuildHome();}

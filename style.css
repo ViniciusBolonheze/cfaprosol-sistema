@@ -3507,3 +3507,577 @@ body {
 .relatorios-menu-card{width:min(760px,94vw)}
 .relatorios-menu-options{grid-template-columns:repeat(3,1fr)}
 .rpp-overlay,.rpp-extra-overlay{position:fixed;inset:0;background:rgba(0,0,0,.68);display:none;align-items:center;justify-content:center;z-index:19500;padding:14px}.rpp-card{position:relative;width:min(1180px,97vw);max-height:93vh;overflow:auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.38);border-top:8px solid #58111a}.rpp-close{position:absolute;right:12px;top:10px;width:34px;height:34px;border:0;border-radius:50%;background:#58111a;color:#fff;font-size:22px;line-height:1;cursor:pointer}.rpp-head{display:grid;grid-template-columns:1.2fr 1fr 1.1fr;gap:14px;align-items:start;padding-right:36px}.rpp-title{text-align:center}.rpp-title h2{margin:0;color:#111;font-size:42px;line-height:1;font-weight:900;letter-spacing:1px}.rpp-title strong{display:block;color:#e60012;font-size:16px;margin-top:10px;letter-spacing:2px}.rpp-title small{display:block;color:#58111a;font-weight:bold;margin-top:5px}.rpp-extra-box{display:flex;flex-direction:column;gap:10px}.rpp-extra-btn{align-self:flex-start;border:1px solid #bbb;background:#f5f5f5;border-radius:8px;padding:10px 14px;font-weight:900;cursor:pointer;color:#111}.rpp-extra-btn:hover{border-color:#58111a;background:#fff8dc}.rpp-extra-chips{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.rpp-extra-chip{display:inline-flex;align-items:center;gap:6px;background:#fff0f0;color:#b30000;border:1px solid #ffcccc;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:bold}.rpp-extra-chip small{color:#58111a;font-weight:900}.rpp-extra-chip button{width:18px;height:18px;border:1px solid #b30000;border-radius:50%;background:#fff;color:#b30000;font-weight:900;cursor:pointer;line-height:1}.rpp-extra-empty{font-size:12px;color:#777}.rpp-cat-box{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}.rpp-cat-box label{font-weight:900;color:#111;font-size:13px}.rpp-cat-box input{width:15px;height:15px;vertical-align:middle}.rpp-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center;margin:15px 0}.rpp-toolbar label{font-weight:900;color:#58111a;font-size:12px}.rpp-toolbar input[type=date]{margin-left:5px;border:1px solid #ccc;border-radius:8px;padding:8px;font-weight:bold}.rpp-toolbar button{border:1px solid #ddd;background:#fff;border-radius:8px;padding:9px 12px;font-weight:900;cursor:pointer}.rpp-toolbar button.active{background:#58111a;color:#f9c614;border-color:#58111a}.rpp-toolbar button.print{background:#aaa;color:#111;border-color:#999;font-size:15px}.rpp-toolbar button:hover{filter:brightness(.97)}.rpp-meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#555;font-weight:bold;font-size:12px;margin:4px 0 10px}.rpp-print-title{display:none}.rpp-table-wrap{overflow:auto;border:1px solid #ddd;border-radius:10px;background:#fff;max-height:58vh}.rpp-table{width:100%;min-width:780px;border-collapse:collapse;font-size:12px}.rpp-table th{position:sticky;top:0;z-index:2;background:#d9d9d9;color:#111;border-bottom:2px solid #999}.rpp-table th,.rpp-table td{border:1px solid #e8e8e8;padding:7px;text-align:center}.rpp-table th button{width:100%;border:0;background:transparent;color:inherit;font:inherit;font-weight:900;cursor:pointer;text-align:center}.rpp-table th.rpp-sort-active{background:#58111a;color:#f9c614}.rpp-table tbody tr:nth-child(even){background:#fafafa}.rpp-table tbody tr:hover{background:#fff8dc}.rpp-table td.rpp-nome{text-align:left;font-weight:900;white-space:nowrap;color:#111}.rpp-table .rpp-desc{text-align:left;min-width:170px}.rpp-muted{color:#aaa}.rpp-v{color:#00a651;font-weight:900;font-size:17px}.rpp-x{color:#d63031;font-weight:900;font-size:17px}.rpp-empty,.rpp-loading{text-align:center;padding:24px!important;color:#666;font-weight:bold}.rpp-extra-card{position:relative;width:min(760px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.38);border-top:8px solid #58111a}.rpp-extra-card h2{margin:0;color:#58111a}.rpp-extra-card p{font-size:13px;color:#555}.rpp-extra-filters{display:grid;grid-template-columns:150px 150px 1fr;gap:8px;margin:12px 0}.rpp-extra-filters select,.rpp-extra-filters input{border:1px solid #ccc;border-radius:8px;padding:9px}.rpp-extra-list{border:1px solid #ddd;border-radius:10px;max-height:470px;overflow:auto}.rpp-extra-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border-bottom:1px solid #eee}.rpp-extra-item:hover{background:#f7fbff}.rpp-extra-item.padrao{background:#fff8df}.rpp-extra-item strong{display:block;color:#111}.rpp-extra-item small{display:block;color:#666;margin-top:2px}.rpp-extra-item button{border:0;border-radius:7px;background:#58111a;color:#fff;padding:8px 12px;font-weight:900;cursor:pointer}.rpp-extra-item button:disabled{background:#ccc;color:#666;cursor:not-allowed}@media(max-width:920px){.relatorios-menu-options{grid-template-columns:1fr 1fr}.rpp-head{grid-template-columns:1fr}.rpp-title{order:-1}.rpp-title h2{font-size:34px}.rpp-cat-box{grid-template-columns:1fr 1fr}.rpp-table-wrap{max-height:55vh}.rpp-extra-filters{grid-template-columns:1fr}}@media(max-width:620px){.relatorios-menu-options{grid-template-columns:1fr}.rpp-card{padding:16px}.rpp-title h2{font-size:30px}.rpp-toolbar{justify-content:flex-start}.rpp-toolbar button,.rpp-toolbar input[type=date]{font-size:12px;padding:7px 8px}.rpp-cat-box{grid-template-columns:1fr}.rpp-table{font-size:11px;min-width:700px}.rpp-extra-item{align-items:flex-start;flex-direction:column}.rpp-extra-item button{width:100%}}
+
+
+/* Layout em lista para relatórios diários/semanais (PSR/PSE e visualizações) */
+.rpp-list-report,.rv-list-report{border:1px solid #d9ebc5;background:linear-gradient(180deg,#fbfff7,#f7fcf2);border-radius:10px;padding:12px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.7)}
+.rpp-list-date,.rv-list-date{display:flex;align-items:center;gap:8px;color:#5c8a2a;font-weight:900;font-size:17px;border-bottom:1px solid #e3eed9;padding:7px 8px;margin-bottom:8px}
+.rpp-list-obs,.rv-list-obs{font-size:13px;color:#444;margin:6px 8px 10px}.rpp-list-cols,.rv-list-cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:0 8px 8px}.rpp-list-col,.rv-list-col{min-width:0}.rpp-list-col h3,.rv-list-col h3{margin:0 0 8px;font-size:15px}.rpp-list-col ul,.rv-list-col ul{list-style:none;margin:0;padding:0;columns:1}.rpp-list-col li,.rv-list-col li{break-inside:avoid;font-size:13px;line-height:1.35;margin:3px 0;font-weight:600}.rpp-list-col li span,.rv-list-col li span{display:inline-block;width:16px;font-weight:900}.rpp-list-col.ok h3,.rpp-list-col.ok li,.rv-list-col.ok h3,.rv-list-col.ok li{color:#078c49}.rpp-list-col.no h3,.rpp-list-col.no li,.rv-list-col.no h3,.rv-list-col.no li{color:#c00000}.rpp-list-col li.empty,.rv-list-col li.empty{color:#777;font-weight:bold}.rv-list-report{margin-top:10px}.rv-list-cols{max-height:58vh;overflow:auto}@media(max-width:760px){.rpp-list-cols,.rv-list-cols{grid-template-columns:1fr;gap:16px}.rpp-list-date,.rv-list-date{font-size:14px}.rpp-list-col li,.rv-list-col li{font-size:12px}}
+
+/* ======================================================================
+   TESTE MODERNO V3 SEGURO — somente visual, sem alterar lógica/Supabase
+   ====================================================================== */
+body.modern-v3{--mv3-primary:#5a1020;--mv3-primary2:#811128;--mv3-gold:#f7c948;--mv3-bg:#eef2f7;--mv3-card:#fff;--mv3-text:#111827;--mv3-muted:#64748b;--mv3-line:#e2e8f0;--mv3-sidebar:310px;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif!important;background:var(--mv3-bg);color:var(--mv3-text)}
+body.modern-v3 *{font-family:Inter,Segoe UI,Roboto,Arial,sans-serif}body.modern-v3 .yellow-bar{display:none!important}body.modern-v3 ::-webkit-scrollbar{width:10px;height:10px}body.modern-v3 ::-webkit-scrollbar-thumb{background:#94a3b8;border:2px solid #edf2f7;border-radius:99px}body.modern-v3 ::-webkit-scrollbar-track{background:#edf2f7}
+body.modern-v3:not(.app-v3-mode){display:block;overflow:hidden;background:radial-gradient(circle at 12% 12%,rgba(247,201,72,.36),transparent 28%),radial-gradient(circle at 90% 20%,rgba(129,17,40,.58),transparent 36%),linear-gradient(135deg,#12050b 0%,#2b0714 48%,#0f172a 100%)}
+body.modern-v3:not(.app-v3-mode)::before{content:"";position:fixed;inset:0;opacity:.24;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.1) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(circle at center,#000,transparent 78%)}
+body.modern-v3:not(.app-v3-mode) .top-header{position:fixed;top:18px;left:50%;transform:translateX(-50%);width:min(1080px,calc(100vw - 34px));height:68px;z-index:5;border:1px solid rgba(255,255,255,.18);border-radius:24px;background:rgba(255,255,255,.1);backdrop-filter:blur(18px);box-shadow:0 24px 70px rgba(0,0,0,.3);padding:0 18px}
+body.modern-v3:not(.app-v3-mode) .main-content{min-height:100vh;display:grid;place-items:center;background:transparent;overflow:hidden}body.modern-v3:not(.app-v3-mode) #login-screen.active-screen{min-height:100vh;display:grid;place-items:center;padding:112px 18px 30px;background:transparent}body.modern-v3:not(.app-v3-mode) .login-card{width:min(520px,94vw);padding:48px 44px;border:1px solid rgba(255,255,255,.2);border-radius:34px;background:linear-gradient(180deg,rgba(255,255,255,.17),rgba(255,255,255,.08));backdrop-filter:blur(18px);box-shadow:0 34px 90px rgba(0,0,0,.42);position:relative;overflow:hidden}body.modern-v3:not(.app-v3-mode) .login-card::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:linear-gradient(90deg,var(--mv3-gold),#fff0a6,var(--mv3-primary2))}body.modern-v3:not(.app-v3-mode) .login-logo{width:150px;filter:drop-shadow(0 18px 28px rgba(0,0,0,.38))}body.modern-v3:not(.app-v3-mode) .login-title{font-size:38px;color:#fff;letter-spacing:.6px;text-shadow:0 4px 18px rgba(0,0,0,.4)}body.modern-v3:not(.app-v3-mode) .login-subtitle{color:#fde68a;font-style:normal;font-size:14px;letter-spacing:.25px}body.modern-v3:not(.app-v3-mode) .btn-entrar{border-radius:18px;padding:16px 22px;background:linear-gradient(135deg,var(--mv3-gold),#fff0a6);box-shadow:0 16px 34px rgba(247,201,72,.24);transition:.22s ease}body.modern-v3:not(.app-v3-mode) .btn-entrar:hover{transform:translateY(-2px);box-shadow:0 22px 45px rgba(247,201,72,.33)}
+body.modern-v3.app-v3-mode{display:block;height:100vh;overflow:hidden;background:var(--mv3-bg)}body.modern-v3.app-v3-mode .top-header{position:fixed;top:0;left:var(--mv3-sidebar);right:0;height:82px;z-index:9000;background:rgba(255,255,255,.9);backdrop-filter:blur(18px);border-bottom:1px solid rgba(15,23,42,.08);padding:0 24px;box-shadow:0 12px 34px rgba(15,23,42,.06)}body.modern-v3.app-v3-mode .top-header::before{content:"Command Center";font-size:22px;font-weight:950;color:var(--mv3-primary);letter-spacing:.2px;margin-right:auto}body.modern-v3.app-v3-mode .header-content-top{align-items:flex-start;margin:0 0 0 18px;gap:4px}body.modern-v3.app-v3-mode .header-icons-row{display:flex;align-items:center;gap:10px}body.modern-v3.app-v3-mode .date-display{color:var(--mv3-muted);font-size:12px;font-weight:800}body.modern-v3.app-v3-mode .fullscreen-btn{position:absolute;right:22px;top:20px;height:42px;border:1px solid rgba(90,16,32,.12);border-radius:14px;background:#fff;color:var(--mv3-primary);box-shadow:0 10px 22px rgba(15,23,42,.08);padding:0 15px}body.modern-v3.app-v3-mode .fullscreen-btn:hover{background:var(--mv3-primary);color:#fff}body.modern-v3.app-v3-mode .fotos-header-btn{border-radius:14px!important;background:#fff!important;color:var(--mv3-primary)!important;border:1px solid rgba(90,16,32,.14)!important;box-shadow:0 8px 18px rgba(15,23,42,.07)!important}
+body.modern-v3.app-v3-mode #main-nav.modern-v3-sidebar{position:fixed!important;display:flex!important;flex-direction:column;top:0;left:0;width:var(--mv3-sidebar);height:100vh;z-index:9100;padding:18px 16px 20px;gap:8px;border:0;background:linear-gradient(180deg,#3a0b16 0%,#5a1020 48%,#13070c 100%);box-shadow:20px 0 54px rgba(15,23,42,.24);overflow:auto}.modern-v3-brand{display:flex;align-items:center;gap:13px;padding:10px 8px 18px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.14)}.modern-v3-brand img{width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(0,0,0,.25))}.modern-v3-brand strong{display:block;color:#fff;font-size:21px;font-weight:950;line-height:1}.modern-v3-brand span{display:block;color:rgba(255,255,255,.62);font-size:12px;font-weight:700;margin-top:5px}.modern-v3-group-title{width:100%;border:0;border-radius:14px;background:rgba(255,255,255,.07);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:12px 13px;font-size:12px;font-weight:950;letter-spacing:.35px;text-transform:uppercase;cursor:pointer}.modern-v3-group-title b{transition:.18s ease;color:var(--mv3-gold)}.modern-v3-group-title.closed b{transform:rotate(-90deg)}.modern-v3-group{display:flex;flex-direction:column;gap:6px;max-height:460px;overflow:hidden;transition:max-height .22s ease,opacity .18s ease}.modern-v3-group.closed{max-height:0;opacity:.15}.modern-v3-sidebar .nav-btn{flex:0 0 auto;width:100%;min-height:44px;border:1px solid transparent;border-radius:14px;background:transparent;color:rgba(255,255,255,.84);justify-content:flex-start;text-align:left;padding:0 12px;font-size:12px;letter-spacing:.15px;box-shadow:none;text-transform:none;font-weight:850;gap:10px;transition:.18s ease}.modern-v3-sidebar .nav-btn i{width:28px;height:28px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);color:var(--mv3-gold);font-size:14px;flex:0 0 28px}.modern-v3-sidebar .nav-btn:hover{background:rgba(255,255,255,.1);color:#fff;transform:translateX(3px);border-color:rgba(255,255,255,.1)}.modern-v3-sidebar .nav-btn.active{background:linear-gradient(135deg,var(--mv3-gold),#fff0a6);color:#1a1010;box-shadow:0 14px 30px rgba(247,201,72,.2)}.modern-v3-sidebar .nav-btn.active i{background:rgba(90,16,32,.12);color:var(--mv3-primary)}
+body.modern-v3.app-v3-mode .main-content{margin-left:var(--mv3-sidebar);width:calc(100vw - var(--mv3-sidebar));height:100vh;display:block;overflow:auto;padding:106px 28px 30px;background:radial-gradient(circle at 90% 8%,rgba(247,201,72,.16),transparent 24%),radial-gradient(circle at 8% 100%,rgba(90,16,32,.08),transparent 28%),linear-gradient(180deg,#f8fafc 0%,#eef2f7 100%)}body.modern-v3.app-v3-mode .screen{width:100%;min-height:calc(100vh - 136px)}body.modern-v3.app-v3-mode .screen.active-screen{display:flex}body.modern-v3.app-v3-mode #home-screen.active-screen{display:block}.modern-v3-dashboard{width:min(1280px,100%);margin:0 auto;display:grid;gap:22px}.modern-v3-hero{min-height:260px;border:1px solid rgba(15,23,42,.08);border-radius:32px;background:linear-gradient(135deg,#fff 0%,#fff7db 54%,#f8fafc 100%);box-shadow:0 26px 70px rgba(15,23,42,.1);display:grid;grid-template-columns:1.55fr .7fr;gap:20px;padding:34px;overflow:hidden;position:relative}.modern-v3-hero::after{content:"";position:absolute;left:0;bottom:0;width:100%;height:6px;background:linear-gradient(90deg,var(--mv3-primary),var(--mv3-gold),#fff0a6)}.modern-v3-hero span{display:inline-flex;border:1px solid rgba(90,16,32,.14);border-radius:999px;padding:7px 12px;background:#fff;color:var(--mv3-primary);font-weight:950;font-size:12px;text-transform:uppercase;letter-spacing:.45px}.modern-v3-hero h1{font-size:52px;line-height:1;margin:18px 0 10px;color:var(--mv3-primary);letter-spacing:-1px}.modern-v3-hero p{color:#475569;font-size:16px;max-width:620px;line-height:1.55;font-weight:600}.modern-v3-hero img{width:min(260px,90%);place-self:center;filter:drop-shadow(0 22px 30px rgba(15,23,42,.22))}.modern-v3-hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}.modern-v3-hero-actions button{border:0;border-radius:16px;background:linear-gradient(135deg,var(--mv3-primary),#8a1430);color:#fff;padding:13px 18px;font-weight:950;box-shadow:0 16px 32px rgba(90,16,32,.22);cursor:pointer;display:inline-flex;align-items:center;gap:9px}.modern-v3-hero-actions button:nth-child(2){background:linear-gradient(135deg,var(--mv3-gold),#fff0a6);color:#3a0b16}.modern-v3-block-title{font-size:18px;font-weight:950;color:#111827}.modern-v3-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.modern-v3-grid button,.modern-v3-reports button{border:1px solid rgba(15,23,42,.08);border-radius:24px;background:rgba(255,255,255,.94);box-shadow:0 16px 42px rgba(15,23,42,.07);padding:22px;text-align:left;cursor:pointer;transition:.2s ease;min-height:156px}.modern-v3-grid button:hover,.modern-v3-reports button:hover{transform:translateY(-4px);box-shadow:0 24px 60px rgba(15,23,42,.12);border-color:rgba(247,201,72,.75)}.modern-v3-grid i{width:48px;height:48px;border-radius:18px;background:#fff8dc;display:grid;place-items:center;font-size:24px;margin-bottom:16px;font-style:normal}.modern-v3-grid strong,.modern-v3-reports strong{display:block;color:#111827;font-size:17px;font-weight:950;margin-bottom:6px}.modern-v3-grid small{display:block;color:var(--mv3-muted);font-size:13px;font-weight:650;line-height:1.45}.modern-v3-reports{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}.modern-v3-reports button{min-height:126px;padding:18px}.modern-v3-reports i{width:42px;height:42px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,var(--mv3-primary),#8a1430);color:#fff;font-size:17px;margin-bottom:14px}
+body.modern-v3.app-v3-mode #excel-db-screen.active-screen,body.modern-v3.app-v3-mode #atletas-screen.active-screen,body.modern-v3.app-v3-mode #testes-screen.active-screen,body.modern-v3.app-v3-mode #grupos-screen.active-screen{padding:0;background:transparent;overflow:visible}body.modern-v3.app-v3-mode .excel-container,body.modern-v3.app-v3-mode .vba-atletas-container,body.modern-v3.app-v3-mode .pf-container,body.modern-v3.app-v3-mode .grupos-container,body.modern-v3.app-v3-mode .relatorios-card,body.modern-v3.app-v3-mode .jogos-estatisticas-card,body.modern-v3.app-v3-mode .jogos-salvos-card{border:1px solid rgba(15,23,42,.08)!important;border-radius:28px!important;background:rgba(255,255,255,.94)!important;box-shadow:0 24px 70px rgba(15,23,42,.09)!important;overflow:hidden}body.modern-v3.app-v3-mode .excel-header,body.modern-v3.app-v3-mode .pf-title-bar,body.modern-v3.app-v3-mode .vba-atletas-title,body.modern-v3.app-v3-mode .jogos-header{background:linear-gradient(135deg,var(--mv3-primary),#8a1430)!important;color:#fff!important;border:0!important;border-radius:0!important;padding:17px 22px!important;box-shadow:none!important}body.modern-v3.app-v3-mode .excel-header h2{color:#fff!important;font-size:18px!important}body.modern-v3.app-v3-mode .excel-header{gap:14px;flex-wrap:wrap}body.modern-v3.app-v3-mode .excel-actions{gap:8px;flex-wrap:wrap}
+body.modern-v3.app-v3-mode .btn-import-excel,body.modern-v3.app-v3-mode .btn-excel-action,body.modern-v3.app-v3-mode .btn-voltar,body.modern-v3.app-v3-mode .vba-green-btn,body.modern-v3.app-v3-mode .vba-red-btn,body.modern-v3.app-v3-mode .vba-gray-btn,body.modern-v3.app-v3-mode .pf-btn-add-eval,body.modern-v3.app-v3-mode .pf-btn-del-eval,body.modern-v3.app-v3-mode .pf-btn-home,body.modern-v3.app-v3-mode .td-actions button,body.modern-v3.app-v3-mode .rpp-toolbar button,body.modern-v3.app-v3-mode .rv-filtros button{border:0!important;border-radius:14px!important;box-shadow:0 10px 22px rgba(15,23,42,.1)!important;font-weight:900!important;transition:.18s ease!important}body.modern-v3.app-v3-mode .btn-import-excel:hover,body.modern-v3.app-v3-mode .btn-excel-action:hover,body.modern-v3.app-v3-mode .btn-voltar:hover,body.modern-v3.app-v3-mode .vba-green-btn:hover,body.modern-v3.app-v3-mode .vba-red-btn:hover,body.modern-v3.app-v3-mode .vba-gray-btn:hover,body.modern-v3.app-v3-mode .pf-btn-add-eval:hover,body.modern-v3.app-v3-mode .pf-btn-del-eval:hover,body.modern-v3.app-v3-mode .pf-btn-home:hover,body.modern-v3.app-v3-mode .td-actions button:hover,body.modern-v3.app-v3-mode .rpp-toolbar button:hover,body.modern-v3.app-v3-mode .rv-filtros button:hover{transform:translateY(-1px);filter:brightness(1.03)!important}body.modern-v3.app-v3-mode .btn-excel-action,body.modern-v3.app-v3-mode .vba-green-btn,body.modern-v3.app-v3-mode .td-actions button.enviar{background:linear-gradient(135deg,#16a34a,#22c55e)!important;color:#fff!important}body.modern-v3.app-v3-mode .btn-voltar,body.modern-v3.app-v3-mode .vba-gray-btn,body.modern-v3.app-v3-mode .pf-btn-home{background:linear-gradient(135deg,var(--mv3-primary),#8a1430)!important;color:#fff!important}body.modern-v3.app-v3-mode .vba-red-btn,body.modern-v3.app-v3-mode .pf-btn-del-eval,body.modern-v3.app-v3-mode .td-actions button.excluir-trabalho{background:linear-gradient(135deg,#dc2626,#ef4444)!important;color:#fff!important}
+body.modern-v3.app-v3-mode .excel-table-wrapper,body.modern-v3.app-v3-mode .pf-table-wrapper,body.modern-v3.app-v3-mode .comp-wrap,body.modern-v3.app-v3-mode .rv-table-wrap,body.modern-v3.app-v3-mode .rpp-table-wrap,body.modern-v3.app-v3-mode #jogos-atletas-ativos-lista{border:1px solid rgba(15,23,42,.08)!important;border-radius:20px!important;background:#fff!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.72)!important}body.modern-v3.app-v3-mode table{border-collapse:separate!important;border-spacing:0!important}body.modern-v3.app-v3-mode #excel-db-table th,body.modern-v3.app-v3-mode #pf-table th,body.modern-v3.app-v3-mode .comparativo th,body.modern-v3.app-v3-mode .rv-table th,body.modern-v3.app-v3-mode .rpp-table th{background:#f8fafc!important;color:#334155!important;border-bottom:1px solid #dbe3ef!important;font-weight:950!important}body.modern-v3.app-v3-mode #excel-db-table td,body.modern-v3.app-v3-mode #pf-table td,body.modern-v3.app-v3-mode .comparativo td,body.modern-v3.app-v3-mode .rv-table td,body.modern-v3.app-v3-mode .rpp-table td{border-color:#edf1f6!important}
+body.modern-v3.app-v3-mode .vba-atletas-container{min-height:calc(100vh - 136px)}body.modern-v3.app-v3-mode .vba-atletas-title{font-size:18px!important;text-align:left!important;letter-spacing:.2px}body.modern-v3.app-v3-mode .vba-anos-filter{background:#fff!important;border-bottom:1px solid var(--mv3-line)!important;padding:14px 18px!important}body.modern-v3.app-v3-mode .vba-anos-filter label{display:inline-flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:850;color:#334155}body.modern-v3.app-v3-mode .vba-content-grid{padding:18px!important;gap:18px!important}body.modern-v3.app-v3-mode .vba-sidebar-btns{gap:10px!important}body.modern-v3.app-v3-mode .vba-sidebar-btns button{min-height:43px!important}body.modern-v3.app-v3-mode .vba-positions-grid{gap:14px!important}body.modern-v3.app-v3-mode .pos-box{border:1px solid rgba(15,23,42,.08)!important;border-radius:20px!important;background:#fff!important;box-shadow:0 12px 30px rgba(15,23,42,.05)!important;overflow:hidden}body.modern-v3.app-v3-mode .pos-header{background:linear-gradient(135deg,#f8fafc,#eef2f7)!important;color:var(--mv3-primary)!important;border-bottom:1px solid #e5e7eb!important;font-weight:950!important}body.modern-v3.app-v3-mode .athlete-item{border-radius:11px!important;margin:5px 8px!important;border:1px solid transparent!important;transition:.15s ease!important}body.modern-v3.app-v3-mode .athlete-item:hover{border-color:#f5d14f!important;background:#fff8dc!important;transform:translateX(2px)}
+body.modern-v3.app-v3-mode .pf-container{height:calc(100vh - 136px)!important}body.modern-v3.app-v3-mode .pf-tabs-bar{background:#fff!important;border-bottom:1px solid var(--mv3-line)!important;padding:12px!important;gap:8px!important}body.modern-v3.app-v3-mode .pf-tab{border:1px solid #e5e7eb!important;border-radius:999px!important;background:#f8fafc!important;color:#334155!important;font-weight:900!important;box-shadow:none!important}body.modern-v3.app-v3-mode .pf-tab.active{background:linear-gradient(135deg,var(--mv3-primary),#8a1430)!important;color:#fff!important;border-color:transparent!important}body.modern-v3.app-v3-mode .pf-select-control{border:1px solid #dbe3ef!important;border-radius:13px!important;background:#fff!important;color:#334155!important;font-weight:850!important}body.modern-v3.app-v3-mode #btn-calculadora-estatico{border-radius:18px!important;background:linear-gradient(135deg,var(--mv3-gold),#ffe68a)!important;color:#3a0b16!important;box-shadow:0 16px 30px rgba(247,201,72,.22)!important}
+body.modern-v3.app-v3-mode .relatorios-menu-card,body.modern-v3.app-v3-mode .trabalho-diario-card,body.modern-v3.app-v3-mode .trabalho-atletas-card,body.modern-v3.app-v3-mode .relatorio-visualizacao-card,body.modern-v3.app-v3-mode .rpp-card,body.modern-v3.app-v3-mode .rpp-extra-card,body.modern-v3.app-v3-mode .jogos-professor-card,body.modern-v3.app-v3-mode .vba-modal-card{border:1px solid rgba(15,23,42,.08)!important;border-top:0!important;border-radius:28px!important;background:#fff!important;box-shadow:0 28px 80px rgba(15,23,42,.2)!important}body.modern-v3.app-v3-mode .relatorios-menu-card::before,body.modern-v3.app-v3-mode .trabalho-diario-card::before,body.modern-v3.app-v3-mode .relatorio-visualizacao-card::before,body.modern-v3.app-v3-mode .rpp-card::before{content:"";display:block;height:6px;margin:-24px -24px 18px;background:linear-gradient(90deg,var(--mv3-primary),var(--mv3-gold))}body.modern-v3.app-v3-mode .relatorios-menu-options button{border:1px solid #e5e7eb!important;border-radius:20px!important;background:linear-gradient(180deg,#fff,#f8fafc)!important;box-shadow:0 12px 30px rgba(15,23,42,.07)!important}body.modern-v3.app-v3-mode .td-cat-panel{border:1px solid #e5e7eb!important;border-radius:20px!important;background:#fff!important;box-shadow:0 12px 30px rgba(15,23,42,.05)!important}body.modern-v3.app-v3-mode .td-status{border-radius:14px!important;background:#f8fafc!important;border:1px solid #e2e8f0!important}body.modern-v3.app-v3-mode .td-status.ok{background:#f0fdf4!important;border-color:#bbf7d0!important}
+body.modern-v3.app-v3-mode input:not([type="checkbox"]):not([type="radio"]),body.modern-v3.app-v3-mode select,body.modern-v3.app-v3-mode textarea{border:1px solid #dbe3ef;border-radius:13px;background:#fff;color:#111827;outline:none;transition:border-color .15s ease,box-shadow .15s ease}body.modern-v3.app-v3-mode input:not([type="checkbox"]):not([type="radio"]):focus,body.modern-v3.app-v3-mode select:focus,body.modern-v3.app-v3-mode textarea:focus{border-color:var(--mv3-gold);box-shadow:0 0 0 4px rgba(247,201,72,.18)}body.modern-v3 #relogio-inatividade-sistema{position:fixed;left:14px;bottom:14px;z-index:9300;background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:7px 11px;font-size:11px;font-weight:950;backdrop-filter:blur(10px);box-shadow:0 10px 24px rgba(0,0,0,.18)}
+@media(max-width:1180px){body.modern-v3.app-v3-mode .top-header{left:0;height:72px;padding:0 14px}body.modern-v3.app-v3-mode .top-header::before{font-size:17px}body.modern-v3.app-v3-mode #main-nav.modern-v3-sidebar{top:72px;left:0;right:0;width:100vw;height:72px;flex-direction:row;padding:10px 12px;overflow-x:auto;overflow-y:hidden;gap:8px;background:linear-gradient(90deg,#3a0b16,#5a1020)}.modern-v3-brand,.modern-v3-group{display:none!important}.modern-v3-group-title{min-width:190px;height:48px;flex:0 0 auto}.modern-v3-home{min-width:150px}body.modern-v3.app-v3-mode .main-content{margin-left:0;width:100vw;padding:166px 16px 20px}body.modern-v3.app-v3-mode .fullscreen-btn{right:12px;top:15px;font-size:0;min-width:42px;justify-content:center}body.modern-v3.app-v3-mode .fullscreen-btn i{font-size:15px}body.modern-v3.app-v3-mode .header-content-top{display:none}.modern-v3-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.modern-v3-reports{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){body.modern-v3:not(.app-v3-mode) .top-header{top:10px;height:58px;border-radius:18px}body.modern-v3:not(.app-v3-mode) .login-card{padding:34px 24px;border-radius:26px}.modern-v3-hero{grid-template-columns:1fr;padding:24px;border-radius:26px}.modern-v3-hero h1{font-size:38px}.modern-v3-grid,.modern-v3-reports{grid-template-columns:1fr}body.modern-v3.app-v3-mode .main-content{padding-left:10px;padding-right:10px}body.modern-v3.app-v3-mode .excel-header{align-items:flex-start}body.modern-v3.app-v3-mode .excel-actions{width:100%}body.modern-v3.app-v3-mode .excel-actions>*{flex:1 1 150px;justify-content:center}body.modern-v3.app-v3-mode .vba-content-grid{flex-direction:column!important}body.modern-v3.app-v3-mode .vba-sidebar-btns{width:100%!important;display:grid!important;grid-template-columns:1fr 1fr!important}}
+
+/* ===== AJUSTES V3 - SOLICITAÇÕES DO TESTE ===== */
+/* Corrige o timer: antes ele ficava esticado porque herdava top + bottom. */
+body.modern-v3 #relogio-inatividade-sistema,
+body.modern-v3.app-v3-mode #relogio-inatividade-sistema{
+    top:auto!important;
+    right:auto!important;
+    left:18px!important;
+    bottom:14px!important;
+    width:auto!important;
+    height:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    max-width:max-content!important;
+    max-height:max-content!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    border-radius:999px!important;
+    padding:6px 10px!important;
+    font-size:11px!important;
+    line-height:1!important;
+    writing-mode:horizontal-tb!important;
+    transform:none!important;
+    pointer-events:none!important;
+    opacity:.9!important;
+    background:rgba(255,255,255,.12)!important;
+    color:#fff!important;
+    border:1px solid rgba(255,255,255,.18)!important;
+    box-shadow:0 8px 18px rgba(0,0,0,.18)!important;
+}
+
+/* Remove o texto Command Center do topo. */
+body.modern-v3.app-v3-mode .top-header::before{content:""!important;display:none!important;}
+
+/* Botão tela cheia agora fica no menu lateral. */
+body.modern-v3.app-v3-mode .top-header .fullscreen-btn{display:none!important;}
+body.modern-v3.app-v3-mode .modern-v3-fullscreen-btn{
+    width:100%;min-height:42px;border:1px solid rgba(255,255,255,.16);border-radius:14px;
+    background:rgba(255,255,255,.10);color:#fff;display:flex;align-items:center;gap:10px;
+    padding:0 12px;font-size:12px;font-weight:900;cursor:pointer;margin:4px 0 6px;
+    transition:.18s ease;box-shadow:none;
+}
+body.modern-v3.app-v3-mode .modern-v3-fullscreen-btn:hover{background:linear-gradient(135deg,var(--mv3-gold),#fff0a6);color:#1a1010;transform:translateX(3px);}
+body.modern-v3.app-v3-mode .modern-v3-fullscreen-btn .mv3-ico,
+body.modern-v3.app-v3-mode .modern-v3-sidebar .nav-btn .mv3-ico{
+    width:28px;height:28px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.10);color:var(--mv3-gold);font-size:15px;flex:0 0 28px;
+}
+body.modern-v3.app-v3-mode .modern-v3-sidebar .nav-btn.active .mv3-ico{background:rgba(90,16,32,.12);color:var(--mv3-primary);}
+
+/* Ícone do Instagram sem depender de biblioteca externa. */
+body.modern-v3 .instagram-icon i{display:none!important;}
+body.modern-v3 .instagram-icon::before{content:"IG";font-size:10px;font-weight:950;letter-spacing:.2px;color:#fff;}
+body.modern-v3.app-v3-mode .instagram-icon{border-radius:10px!important;}
+
+/* Home: remove espaço dos botões antigos e melhora leitura do texto pedido. */
+body.modern-v3.app-v3-mode .modern-v3-hero{grid-template-columns:1.35fr .65fr!important;}
+body.modern-v3.app-v3-mode .modern-v3-hero h1{margin-bottom:12px!important;}
+body.modern-v3.app-v3-mode .modern-v3-hero p{font-size:17px!important;max-width:650px!important;}
+body.modern-v3.app-v3-mode .modern-v3-hero-actions{display:none!important;}
+body.modern-v3.app-v3-mode .modern-v3-reports button i{font-style:normal!important;font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif!important;}
+
+/* Atletas: libera rolagem e aumenta área das listas para ver todos. */
+body.modern-v3.app-v3-mode .main-content{overflow:auto!important;}
+body.modern-v3.app-v3-mode #atletas-screen.active-screen{
+    min-height:auto!important;height:auto!important;overflow:visible!important;display:block!important;
+}
+body.modern-v3.app-v3-mode .vba-atletas-container{
+    height:auto!important;min-height:calc(100vh - 136px)!important;overflow:visible!important;
+}
+body.modern-v3.app-v3-mode .vba-content-grid{
+    align-items:flex-start!important;min-height:0!important;overflow:visible!important;
+}
+body.modern-v3.app-v3-mode .vba-positions-grid{
+    grid-template-columns:repeat(2,minmax(280px,1fr))!important;
+    grid-template-rows:none!important;
+    align-items:start!important;
+}
+body.modern-v3.app-v3-mode .pos-box{
+    height:auto!important;min-height:220px!important;overflow:visible!important;
+}
+body.modern-v3.app-v3-mode .pos-list{
+    max-height:none!important;height:auto!important;overflow:visible!important;min-height:160px!important;
+}
+
+/* Impressão da convocação: neutraliza a casca moderna durante impressão. */
+@media print{
+  body.modern-v3.app-v3-mode{background:#fff!important;overflow:visible!important;}
+  body.modern-v3.app-v3-mode .top-header,
+  body.modern-v3.app-v3-mode #main-nav,
+  body.modern-v3.app-v3-mode #relogio-inatividade-sistema{display:none!important;}
+  body.modern-v3.app-v3-mode .main-content{margin:0!important;padding:0!important;width:auto!important;height:auto!important;background:#fff!important;overflow:visible!important;box-shadow:none!important;}
+  body.modern-v3.printing-dedicated-convocacao>*:not(#print-convocacao-layout){display:none!important;visibility:hidden!important;}
+  body.modern-v3.printing-dedicated-convocacao>#print-convocacao-layout{display:block!important;visibility:visible!important;position:relative!important;width:297mm!important;height:210mm!important;overflow:hidden!important;background:#fff!important;}
+  body.modern-v3.printing-dedicated-convocacao>#print-convocacao-layout *{visibility:visible!important;}
+  body.modern-v3.imprimindo-campo>*:not(#campo-convocacao-modal){display:none!important;visibility:hidden!important;}
+  body.modern-v3.imprimindo-campo>#campo-convocacao-modal{display:flex!important;visibility:visible!important;position:static!important;background:#fff!important;width:100%!important;height:auto!important;overflow:visible!important;}
+  body.modern-v3.imprimindo-campo>#campo-convocacao-modal .campo-acoes{display:none!important;}
+}
+
+@media(max-width:1180px){
+  body.modern-v3.app-v3-mode .modern-v3-fullscreen-btn{min-width:150px;flex:0 0 auto;height:48px;margin:0;justify-content:center;}
+  body.modern-v3.app-v3-mode .modern-v3-fullscreen-btn span:last-child{display:inline;}
+}
+@media(max-width:760px){
+  body.modern-v3.app-v3-mode .vba-positions-grid{grid-template-columns:1fr!important;}
+}
+
+/* ===== AJUSTES V3 - MENU RECOLHÍVEL E RELATÓRIOS NO CARD ===== */
+body.modern-v3.app-v3-mode #main-nav.modern-v3-sidebar{transition:transform .24s ease!important;}
+body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed #main-nav.modern-v3-sidebar{transform:translateX(calc(-1 * var(--mv3-sidebar)))!important;}
+body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .main-content{margin-left:0!important;width:100vw!important;}
+body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .top-header{left:0!important;}
+body.modern-v3 .modern-v3-menu-float{display:none;}
+body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .modern-v3-menu-float{
+    display:inline-flex!important;position:fixed;left:14px;top:94px;z-index:9400;
+    align-items:center;gap:8px;border:0;border-radius:999px;background:linear-gradient(135deg,var(--mv3-primary),#8a1430);
+    color:#fff;padding:10px 14px;font-size:12px;font-weight:950;box-shadow:0 14px 32px rgba(90,16,32,.28);cursor:pointer;
+}
+body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .modern-v3-menu-float:hover{filter:brightness(1.08);}
+body.modern-v3.app-v3-mode .modern-v3-collapse-btn{
+    width:100%;min-height:38px;border:1px solid rgba(255,255,255,.14);border-radius:13px;background:rgba(255,255,255,.08);color:#fff;
+    display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:11px;font-weight:900;cursor:pointer;margin:0 0 4px;
+}
+body.modern-v3.app-v3-mode .modern-v3-collapse-btn:hover{background:rgba(255,255,255,.14);}
+body.modern-v3.app-v3-mode #home-screen.active-screen ~ * .modern-v3-collapse-btn{display:none!important;}
+
+/* Grupos sem sobreposição/itens apagados */
+body.modern-v3.app-v3-mode .modern-v3-group{max-height:none!important;overflow:visible!important;opacity:1!important;margin-bottom:8px!important;}
+body.modern-v3.app-v3-mode .modern-v3-group.closed{display:none!important;max-height:0!important;margin:0!important;}
+body.modern-v3.app-v3-mode .modern-v3-group-title{position:relative!important;z-index:1!important;margin-top:2px!important;}
+body.modern-v3.app-v3-mode .modern-v3-sidebar .nav-btn{position:relative!important;z-index:2!important;}
+
+/* Relatórios/documentos dentro do card inicial */
+body.modern-v3.app-v3-mode .modern-v3-hero{grid-template-columns:1.1fr .48fr!important;align-items:center!important;}
+body.modern-v3.app-v3-mode .modern-v3-hero-reports{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin-top:22px;max-width:760px;}
+body.modern-v3.app-v3-mode .modern-v3-hero-reports button{
+    border:1px solid rgba(15,23,42,.08);border-radius:16px;background:rgba(255,255,255,.78);padding:11px 10px;min-height:76px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;cursor:pointer;
+    box-shadow:0 10px 24px rgba(15,23,42,.07);transition:.18s ease;color:#111827;
+}
+body.modern-v3.app-v3-mode .modern-v3-hero-reports button:hover{transform:translateY(-2px);border-color:var(--mv3-gold);box-shadow:0 16px 34px rgba(15,23,42,.12);}
+body.modern-v3.app-v3-mode .modern-v3-hero-reports i{font-style:normal!important;font-size:22px;line-height:1;}
+body.modern-v3.app-v3-mode .modern-v3-hero-reports strong{font-size:11px;font-weight:950;line-height:1.15;}
+
+/* Tela cheia flutuante ao lado do relógio */
+body.modern-v3.app-v3-mode .top-header .fullscreen-btn,
+body.modern-v3.app-v3-mode .fullscreen-btn{
+    display:inline-flex!important;position:fixed!important;top:auto!important;right:auto!important;left:96px!important;bottom:14px!important;z-index:9301!important;
+    height:31px!important;min-height:31px!important;width:auto!important;min-width:0!important;border-radius:999px!important;padding:0 12px!important;
+    background:rgba(255,255,255,.13)!important;color:#fff!important;border:1px solid rgba(255,255,255,.20)!important;
+    box-shadow:0 8px 18px rgba(0,0,0,.18)!important;backdrop-filter:blur(10px)!important;font-size:11px!important;font-weight:950!important;
+}
+body.modern-v3.app-v3-mode .fullscreen-btn:hover{background:linear-gradient(135deg,var(--mv3-gold),#fff0a6)!important;color:#3a0b16!important;}
+
+@media(max-width:1180px){
+  body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed #main-nav.modern-v3-sidebar{transform:translateY(-100%)!important;}
+  body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .main-content{padding-top:94px!important;}
+  body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .modern-v3-menu-float{top:78px!important;}
+  body.modern-v3.app-v3-mode .modern-v3-hero-reports{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+@media(max-width:760px){
+  body.modern-v3.app-v3-mode .modern-v3-hero{grid-template-columns:1fr!important;}
+  body.modern-v3.app-v3-mode .modern-v3-hero-reports{grid-template-columns:repeat(2,minmax(0,1fr));}
+  body.modern-v3.app-v3-mode .fullscreen-btn{left:92px!important;font-size:0!important;width:34px!important;padding:0!important;justify-content:center!important;}
+  body.modern-v3.app-v3-mode .fullscreen-btn i{font-size:13px!important;}
+}
+
+/* ===== AJUSTES V3 - CENTRALIZAÇÃO, ATLETAS ORIGINAL E COLUNAS FIXAS ===== */
+body.modern-v3.app-v3-mode .top-header{justify-content:center!important;}
+body.modern-v3.app-v3-mode .header-content-top{
+    position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;
+    margin:0!important;align-items:center!important;text-align:center!important;gap:4px!important;
+}
+body.modern-v3.app-v3-mode .header-icons-row{justify-content:center!important;align-items:center!important;width:100%!important;}
+body.modern-v3.app-v3-mode .date-display{text-align:center!important;width:100%!important;}
+
+/* Atletas volta ao comportamento visual do sistema anterior, sem grandes espaços em branco. */
+body.modern-v3.app-v3-mode #atletas-screen.active-screen{
+    height:calc(100vh - 136px)!important;min-height:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;
+}
+body.modern-v3.app-v3-mode .vba-atletas-container{
+    height:100%!important;min-height:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;
+}
+body.modern-v3.app-v3-mode .vba-content-grid{
+    flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;align-items:stretch!important;
+}
+body.modern-v3.app-v3-mode .vba-positions-grid{
+    grid-template-columns:repeat(4,1fr)!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;
+    height:100%!important;min-height:0!important;overflow:hidden!important;
+}
+body.modern-v3.app-v3-mode .pos-box{
+    height:100%!important;min-height:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;
+}
+body.modern-v3.app-v3-mode .pos-list{
+    flex:1 1 auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;
+}
+
+/* Testes físicos: Ano e Nome Completo fixos ao rolar horizontalmente. */
+body.modern-v3.app-v3-mode #pf-table th:nth-child(1),
+body.modern-v3.app-v3-mode #pf-table td:nth-child(1){
+    position:sticky!important;left:0!important;z-index:32!important;min-width:64px!important;width:64px!important;background:#f8fafc!important;
+    box-shadow:2px 0 0 rgba(15,23,42,.08)!important;
+}
+body.modern-v3.app-v3-mode #pf-table th:nth-child(2),
+body.modern-v3.app-v3-mode #pf-table td:nth-child(2){
+    position:sticky!important;left:64px!important;z-index:31!important;min-width:240px!important;width:240px!important;background:#f8fafc!important;
+    box-shadow:2px 0 0 rgba(15,23,42,.08)!important;
+}
+body.modern-v3.app-v3-mode #pf-table th:nth-child(1),
+body.modern-v3.app-v3-mode #pf-table th:nth-child(2){z-index:45!important;background:#eef2f7!important;color:var(--mv3-primary)!important;}
+body.modern-v3.app-v3-mode #pf-table td:nth-child(1),
+body.modern-v3.app-v3-mode #pf-table td:nth-child(2){font-weight:850!important;color:#111827!important;}
+
+@media(max-width:900px){
+ body.modern-v3.app-v3-mode .vba-positions-grid{grid-template-columns:repeat(2,1fr)!important;grid-template-rows:auto!important;overflow:auto!important;}
+ body.modern-v3.app-v3-mode .pos-box{min-height:230px!important;}
+}
+@media(max-width:620px){
+ body.modern-v3.app-v3-mode .vba-positions-grid{grid-template-columns:1fr!important;}
+ body.modern-v3.app-v3-mode .header-content-top{display:flex!important;}
+}
+
+/* ===== AJUSTES V3 - MENU ABERTO NA HOME, TELA CHEIA NO MENU, ATLETAS E MOBILE ===== */
+/* Botão de menu só aparece quando a lateral está recolhida. */
+body.modern-v3.app-v3-mode:not(.modern-v3-sidebar-collapsed) .modern-v3-menu-float{display:none!important;}
+
+/* Tela cheia no topo do menu lateral, ao lado da marca. */
+body.modern-v3.app-v3-mode .modern-v3-brand{position:relative!important;padding-right:102px!important;}
+body.modern-v3.app-v3-mode .modern-v3-brand .modern-v3-fullscreen-btn{
+    position:absolute!important;right:0!important;top:13px!important;width:auto!important;min-width:88px!important;height:34px!important;min-height:34px!important;
+    margin:0!important;padding:0 10px!important;border:0!important;border-radius:999px!important;background:linear-gradient(135deg,var(--mv3-gold),#fff0a6)!important;
+    color:#3a0b16!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;
+    font-size:11px!important;font-weight:950!important;box-shadow:0 10px 22px rgba(247,201,72,.20)!important;cursor:pointer!important;z-index:3!important;
+}
+body.modern-v3.app-v3-mode .modern-v3-brand .modern-v3-fullscreen-btn .mv3-ico{
+    width:auto!important;height:auto!important;background:transparent!important;color:#3a0b16!important;font-size:12px!important;flex:0 0 auto!important;
+}
+body.modern-v3.app-v3-mode .modern-v3-brand .modern-v3-fullscreen-btn:hover{filter:brightness(1.04)!important;transform:translateY(-1px)!important;}
+
+/* Remove definitivamente o botão de tela cheia antigo/flutuante do topo. */
+body.modern-v3.app-v3-mode .top-header .fullscreen-btn,
+body.modern-v3.app-v3-mode .fullscreen-btn:not(.modern-v3-fullscreen-btn){display:none!important;}
+
+/* Home começa com menu aberto. Se recolher manualmente, o conteúdo expande. */
+body.modern-v3.app-v3-mode:not(.modern-v3-sidebar-collapsed) .main-content{margin-left:var(--mv3-sidebar)!important;width:calc(100vw - var(--mv3-sidebar))!important;}
+body.modern-v3.app-v3-mode:not(.modern-v3-sidebar-collapsed) .top-header{left:var(--mv3-sidebar)!important;}
+
+/* Menu lateral: grupos com altura real, sem item apagado/encavalado. */
+body.modern-v3.app-v3-mode #main-nav.modern-v3-sidebar{overflow-y:auto!important;overflow-x:hidden!important;}
+body.modern-v3.app-v3-mode .modern-v3-group{display:flex!important;max-height:none!important;overflow:visible!important;opacity:1!important;margin:4px 0 10px!important;}
+body.modern-v3.app-v3-mode .modern-v3-group.closed{display:none!important;}
+body.modern-v3.app-v3-mode .modern-v3-group-title{flex:0 0 auto!important;}
+body.modern-v3.app-v3-mode .modern-v3-sidebar .nav-btn{flex:0 0 auto!important;}
+
+/* Tela de atletas igual ao sistema antigo: sem barras internas pequenas nos atletas. */
+body.modern-v3.app-v3-mode #atletas-screen.active-screen{
+    height:auto!important;min-height:calc(100vh - 136px)!important;overflow:visible!important;display:block!important;
+}
+body.modern-v3.app-v3-mode .vba-atletas-container{
+    height:auto!important;min-height:0!important;overflow:visible!important;display:flex!important;flex-direction:column!important;
+    border-radius:0!important;box-shadow:none!important;
+}
+body.modern-v3.app-v3-mode .vba-content-grid{
+    flex:0 0 auto!important;min-height:0!important;overflow:visible!important;align-items:flex-start!important;
+}
+body.modern-v3.app-v3-mode .vba-positions-grid{
+    grid-template-columns:repeat(4,1fr)!important;
+    grid-template-rows:none!important;
+    grid-auto-rows:auto!important;
+    align-items:start!important;
+    height:auto!important;
+    overflow:visible!important;
+}
+body.modern-v3.app-v3-mode .pos-box{
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+}
+body.modern-v3.app-v3-mode .pos-list{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+}
+body.modern-v3.app-v3-mode .athlete-item{min-height:23px!important;}
+
+/* Testes físicos: reforço para manter Ano e Nome fixos sobre qualquer estilo antigo. */
+body.modern-v3.app-v3-mode .pf-table-wrapper{overflow:auto!important;}
+body.modern-v3.app-v3-mode #pf-table th:nth-child(1),
+body.modern-v3.app-v3-mode #pf-table td:nth-child(1){left:0!important;position:sticky!important;z-index:60!important;min-width:64px!important;width:64px!important;background:#f8fafc!important;}
+body.modern-v3.app-v3-mode #pf-table th:nth-child(2),
+body.modern-v3.app-v3-mode #pf-table td:nth-child(2){left:64px!important;position:sticky!important;z-index:59!important;min-width:240px!important;width:240px!important;background:#f8fafc!important;}
+body.modern-v3.app-v3-mode #pf-table th:nth-child(1),
+body.modern-v3.app-v3-mode #pf-table th:nth-child(2){z-index:80!important;background:#eef2f7!important;color:var(--mv3-primary)!important;}
+
+/* Celular/tablet: menu vira painel lateral recolhível em vez de barra horizontal quebrada. */
+@media(max-width:1180px){
+  body.modern-v3.app-v3-mode #main-nav.modern-v3-sidebar{
+    top:0!important;left:0!important;width:min(86vw,320px)!important;height:100dvh!important;flex-direction:column!important;
+    padding:18px 16px 20px!important;overflow-y:auto!important;overflow-x:hidden!important;background:linear-gradient(180deg,#3a0b16 0%,#5a1020 48%,#13070c 100%)!important;
+    transform:none!important;
+  }
+  body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed #main-nav.modern-v3-sidebar{transform:translateX(-105%)!important;}
+  body.modern-v3.app-v3-mode .modern-v3-brand{display:flex!important;}
+  body.modern-v3.app-v3-mode .modern-v3-group{display:flex!important;}
+  body.modern-v3.app-v3-mode .modern-v3-group.closed{display:none!important;}
+  body.modern-v3.app-v3-mode .modern-v3-group-title{min-width:0!important;width:100%!important;height:auto!important;flex:0 0 auto!important;}
+  body.modern-v3.app-v3-mode .modern-v3-home{min-width:0!important;width:100%!important;}
+  body.modern-v3.app-v3-mode .main-content,
+  body.modern-v3.app-v3-mode:not(.modern-v3-sidebar-collapsed) .main-content,
+  body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .main-content{margin-left:0!important;width:100vw!important;padding:94px 14px 18px!important;}
+  body.modern-v3.app-v3-mode .top-header,
+  body.modern-v3.app-v3-mode:not(.modern-v3-sidebar-collapsed) .top-header,
+  body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .top-header{left:0!important;height:76px!important;}
+  body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .modern-v3-menu-float{top:86px!important;}
+  body.modern-v3.app-v3-mode .modern-v3-hero-reports{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+}
+@media(max-width:760px){
+  body.modern-v3.app-v3-mode .modern-v3-hero{grid-template-columns:1fr!important;}
+  body.modern-v3.app-v3-mode .modern-v3-hero-reports{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  body.modern-v3.app-v3-mode .vba-content-grid{flex-direction:column!important;}
+  body.modern-v3.app-v3-mode .vba-sidebar-btns{width:100%!important;display:grid!important;grid-template-columns:1fr 1fr!important;}
+  body.modern-v3.app-v3-mode .vba-positions-grid{grid-template-columns:1fr!important;}
+  body.modern-v3.app-v3-mode #pf-table th:nth-child(2),
+  body.modern-v3.app-v3-mode #pf-table td:nth-child(2){min-width:190px!important;width:190px!important;left:64px!important;}
+}
+
+/* ===== AJUSTE V3 - GRUPOS COM ROLAGEM LIBERADA ===== */
+body.modern-v3.app-v3-mode .main-content{
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+}
+body.modern-v3.app-v3-mode #grupos-screen.active-screen{
+    display:block!important;
+    height:auto!important;
+    min-height:calc(100vh - 136px)!important;
+    overflow:visible!important;
+    padding:0!important;
+    background:transparent!important;
+}
+body.modern-v3.app-v3-mode #grupos-screen .grupos-container{
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+    display:flex!important;
+    flex-direction:column!important;
+}
+body.modern-v3.app-v3-mode #grupos-screen .grupos-split-view,
+body.modern-v3.app-v3-mode #grupos-screen .grupos-fichas-grid,
+body.modern-v3.app-v3-mode #grupos-screen .grupos-list-panel,
+body.modern-v3.app-v3-mode #grupos-screen .grupos-ficha-panel{
+    overflow:visible!important;
+}
+body.modern-v3.app-v3-mode #grupos-screen .table-container{
+    overflow-x:auto!important;
+    overflow-y:visible!important;
+}
+body.modern-v3.app-v3-mode #grupos-screen .grupos-atletas-list{
+    overflow-y:auto!important;
+}
+/* Mantém o botão Grupos acessível na tela de Testes Físicos. */
+body.modern-v3.app-v3-mode #btn-grupos-pf-fab{
+    z-index:9500!important;
+}
+@media(max-width:760px){
+  body.modern-v3.app-v3-mode #grupos-screen.active-screen{min-height:auto!important;}
+  body.modern-v3.app-v3-mode #grupos-screen .grupos-split-view{padding:10px!important;}
+}
+
+/* ===== AJUSTES V3 - GRUPOS, HOME HEADER E ARRASTAR ATLETAS ===== */
+/* Botão Início no topo substituindo Fotos */
+body.modern-v3.app-v3-mode .home-header-btn .home-header-icon svg{color:var(--mv3-primary)!important;fill:none!important;}
+body.modern-v3.app-v3-mode .home-header-btn span:not(.home-header-icon){font-weight:950!important;}
+body.modern-v3.app-v3-mode .home-header-btn:hover{background:linear-gradient(135deg,var(--mv3-gold),#fff0a6)!important;color:#3a0b16!important;}
+
+/* Ícones sem dependência de FontAwesome nos grupos */
+.grupos-gerar-icone{display:inline-flex;align-items:center;justify-content:center;font-size:18px;line-height:1;}
+.grupo-remove-atleta-btn{
+    width:22px;height:22px;border:0;border-radius:50%;background:#fee2e2;color:#dc2626;
+    font-size:18px;font-weight:950;line-height:18px;display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.12);
+}
+.grupo-remove-atleta-btn:hover{background:#dc2626;color:#fff;}
+
+/* Gerar fichas volta a abrir como uma tela própria, não como continuação abaixo dos grupos. */
+body.modern-v3.app-v3-mode #fichas-treino-screen.active-screen{
+    display:block!important;
+    min-height:calc(100vh - 136px)!important;
+    overflow:visible!important;
+    padding:0!important;
+    background:#fff!important;
+    border-radius:20px!important;
+}
+body.modern-v3.app-v3-mode #fichas-render-container{padding:14px!important;}
+
+/* Atletas: arrastar entre posições */
+body.modern-v3.app-v3-mode .athlete-item{cursor:grab!important;user-select:none;}
+body.modern-v3.app-v3-mode .athlete-item:active{cursor:grabbing!important;}
+body.modern-v3.app-v3-mode .athlete-item.arrastando-atleta{opacity:.55!important;transform:scale(.98)!important;}
+body.modern-v3.app-v3-mode .pos-box.pos-drop-hover,
+body.modern-v3.app-v3-mode .pos-list.pos-drop-hover{
+    outline:3px dashed var(--mv3-gold)!important;
+    outline-offset:-6px!important;
+    background:#fff8dc!important;
+}
+.atleta-posicao-drop-overlay{
+    position:fixed;inset:0;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;z-index:22000;padding:16px;
+}
+.atleta-posicao-drop-card{
+    width:min(430px,94vw);background:#fff;border-radius:22px;box-shadow:0 26px 70px rgba(0,0,0,.32);padding:24px;position:relative;border-top:6px solid #5a1020;
+}
+.atleta-posicao-drop-card h3{margin:0;color:#5a1020;font-size:22px;font-weight:950;}
+.atleta-posicao-drop-card p{margin:8px 0 16px;color:#475569;font-weight:700;font-size:13px;line-height:1.4;}
+.atleta-posicao-drop-close{position:absolute;right:12px;top:10px;width:32px;height:32px;border:0;border-radius:50%;background:#5a1020;color:#fff;font-size:20px;font-weight:900;cursor:pointer;}
+.atleta-posicao-drop-options{display:grid;gap:9px;}
+.atleta-posicao-drop-options button{border:0;border-radius:14px;background:linear-gradient(135deg,#5a1020,#8a1430);color:#fff;padding:12px 14px;font-weight:950;cursor:pointer;box-shadow:0 10px 22px rgba(90,16,32,.16);}
+.atleta-posicao-drop-options button:hover{filter:brightness(1.06);transform:translateY(-1px);}
+
+@media(max-width:760px){
+  .grupo-remove-atleta-btn{width:24px;height:24px;font-size:19px;}
+  .atleta-posicao-drop-card{padding:20px;}
+}
+
+/* ===== AJUSTES V3 - TOOLTIP DOS ATLETAS ===== */
+body.modern-v3.app-v3-mode .athlete-item.selected,
+body.modern-v3.app-v3-mode .athlete-item.selected:hover,
+body.modern-v3.app-v3-mode .athlete-item.selected:focus{
+    background:#0984e3!important;
+    color:#fff!important;
+    border-color:#0984e3!important;
+    box-shadow:0 10px 22px rgba(9,132,227,.20)!important;
+    opacity:1!important;
+}
+body.modern-v3.app-v3-mode .athlete-item.selected span,
+body.modern-v3.app-v3-mode .athlete-item.selected:hover span{color:#fff!important;}
+.atleta-hover-tooltip{
+    position:fixed;
+    display:none;
+    z-index:26000;
+    min-width:260px;
+    max-width:330px;
+    pointer-events:none;
+    background:linear-gradient(180deg,#ffffff,#f8fafc);
+    color:#111827;
+    border:1px solid rgba(15,23,42,.12);
+    border-top:5px solid #5a1020;
+    border-radius:16px;
+    box-shadow:0 18px 46px rgba(15,23,42,.22);
+    padding:13px 14px;
+    font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;
+}
+.atleta-hover-tooltip-title{
+    color:#5a1020;
+    font-size:15px;
+    font-weight:950;
+    margin-bottom:3px;
+}
+.atleta-hover-tooltip-name{
+    color:#475569;
+    font-size:12px;
+    font-weight:800;
+    line-height:1.3;
+    margin-bottom:10px;
+    padding-bottom:8px;
+    border-bottom:1px solid #e2e8f0;
+}
+.atleta-hover-tooltip-grid{
+    display:grid;
+    grid-template-columns:105px 1fr;
+    gap:6px 10px;
+    align-items:center;
+    font-size:12px;
+}
+.atleta-hover-tooltip-grid span{
+    color:#64748b;
+    font-weight:850;
+}
+.atleta-hover-tooltip-grid b{
+    color:#111827;
+    font-weight:950;
+    text-align:right;
+}
+@media(max-width:760px){
+    .atleta-hover-tooltip{display:none!important;}
+}
+
+/* ===== AJUSTES V3 - CARD DO ATLETA AO SELECIONAR + FOTO PEQUENA ===== */
+.atleta-hover-tooltip-head{
+    display:grid;
+    grid-template-columns:38px 1fr;
+    gap:9px;
+    align-items:center;
+    margin-bottom:9px;
+    padding-bottom:8px;
+    border-bottom:1px solid #e2e8f0;
+}
+.atleta-hover-tooltip-head img{
+    width:34px;
+    height:42px;
+    object-fit:cover;
+    border-radius:9px;
+    border:1px solid #e2e8f0;
+    background:#f8fafc;
+    box-shadow:0 4px 10px rgba(15,23,42,.10);
+}
+.atleta-hover-tooltip-head .atleta-hover-tooltip-title{margin:0 0 2px 0!important;}
+.atleta-hover-tooltip-head .atleta-hover-tooltip-name{margin:0!important;padding:0!important;border:0!important;}
+@media(max-width:760px){
+    .atleta-hover-tooltip[style*="display: block"]{display:block!important;}
+}
+
+/* ===== AJUSTES V3 - MODAL EDITAR NA FRENTE + UPLOAD DE FOTO ===== */
+body.modern-v3.app-v3-mode #add-athlete-modal.vba-modal-overlay,
+#add-athlete-modal.vba-modal-overlay{
+    z-index:30000!important;
+    align-items:center!important;
+    justify-content:center!important;
+}
+body.modern-v3.app-v3-mode #add-athlete-modal .vba-modal-card,
+#add-athlete-modal .vba-modal-card{
+    position:relative!important;
+    z-index:30001!important;
+    max-height:calc(100dvh - 36px)!important;
+    overflow:auto!important;
+}
+body.modern-v3.app-v3-mode #add-athlete-modal .btn-select-file,
+#add-athlete-modal .btn-select-file{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-height:34px!important;
+    border-radius:12px!important;
+    background:linear-gradient(135deg,#5a1020,#8a1430)!important;
+    color:#fff!important;
+    border:0!important;
+    padding:8px 14px!important;
+    box-shadow:0 8px 18px rgba(90,16,32,.16)!important;
+    cursor:pointer!important;
+}
+body.modern-v3.app-v3-mode #add-athlete-modal .btn-select-file:hover,
+#add-athlete-modal .btn-select-file:hover{
+    filter:brightness(1.06)!important;
+    transform:translateY(-1px)!important;
+}
