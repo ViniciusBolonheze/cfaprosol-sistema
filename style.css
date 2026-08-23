@@ -4081,3 +4081,76 @@ body.modern-v3.app-v3-mode #add-athlete-modal .btn-select-file:hover,
     filter:brightness(1.06)!important;
     transform:translateY(-1px)!important;
 }
+
+/* ===== AJUSTES V3 - CELULAR MENU / ÍCONE INÍCIO / BOTÕES JOGOS ===== */
+/* No celular, a lateral começa recolhida e só aparece via ☰ Menu. */
+@media(max-width:760px){
+  body.modern-v3.app-v3-mode #main-nav.modern-v3-sidebar{transform:none!important;}
+  body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed #main-nav.modern-v3-sidebar{transform:translateX(-105%)!important;}
+  body.modern-v3.app-v3-mode.modern-v3-sidebar-collapsed .modern-v3-menu-float{display:inline-flex!important;top:86px!important;}
+}
+/* Corrige o ícone Início que ficava invisível no celular por causa da regra do antigo botão Fotos. */
+body.modern-v3.app-v3-mode .home-header-btn .home-header-icon,
+body.modern-v3.app-v3-mode .home-header-btn .home-header-icon svg{
+  display:inline-flex!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+body.modern-v3.app-v3-mode .home-header-btn .home-header-icon svg{
+  width:15px!important;
+  height:15px!important;
+  color:#5a1020!important;
+  stroke:#5a1020!important;
+}
+@media(max-width:700px){
+  body.modern-v3.app-v3-mode .home-header-btn{width:32px!important;height:32px!important;padding:0!important;justify-content:center!important;border-radius:50%!important;}
+  body.modern-v3.app-v3-mode .home-header-btn .home-header-icon{display:inline-flex!important;width:22px!important;height:22px!important;align-items:center!important;justify-content:center!important;}
+  body.modern-v3.app-v3-mode .home-header-btn span:not(.home-header-icon){display:none!important;}
+}
+/* Botões dos jogos salvos com texto visível: Editar / Detalhes / Excluir. */
+body.modern-v3.app-v3-mode .jogo-salvo-acoes,
+.jogo-salvo-acoes{
+  display:flex!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  justify-content:flex-end!important;
+  align-items:center!important;
+}
+body.modern-v3.app-v3-mode .jogo-salvo-acoes button,
+.jogo-salvo-acoes button{
+  width:auto!important;
+  min-width:88px!important;
+  height:34px!important;
+  padding:0 10px!important;
+  border:0!important;
+  border-radius:10px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  color:#fff!important;
+  font-size:12px!important;
+  font-weight:950!important;
+  line-height:1!important;
+  box-shadow:0 8px 18px rgba(15,23,42,.12)!important;
+}
+body.modern-v3.app-v3-mode .jogo-salvo-acoes button span,
+.jogo-salvo-acoes button span{font-size:14px!important;line-height:1!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;}
+body.modern-v3.app-v3-mode .jogo-salvo-acoes button em,
+.jogo-salvo-acoes button em{font-style:normal!important;display:inline!important;}
+body.modern-v3.app-v3-mode .jogo-salvo-acoes .jogo-btn-editar,
+.jogo-salvo-acoes .jogo-btn-editar{background:#f39c12!important;}
+body.modern-v3.app-v3-mode .jogo-salvo-acoes .jogo-btn-detalhes,
+.jogo-salvo-acoes .jogo-btn-detalhes{background:#0984e3!important;}
+body.modern-v3.app-v3-mode .jogo-salvo-acoes .excluir-jogo-salvo,
+.jogo-salvo-acoes .excluir-jogo-salvo{background:#d63031!important;}
+body.modern-v3.app-v3-mode .jogo-salvo-acoes button:hover,
+.jogo-salvo-acoes button:hover{filter:brightness(.96)!important;transform:translateY(-1px)!important;}
+@media(max-width:700px){
+  body.modern-v3.app-v3-mode .jogo-salvo-item,
+  .jogo-salvo-item{align-items:flex-start!important;}
+  body.modern-v3.app-v3-mode .jogo-salvo-acoes,
+  .jogo-salvo-acoes{justify-content:flex-start!important;width:100%!important;}
+  body.modern-v3.app-v3-mode .jogo-salvo-acoes button,
+  .jogo-salvo-acoes button{min-width:86px!important;height:32px!important;font-size:11px!important;padding:0 8px!important;}
+}

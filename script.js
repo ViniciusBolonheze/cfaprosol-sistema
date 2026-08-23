@@ -203,8 +203,8 @@ function enterSystem() {
     document.getElementById('home-screen').classList.add('active-screen');
     document.getElementById('main-nav').style.display = 'flex';
     document.getElementById('yellow-bar-nav').style.display = 'block';
-    modernV3ManualSidebarClosed=false;
-    document.body.classList.remove('modern-v3-sidebar-collapsed');
+    modernV3ManualSidebarClosed = (typeof modernV3IsMobileViewport === 'function' && modernV3IsMobileViewport());
+    document.body.classList.toggle('modern-v3-sidebar-collapsed', modernV3ManualSidebarClosed);
 }
 
 function navigateTo(screenId, event) {
@@ -3294,7 +3294,7 @@ async function carregarJogosSalvosProfessor(){
  }
  if(!data||!data.length){box.innerHTML='<div class="jogos-salvos-card">Nenhum jogo salvo para este professor.</div>'+renderEstatisticasJogosProfessor(calcularEstatisticasJogosProfessor([]))+renderBotaoRelatorioJogosProfessor(false);return;}
  const stats=calcularEstatisticasJogosProfessor(data);
- box.innerHTML=`<div class="jogos-salvos-card"><h3>Jogos salvos</h3>${data.map(j=>`<div class="jogo-salvo-item"><strong>${escapeHtmlJogos(j.nome)}</strong><div class="jogo-salvo-acoes"><button title="Editar jogo" onclick="editarJogoSalvoDireto('${j.id}')"><i class="fa-solid fa-pen"></i></button><button title="Ver detalhes" onclick="verDetalhesJogoSalvo('${j.id}')"><i class="fa-solid fa-magnifying-glass"></i></button><button title="Excluir jogo" class="excluir-jogo-salvo" onclick="excluirJogoSalvo('${j.id}')"><i class="fa-solid fa-xmark"></i></button></div></div>`).join('')}</div>${renderEstatisticasJogosProfessor(stats)}${renderBotaoRelatorioJogosProfessor(true)}`;
+ box.innerHTML=`<div class="jogos-salvos-card"><h3>Jogos salvos</h3>${data.map(j=>`<div class="jogo-salvo-item"><strong>${escapeHtmlJogos(j.nome)}</strong><div class="jogo-salvo-acoes"><button class="jogo-btn-editar" title="Editar jogo" onclick="editarJogoSalvoDireto('${j.id}')"><span>✏️</span><em>Editar</em></button><button class="jogo-btn-detalhes" title="Ver detalhes" onclick="verDetalhesJogoSalvo('${j.id}')"><span>👁</span><em>Detalhes</em></button><button title="Excluir jogo" class="excluir-jogo-salvo" onclick="excluirJogoSalvo('${j.id}')"><span>×</span><em>Excluir</em></button></div></div>`).join('')}</div>${renderEstatisticasJogosProfessor(stats)}${renderBotaoRelatorioJogosProfessor(true)}`;
 }
 async function editarJogoSalvoDireto(id){
  const jogo=await buscarJogoSalvoPorId(id);if(!jogo)return;
@@ -5852,10 +5852,14 @@ function modernV3ToggleGroup(id){
  const btn=g.previousElementSibling;if(btn)btn.classList.toggle('closed',g.classList.contains('closed'));
 }
 function modernV3IsHomeActive(){return !!document.getElementById('home-screen')?.classList.contains('active-screen');}
+function modernV3IsMobileViewport(){return window.matchMedia && window.matchMedia('(max-width: 760px)').matches;}
 function modernV3OpenSidebar(){modernV3ManualSidebarClosed=false;document.body.classList.remove('modern-v3-sidebar-collapsed');}
 function modernV3CloseSidebar(){modernV3ManualSidebarClosed=true;document.body.classList.add('modern-v3-sidebar-collapsed');}
 function modernV3AutoSidebar(screenId){
- if(screenId==='home'){modernV3ManualSidebarClosed=false;document.body.classList.remove('modern-v3-sidebar-collapsed');}
+ if(screenId==='home'){
+  modernV3ManualSidebarClosed=modernV3IsMobileViewport();
+  document.body.classList.toggle('modern-v3-sidebar-collapsed', modernV3ManualSidebarClosed);
+ }
  else {modernV3ManualSidebarClosed=false;document.body.classList.add('modern-v3-sidebar-collapsed');}
 }
 function modernV3SetActive(btn){
