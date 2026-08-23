@@ -583,6 +583,37 @@ function ultimaAvaliacaoAtletaCadastro(row){
     };
     return {numero:max,peso:get('peso'),altura:get('Altura'),alturaPredita:get('alturapredita')};
 }
+
+function textoAnotacaoAtletaCadastro(row){
+    const bruto = String((row || {}).Anotacoes || valorFlexAtletaCadastro(row, ['anotacoes','anotações']) || '').trim();
+    if(!bruto)return '';
+    const texto = bruto.split('--- [DOCUMENTOS ANEXADOS] ---')[0].trim();
+    return texto;
+}
+function atletaCadastroTemLesao(row){
+    const chave = Object.keys(row || {}).find(k => String(k).toLowerCase().trim() === 'lesao' || String(k).toLowerCase().trim() === 'lesão');
+    return chave ? String(row[chave]).toLowerCase().trim() === 'sim' : false;
+}
+function atletaCadastroTemCartaoVermelho(row){
+    const chave = Object.keys(row || {}).find(k => {
+        const norm = String(k).toLowerCase().replace(/_/g,' ').replace(/\s+/g,' ').trim();
+        const compact = norm.replace(/\s+/g,'');
+        return ['cartao vermelho','cartão vermelho'].includes(norm) || compact === 'cartaovermelho';
+    });
+    return chave ? String(row[chave]).toLowerCase().trim() === 'sim' : false;
+}
+function statusIconsAtletaCadastro(row, anotacaoTexto){
+    const icons=[];
+    if(atletaCadastroTemLesao(row)) icons.push('<span class="atleta-status-icon lesao" title="Lesão">✚</span>');
+    if(atletaCadastroTemCartaoVermelho(row)) icons.push('<span class="atleta-status-icon cartao" title="Cartão vermelho"></span>');
+    if(anotacaoTexto) icons.push('<span class="atleta-status-icon anotacao" title="Anotação">📝</span>');
+    return icons.length ? `<div class="atleta-hover-status-row">${icons.join('')}</div>` : '';
+}
+function htmlAnotacaoAtletaCadastro(texto){
+    if(!texto)return '';
+    const seguro = atletasTooltipEscape(texto).replace(/\n/g,'<br>');
+    return `<div class="atleta-hover-tooltip-anotacao"><span>Anotações:</span> ${seguro}</div>`;
+}
 function htmlTooltipAtletaCadastro(globalIndex){
     const row=excelData[globalIndex]||{};
     const nome=valorExatoAtletaCadastro(row,'NOME COMPLETO')||valorFlexAtletaCadastro(row,['nome completo'])||valorFlexAtletaCadastro(row,['nome'])||'Sem nome';
@@ -591,14 +622,16 @@ function htmlTooltipAtletaCadastro(globalIndex){
     const cidade=valorExatoAtletaCadastro(row,'CIDADE')||valorFlexAtletaCadastro(row,['cidade'])||'-';
     const foto=valorFlexAtletaCadastro(row,['foto','imagem'])||'logo.png';
     const av=ultimaAvaliacaoAtletaCadastro(row);
-    return `<div class="atleta-hover-tooltip-head"><img src="${atletasTooltipEscape(foto)}" onerror="this.src='logo.png'" alt="${atletasTooltipEscape(apelido)}"><div><div class="atleta-hover-tooltip-title">${atletasTooltipEscape(apelido)}</div><div class="atleta-hover-tooltip-name">${atletasTooltipEscape(nome)}</div></div></div>
+    const anotacaoTexto=textoAnotacaoAtletaCadastro(row);
+    const status=statusIconsAtletaCadastro(row, anotacaoTexto);
+    return `<div class="atleta-hover-tooltip-head"><img src="${atletasTooltipEscape(foto)}" onerror="this.src='logo.png'" alt="${atletasTooltipEscape(apelido)}"><div><div class="atleta-hover-tooltip-title">${atletasTooltipEscape(apelido)}${status}</div><div class="atleta-hover-tooltip-name">${atletasTooltipEscape(nome)}</div></div></div>
         <div class="atleta-hover-tooltip-grid">
             <span>Nascimento</span><b>${atletasTooltipEscape(nascimento)}</b>
             <span>Peso</span><b>${atletasTooltipEscape(av.peso)}${av.peso!=='-'?' kg':''}</b>
             <span>Altura</span><b>${atletasTooltipEscape(av.altura)}${av.altura!=='-'?' m':''}</b>
             <span>Alt. Predita</span><b>${atletasTooltipEscape(av.alturaPredita)}${av.alturaPredita!=='-'?' m':''}</b>
             <span>Cidade</span><b>${atletasTooltipEscape(cidade)}</b>
-        </div>`;
+        </div>${htmlAnotacaoAtletaCadastro(anotacaoTexto)}`;
 }
 function obterTooltipAtletaCadastro(){
     let el=document.getElementById('atleta-hover-tooltip');
