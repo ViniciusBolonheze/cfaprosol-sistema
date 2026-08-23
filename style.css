@@ -4154,3 +4154,50 @@ body.modern-v3.app-v3-mode .jogo-salvo-acoes button:hover,
   body.modern-v3.app-v3-mode .jogo-salvo-acoes button,
   .jogo-salvo-acoes button{min-width:86px!important;height:32px!important;font-size:11px!important;padding:0 8px!important;}
 }
+
+/* ===== AJUSTES V3 - MOBILE SEMPRE RECOLHIDO + VOLTAR DO CELULAR + BOTÕES JOGOS ===== */
+body.modern-v3.app-v3-mode.modern-v3-mobile #main-nav.modern-v3-sidebar{
+  top:0!important;left:0!important;width:min(86vw,320px)!important;height:100dvh!important;flex-direction:column!important;
+  padding:18px 16px 20px!important;overflow-y:auto!important;overflow-x:hidden!important;background:linear-gradient(180deg,#3a0b16 0%,#5a1020 48%,#13070c 100%)!important;
+  transform:none!important;
+}
+body.modern-v3.app-v3-mode.modern-v3-mobile.modern-v3-sidebar-collapsed #main-nav.modern-v3-sidebar{transform:translateX(-105%)!important;}
+body.modern-v3.app-v3-mode.modern-v3-mobile .modern-v3-brand{display:flex!important;}
+body.modern-v3.app-v3-mode.modern-v3-mobile .modern-v3-group{display:flex!important;}
+body.modern-v3.app-v3-mode.modern-v3-mobile .modern-v3-group.closed{display:none!important;}
+body.modern-v3.app-v3-mode.modern-v3-mobile .modern-v3-group-title{min-width:0!important;width:100%!important;height:auto!important;flex:0 0 auto!important;}
+body.modern-v3.app-v3-mode.modern-v3-mobile .modern-v3-home{min-width:0!important;width:100%!important;}
+body.modern-v3.app-v3-mode.modern-v3-mobile .main-content,
+body.modern-v3.app-v3-mode.modern-v3-mobile:not(.modern-v3-sidebar-collapsed) .main-content,
+body.modern-v3.app-v3-mode.modern-v3-mobile.modern-v3-sidebar-collapsed .main-content{margin-left:0!important;width:100vw!important;padding:94px 14px 18px!important;}
+body.modern-v3.app-v3-mode.modern-v3-mobile .top-header,
+body.modern-v3.app-v3-mode.modern-v3-mobile:not(.modern-v3-sidebar-collapsed) .top-header,
+body.modern-v3.app-v3-mode.modern-v3-mobile.modern-v3-sidebar-collapsed .top-header{left:0!important;height:76px!important;}
+body.modern-v3.app-v3-mode.modern-v3-mobile.modern-v3-sidebar-collapsed .modern-v3-menu-float{display:inline-flex!important;top:86px!important;}
+body.modern-v3.app-v3-mode.modern-v3-mobile .modern-v3-hero-reports{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+
+/* Ícone Início sempre visível no celular. */
+body.modern-v3.app-v3-mode .home-header-btn .home-header-icon,
+body.modern-v3.app-v3-mode .home-header-btn .home-header-icon svg{display:inline-flex!important;opacity:1!important;visibility:visible!important;}
+body.modern-v3.app-v3-mode .home-header-btn .home-header-icon svg{width:15px!important;height:15px!important;color:#5a1020!important;stroke:#5a1020!important;}
+@media(max-width:700px){
+  body.modern-v3.app-v3-mode .home-header-btn{width:32px!important;height:32px!important;padding:0!important;justify-content:center!important;border-radius:50%!important;}
+  body.modern-v3.app-v3-mode .home-header-btn .home-header-icon{display:inline-flex!important;width:22px!important;height:22px!important;align-items:center!important;justify-content:center!important;}
+  body.modern-v3.app-v3-mode .home-header-btn span:not(.home-header-icon){display:none!important;}
+}
+
+/* Jogos salvos: botões com texto claro, sem depender de ícones. */
+html body.modern-v3.app-v3-mode .jogos-salvos-card .jogo-salvo-item .jogo-salvo-acoes,
+html body .jogos-salvos-card .jogo-salvo-item .jogo-salvo-acoes{display:flex!important;gap:8px!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:flex-end!important;min-width:290px!important;}
+html body.modern-v3.app-v3-mode .jogos-salvos-card .jogo-salvo-item .jogo-salvo-acoes button,
+html body .jogos-salvos-card .jogo-salvo-item .jogo-salvo-acoes button{width:auto!important;min-width:88px!important;height:34px!important;padding:0 12px!important;border:0!important;border-radius:10px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;color:#fff!important;font-size:12px!important;font-weight:950!important;line-height:1!important;text-indent:0!important;letter-spacing:0!important;overflow:visible!important;white-space:nowrap!important;font-family:Arial,Helvetica,sans-serif!important;}
+html body .jogos-salvos-card .jogo-salvo-acoes .jogo-btn-editar{background:#f39c12!important;}
+html body .jogos-salvos-card .jogo-salvo-acoes .jogo-btn-detalhes{background:#0984e3!important;}
+html body .jogos-salvos-card .jogo-salvo-acoes .excluir-jogo-salvo{background:#d63031!important;}
+html body .jogos-salvos-card .jogo-salvo-acoes button i,
+html body .jogos-salvos-card .jogo-salvo-acoes button span,
+html body .jogos-salvos-card .jogo-salvo-acoes button em{display:none!important;}
+@media(max-width:700px){
+ html body .jogos-salvos-card .jogo-salvo-item .jogo-salvo-acoes{min-width:0!important;width:100%!important;justify-content:flex-start!important;flex-wrap:wrap!important;}
+ html body .jogos-salvos-card .jogo-salvo-item .jogo-salvo-acoes button{min-width:84px!important;height:32px!important;font-size:11px!important;padding:0 9px!important;}
+}

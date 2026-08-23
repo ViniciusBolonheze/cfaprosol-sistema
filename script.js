@@ -199,6 +199,8 @@ function enterSystem() {
     document.body.classList.add('app-v3-mode');
     if (typeof modernV3EnsureMenu === 'function') modernV3EnsureMenu();
     if (typeof modernV3BuildHome === 'function') modernV3BuildHome();
+    if (typeof modernV3HistoryInit === 'function') modernV3HistoryInit();
+    if (typeof modernV3ApplyMobileClass === 'function') modernV3ApplyMobileClass();
     document.getElementById('login-screen').classList.remove('active-screen');
     document.getElementById('home-screen').classList.add('active-screen');
     document.getElementById('main-nav').style.display = 'flex';
@@ -3294,7 +3296,7 @@ async function carregarJogosSalvosProfessor(){
  }
  if(!data||!data.length){box.innerHTML='<div class="jogos-salvos-card">Nenhum jogo salvo para este professor.</div>'+renderEstatisticasJogosProfessor(calcularEstatisticasJogosProfessor([]))+renderBotaoRelatorioJogosProfessor(false);return;}
  const stats=calcularEstatisticasJogosProfessor(data);
- box.innerHTML=`<div class="jogos-salvos-card"><h3>Jogos salvos</h3>${data.map(j=>`<div class="jogo-salvo-item"><strong>${escapeHtmlJogos(j.nome)}</strong><div class="jogo-salvo-acoes"><button class="jogo-btn-editar" title="Editar jogo" onclick="editarJogoSalvoDireto('${j.id}')"><span>✏️</span><em>Editar</em></button><button class="jogo-btn-detalhes" title="Ver detalhes" onclick="verDetalhesJogoSalvo('${j.id}')"><span>👁</span><em>Detalhes</em></button><button title="Excluir jogo" class="excluir-jogo-salvo" onclick="excluirJogoSalvo('${j.id}')"><span>×</span><em>Excluir</em></button></div></div>`).join('')}</div>${renderEstatisticasJogosProfessor(stats)}${renderBotaoRelatorioJogosProfessor(true)}`;
+ box.innerHTML=`<div class="jogos-salvos-card"><h3>Jogos salvos</h3>${data.map(j=>`<div class="jogo-salvo-item"><strong>${escapeHtmlJogos(j.nome)}</strong><div class="jogo-salvo-acoes"><button class="jogo-btn-editar" title="Editar jogo" aria-label="Editar jogo" onclick="editarJogoSalvoDireto('${j.id}')">Editar</button><button class="jogo-btn-detalhes" title="Ver detalhes" aria-label="Ver detalhes" onclick="verDetalhesJogoSalvo('${j.id}')">Detalhes</button><button title="Excluir jogo" aria-label="Excluir jogo" class="excluir-jogo-salvo" onclick="excluirJogoSalvo('${j.id}')">Excluir</button></div></div>`).join('')}</div>${renderEstatisticasJogosProfessor(stats)}${renderBotaoRelatorioJogosProfessor(true)}`;
 }
 async function editarJogoSalvoDireto(id){
  const jogo=await buscarJogoSalvoPorId(id);if(!jogo)return;
@@ -5852,10 +5854,18 @@ function modernV3ToggleGroup(id){
  const btn=g.previousElementSibling;if(btn)btn.classList.toggle('closed',g.classList.contains('closed'));
 }
 function modernV3IsHomeActive(){return !!document.getElementById('home-screen')?.classList.contains('active-screen');}
-function modernV3IsMobileViewport(){return window.matchMedia && window.matchMedia('(max-width: 760px)').matches;}
+function modernV3IsMobileViewport(){
+ const mm=(q)=>window.matchMedia&&window.matchMedia(q).matches;
+ const ua=String(navigator.userAgent||'').toLowerCase();
+ return mm('(max-width: 760px)') || mm('(pointer: coarse)') || mm('(hover: none)') || /android|iphone|ipad|ipod|mobile/.test(ua);
+}
+function modernV3ApplyMobileClass(){
+ document.body.classList.toggle('modern-v3-mobile', modernV3IsMobileViewport());
+}
 function modernV3OpenSidebar(){modernV3ManualSidebarClosed=false;document.body.classList.remove('modern-v3-sidebar-collapsed');}
 function modernV3CloseSidebar(){modernV3ManualSidebarClosed=true;document.body.classList.add('modern-v3-sidebar-collapsed');}
 function modernV3AutoSidebar(screenId){
+ modernV3ApplyMobileClass();
  if(screenId==='home'){
   modernV3ManualSidebarClosed=modernV3IsMobileViewport();
   document.body.classList.toggle('modern-v3-sidebar-collapsed', modernV3ManualSidebarClosed);
@@ -5940,10 +5950,31 @@ function modernV3AnyModalOpen(){
 }
 function modernV3RestoreSidebarIfHomeFree(){
  setTimeout(()=>{
-  if(modernV3IsHomeActive() && !modernV3AnyModalOpen() && !modernV3ManualSidebarClosed) document.body.classList.remove('modern-v3-sidebar-collapsed');
+  if(modernV3IsHomeActive() && !modernV3AnyModalOpen() && !modernV3ManualSidebarClosed && !modernV3IsMobileViewport()) document.body.classList.remove('modern-v3-sidebar-collapsed');
  },160);
 }
 document.addEventListener('click',modernV3RestoreSidebarIfHomeFree,true);
+
+function modernV3FecharModaisAbertos(){
+ const ids=['jogos-professor-modal','prancheta-modal','convocacao-modal','relatorios-modal','relatorios-menu-modal','trabalho-diario-modal','planejamento-semanal-modal','fotos-atletas-modal','detalhes-jogo-salvo-modal','novo-jogo-modal','atletas-ativos-jogos-modal','carregar-jogo-salvo-modal','campo-convocacao-modal','add-athlete-modal','modal-anotacoes','fichaModal','controle-peso-modal','relatorio-psrpse-modal','relatorio-visualizacao-modal'];
+ ids.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+ document.querySelectorAll('.escalacao-overlay,.vba-modal-overlay,.mini-prancheta-overlay,.fotos-overlay').forEach(el=>{el.style.display='none';});
+}
+function modernV3HistoryInit(){
+ if(window.__modernV3HistoryReady || !window.history || !history.pushState)return;
+ window.__modernV3HistoryReady=true;
+ try{
+  history.replaceState({prosolBase:true},'',location.href);
+  history.pushState({prosolApp:true},'',location.href);
+ }catch(e){console.warn('Histórico indisponível:',e);return;}
+ window.addEventListener('popstate',()=>{
+  if(!document.body.classList.contains('app-v3-mode'))return;
+  modernV3FecharModaisAbertos();
+  modernV3VoltarInicio();
+  setTimeout(()=>{try{history.pushState({prosolApp:true},'',location.href);}catch(e){}},0);
+ });
+}
+window.addEventListener('resize',()=>{if(document.body.classList.contains('app-v3-mode')) modernV3AutoSidebar(modernV3IsHomeActive()?'home':'modulo');});
 if(document.readyState==='loading'){
  document.addEventListener('DOMContentLoaded',()=>{modernV3EnsureMenu();modernV3BuildHome();});
 }else{modernV3EnsureMenu();modernV3BuildHome();}
