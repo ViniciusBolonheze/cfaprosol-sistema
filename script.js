@@ -3937,7 +3937,7 @@ function openRelatoriosMenuModal(){
  document.getElementById('home-screen')?.classList.add('active-screen');
  let m=document.getElementById('relatorios-menu-modal');
  if(!m){m=document.createElement('div');m.id='relatorios-menu-modal';m.className='relatorios-menu-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeRelatoriosMenuModal();});}
- m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button></div></div>`;
+ m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button><button onclick="closeRelatoriosMenuModal();openGoleirosTecnicoModal();"><i class="fa-solid fa-shield-halved"></i><span>Goleiros</span><small>Informações técnicas</small></button><button onclick="closeRelatoriosMenuModal();openPreparacaoFisicaQueixasModal();"><i class="fa-solid fa-notes-medical"></i><span>Preparação Física</span><small>Queixas dos atletas</small></button></div></div>`;
  m.style.display='flex';
 }
 function closeRelatoriosMenuModal(){const m=document.getElementById('relatorios-menu-modal');if(m)m.style.display='none';}
@@ -4425,6 +4425,191 @@ function setRelatorioVisualizacaoModo(modo){if(relatorioVisualizacaoState.tipo==
 function closeRelatorioVisualizacao(){const m=document.getElementById('relatorio-visualizacao-modal');if(m)m.style.display='none';}
 function imprimirRelatorioVisualizacao(){const card=document.querySelector('#relatorio-visualizacao-modal .relatorio-visualizacao-card');if(!card)return;const w=window.open('','_blank','width=1000,height=800');w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relatório de visualização</title><style>body{font-family:Arial,sans-serif;margin:12px}.relatorios-menu-close,.rv-filtros{display:none}.rv-header{display:flex;align-items:center;justify-content:center;gap:20px}.rv-header img{width:60px}.rv-header h2{text-align:center;margin:0}.rv-header strong{display:block;text-align:center}.rv-table{width:100%;border-collapse:collapse;font-size:12px}.rv-table th{background:#58111a;color:#f9c614}.rv-table th,.rv-table td{border:1px solid #999;padding:5px;text-align:center}.rv-table td:first-child{text-align:left}.rv-check span{color:green;font-weight:bold;font-size:16px}.rv-list-report{border:1px solid #d8e8c4;background:#fbfff7;padding:10px}.rv-list-date{font-size:17px;color:#5c8a2a;font-weight:bold;border-bottom:1px solid #e5eadf;padding:6px}.rv-list-obs{font-size:13px;margin:8px 0}.rv-list-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}.rv-list-col h3{font-size:14px;margin:6px 0}.rv-list-col.ok h3,.rv-list-col.ok li{color:#078c49}.rv-list-col.no h3,.rv-list-col.no li{color:#c00000}.rv-list-col ul{list-style:none;padding:0;margin:0}.rv-list-col li{font-size:12px;line-height:1.35;margin:2px 0}.rv-list-col li.empty{color:#777}@media(max-width:700px){.rv-list-cols{grid-template-columns:1fr}}</style></head><body>${card.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);w.document.close();}
 
+
+
+/* === GOLEIROS - INFORMAÇÕES TÉCNICAS === */
+const GOLEIROS_INFO_TABELA = 'goleiros_informacoes_tecnicas';
+let goleirosTecnicoState = { selecionadoIndex: null, registro: null, carregando: false };
+
+function goleiroEscape(valor){return typeof escapeHtmlJogos==='function'?escapeHtmlJogos(valor):String(valor??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));}
+function goleiroNormalizar(valor){return String(valor||'').trim().replace(/\s+/g,' ');}
+function goleiroValorFlex(row, termos){const chave=Object.keys(row||{}).find(k=>termos.some(t=>String(k).toLowerCase().includes(String(t).toLowerCase())));return chave?row[chave]:'';}
+function goleiroAno(row){return goleiroNormalizar(valorColunaExata(row,'Ano')||goleiroValorFlex(row,['ano']));}
+function goleiroNomeCompleto(row){return goleiroNormalizar(goleiroValorFlex(row,['nome completo'])||valorColunaExata(row,'NOME COMPLETO')||goleiroValorFlex(row,['nome']));}
+function goleiroApelido(row){return goleiroNormalizar(goleiroValorFlex(row,['apelido'])||valorColunaExata(row,'APELIDO')||goleiroNomeCompleto(row));}
+function goleiroNascimento(row){return goleiroNormalizar(convertExcelDate(goleiroValorFlex(row,['data de nascimento','nascimento']))||goleiroValorFlex(row,['data de nascimento','nascimento']));}
+function goleiroPosicao(row){return goleiroNormalizar(`${goleiroValorFlex(row,['posição 1','posicao 1','posição','posicao'])} ${goleiroValorFlex(row,['posição 2','posicao 2'])}`);}
+function goleiroFoto(row){return goleiroNormalizar(goleiroValorFlex(row,['foto','imagem']))||'logo.png';}
+function goleiroIdentidade(index){const row=excelData[index]||{};return {index,nomeCompleto:goleiroNomeCompleto(row),apelido:goleiroApelido(row),nascimento:goleiroNascimento(row),ano:goleiroAno(row),posicao:goleiroPosicao(row),foto:goleiroFoto(row)};}
+function goleirosListaTecnica(){
+ return (excelData||[]).map((row,index)=>goleiroIdentidade(index))
+  .filter(g=>g.nomeCompleto&&g.nascimento&&String(g.posicao||'').toLowerCase().includes('goleiro'))
+  .sort((a,b)=>String(a.ano).localeCompare(String(b.ano),'pt-BR',{numeric:true})||String(a.apelido).localeCompare(String(b.apelido),'pt-BR'));
+}
+function goleiroBRData(data){
+ if(!data)return '';
+ const d=new Date(data);
+ if(isNaN(d))return '';
+ return d.toLocaleString('pt-BR');
+}
+function goleiroSelecionadoAtual(){
+ const idx=parseInt(goleirosTecnicoState.selecionadoIndex,10);
+ return Number.isInteger(idx)&&idx>=0?goleiroIdentidade(idx):null;
+}
+function goleiroMontarCard(g){
+ if(!g)return '<div class="goleiro-info-empty">Selecione um goleiro para visualizar e editar as informações técnicas.</div>';
+ return `<div class="goleiro-player-card"><img src="${goleiroEscape(g.foto)}" onerror="this.src='logo.png'" alt="${goleiroEscape(g.apelido)}"><div><strong>${goleiroEscape(g.apelido||g.nomeCompleto)}</strong><span>${goleiroEscape(g.nomeCompleto)}</span><small>Ano ${goleiroEscape(g.ano||'-')} • Nasc. ${goleiroEscape(g.nascimento||'-')}</small></div></div>`;
+}
+function renderGoleirosTecnicoModal(){
+ const modal=document.getElementById('goleiros-tecnico-modal');if(!modal)return;
+ const goleiros=goleirosListaTecnica();
+ const selecionado=goleiroSelecionadoAtual();
+ const registro=goleirosTecnicoState.registro;
+ const texto=registro?.informacoes_tecnicas||'';
+ const atualizado=registro?.atualizado_em?`Última atualização: ${goleiroBRData(registro.atualizado_em)}`:'Nenhuma informação salva ainda.';
+ const options=goleiros.map(g=>`<option value="${g.index}" ${String(g.index)===String(goleirosTecnicoState.selecionadoIndex)?'selected':''}>${goleiroEscape(g.apelido)} - ${goleiroEscape(g.ano)}</option>`).join('');
+ modal.innerHTML=`<div class="goleiros-tecnico-card"><button class="goleiros-close" onclick="closeGoleirosTecnicoModal()">×</button><div class="goleiros-head"><img src="logo.png"><div><h2>Goleiros</h2><p>Informações técnicas individuais dos goleiros</p></div></div><div class="goleiros-body"><aside><label class="goleiros-label">Selecionar goleiro</label><select id="goleiro-tecnico-select" onchange="selecionarGoleiroTecnico(this.value)" ${goleiros.length?'':'disabled'}><option value="">${goleiros.length?'Escolha um goleiro...':'Nenhum goleiro encontrado'}</option>${options}</select>${goleiroMontarCard(selecionado)}</aside><section><label class="goleiros-text-title" for="goleiro-info-textarea">Informações Técnicas:</label><textarea id="goleiro-info-textarea" placeholder="Escreva aqui as informações técnicas do goleiro selecionado..." ${selecionado?'':'disabled'}>${goleiroEscape(texto)}</textarea><div class="goleiros-footer"><span id="goleiro-info-status">${goleirosTecnicoState.carregando?'Carregando...':goleiroEscape(atualizado)}</span><button type="button" onclick="salvarGoleiroInformacoesTecnicas()" ${selecionado?'':'disabled'}>Salvar informações</button></div></section></div></div>`;
+ modal.style.display='flex';
+}
+async function openGoleirosTecnicoModal(){
+ let modal=document.getElementById('goleiros-tecnico-modal');
+ if(!modal){modal=document.createElement('div');modal.id='goleiros-tecnico-modal';modal.className='goleiros-tecnico-overlay';document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal)closeGoleirosTecnicoModal();});}
+ const goleiros=goleirosListaTecnica();
+ goleirosTecnicoState={selecionadoIndex:goleiros[0]?.index??null,registro:null,carregando:false};
+ renderGoleirosTecnicoModal();
+ if(goleirosTecnicoState.selecionadoIndex!==null) await carregarGoleiroInformacaoTecnica();
+}
+function closeGoleirosTecnicoModal(){const modal=document.getElementById('goleiros-tecnico-modal');if(modal)modal.style.display='none';}
+async function selecionarGoleiroTecnico(index){
+ goleirosTecnicoState.selecionadoIndex=index!==''?parseInt(index,10):null;
+ goleirosTecnicoState.registro=null;
+ renderGoleirosTecnicoModal();
+ if(goleirosTecnicoState.selecionadoIndex!==null) await carregarGoleiroInformacaoTecnica();
+}
+async function carregarGoleiroInformacaoTecnica(){
+ const g=goleiroSelecionadoAtual();if(!g)return;
+ goleirosTecnicoState.carregando=true;renderGoleirosTecnicoModal();
+ try{
+  const {data,error}=await _supabase.from(GOLEIROS_INFO_TABELA).select('*').eq('nome_completo',g.nomeCompleto).eq('nascimento',g.nascimento).maybeSingle();
+  if(error)throw error;
+  goleirosTecnicoState.registro=data||null;
+ }catch(e){console.error(e);alert('Não foi possível carregar informações técnicas. Verifique a tabela de goleiros no Supabase.');}
+ finally{goleirosTecnicoState.carregando=false;renderGoleirosTecnicoModal();}
+}
+async function salvarGoleiroInformacoesTecnicas(){
+ const g=goleiroSelecionadoAtual();if(!g)return alert('Selecione um goleiro.');
+ const textarea=document.getElementById('goleiro-info-textarea');
+ const status=document.getElementById('goleiro-info-status');
+ const info=String(textarea?.value||'').trim();
+ const btn=document.querySelector('#goleiros-tecnico-modal .goleiros-footer button');
+ if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+ if(status)status.textContent='Salvando no Supabase...';
+ const payload={nome_completo:g.nomeCompleto,nascimento:g.nascimento,apelido:g.apelido,ano:g.ano,informacoes_tecnicas:info,atualizado_em:new Date().toISOString()};
+ try{
+  const {error}=await _supabase.from(GOLEIROS_INFO_TABELA).upsert(payload,{onConflict:'nome_completo,nascimento'});
+  if(error)throw error;
+  goleirosTecnicoState.registro=payload;
+  if(status)status.textContent=info?'Informações salvas com sucesso.':'Informações apagadas e salvas em branco.';
+  alert(info?'Informações técnicas salvas para '+(g.apelido||g.nomeCompleto)+'.':'Informações técnicas apagadas para '+(g.apelido||g.nomeCompleto)+'.');
+ }catch(e){console.error(e);alert('Erro ao salvar informações técnicas. Verifique a tabela/políticas no Supabase.');if(status)status.textContent='Erro ao salvar.';}
+ finally{if(btn){btn.disabled=false;btn.textContent='Salvar informações';}}
+}
+
+
+/* === PREPARAÇÃO FÍSICA - QUEIXAS DOS ATLETAS === */
+const PREPARACAO_FISICA_TABELA = 'portal_preparacao_fisica';
+let preparacaoFisicaState = { lista: [], selecionadoId: null, filtro: 'pendente', carregando: false };
+
+function prepEscape(valor){return typeof escapeHtmlJogos==='function'?escapeHtmlJogos(valor):String(valor??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));}
+function prepISO(data){const d=new Date(data);if(isNaN(d))return '';return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function prepHojeISO(){return prepISO(new Date());}
+function prepBR(valor){if(!valor)return '';const s=String(valor);let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return `${m[3]}/${m[2]}/${m[1]}`;const d=new Date(s);return isNaN(d)?'':d.toLocaleString('pt-BR');}
+function prepDataRespostaAte(dias){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+(Math.max(1,parseInt(dias,10)||1)-1));return prepISO(d);}
+function prepLinhaStatus(row){
+ const resp=String(row?.resposta||'').trim();
+ if(resp){
+  const ate=String(row?.resposta_ate||'').slice(0,10);
+  if(ate && ate < prepHojeISO())return {classe:'expirada',label:'Resposta expirada'};
+  return {classe:'respondida',label:'Respondida'};
+ }
+ return {classe:'pendente',label:'Pendente'};
+}
+function prepListaFiltrada(){
+ const lista=preparacaoFisicaState.lista||[];
+ if(preparacaoFisicaState.filtro==='todas')return lista;
+ return lista.filter(r=>{
+  const st=prepLinhaStatus(r).classe;
+  if(preparacaoFisicaState.filtro==='pendente')return st==='pendente';
+  if(preparacaoFisicaState.filtro==='respondida')return st==='respondida';
+  if(preparacaoFisicaState.filtro==='expirada')return st==='expirada';
+  return true;
+ });
+}
+function prepSelecionada(){return (preparacaoFisicaState.lista||[]).find(r=>String(r.id)===String(preparacaoFisicaState.selecionadoId))||null;}
+function prepResumoTexto(txt,tam=90){txt=String(txt||'').trim();return txt.length>tam?txt.slice(0,tam-1)+'…':txt;}
+function renderPreparacaoFisicaQueixasModal(){
+ const modal=document.getElementById('preparacao-fisica-modal');if(!modal)return;
+ const lista=prepListaFiltrada();
+ const selecionada=prepSelecionada();
+ const filtros=['pendente','respondida','expirada','todas'].map(f=>`<button class="${preparacaoFisicaState.filtro===f?'active':''}" onclick="setPreparacaoFisicaFiltro('${f}')">${f==='pendente'?'Pendentes':f==='respondida'?'Respondidas':f==='expirada'?'Expiradas':'Todas'}</button>`).join('');
+ const linhas=lista.map(r=>{const st=prepLinhaStatus(r);const ativo=String(r.id)===String(preparacaoFisicaState.selecionadoId);return `<button class="prep-queixa-item ${ativo?'active':''}" onclick="selecionarPreparacaoFisicaQueixa('${r.id}')"><div><strong>${prepEscape(r.apelido||r.nome_completo||'Atleta')}</strong><span>${prepEscape(r.ano||'')} • ${prepBR(r.criado_em)}</span></div><p>${prepEscape(prepResumoTexto(r.queixa||''))}</p><em class="${st.classe}">${st.label}</em></button>`;}).join('')||'<div class="prep-empty">Nenhuma queixa encontrada neste filtro.</div>';
+ const detalhe=selecionada?renderPreparacaoFisicaDetalhe(selecionada):'<div class="prep-detalhe-empty">Selecione uma queixa para responder.</div>';
+ modal.innerHTML=`<div class="prep-fisica-card"><button class="prep-close" onclick="closePreparacaoFisicaQueixasModal()">×</button><div class="prep-head"><img src="logo.png"><div><h2>Preparação Física</h2><p>Queixas de dores enviadas pelos atletas</p></div></div><div class="prep-toolbar"><div>${filtros}</div><button class="prep-refresh" onclick="carregarPreparacaoFisicaQueixas()">Atualizar</button></div><div class="prep-layout"><aside><div class="prep-list-head"><b>Queixas</b><span>${lista.length} registro(s)</span></div><div class="prep-list">${preparacaoFisicaState.carregando?'<div class="prep-loading">Carregando...</div>':linhas}</div></aside><section>${detalhe}</section></div></div>`;
+ modal.style.display='flex';
+ atualizarPreparacaoFisicaDataAtePreview();
+}
+function renderPreparacaoFisicaDetalhe(r){
+ const st=prepLinhaStatus(r);
+ const dias=Number(r.resposta_dias)||3;
+ return `<div class="prep-detalhe"><div class="prep-atleta"><strong>${prepEscape(r.apelido||r.nome_completo||'Atleta')}</strong><span>${prepEscape(r.nome_completo||'')}</span><small>Ano ${prepEscape(r.ano||'-')} • Nasc. ${prepEscape(r.nascimento||'-')} • Enviado em ${prepBR(r.criado_em)}</small><em class="${st.classe}">${st.label}</em></div><label>Queixa do atleta</label><div class="prep-queixa-texto">${prepEscape(r.queixa||'').replace(/\n/g,'<br>')}</div><label for="prep-resposta-textarea">Resposta / recomendação</label><div class="prep-quick"><button onclick="setPreparacaoRespostaRapida('Visto',1)">Visto</button><button onclick="setPreparacaoRespostaRapida('Não realizar academia.',3)">Não realizar academia</button><button onclick="setPreparacaoRespostaRapida('Reduzir carga e avisar a preparação física antes do treino.',3)">Reduzir carga</button><button onclick="setPreparacaoRespostaRapida('Procurar a preparação física antes do treino.',2)">Procurar preparação</button></div><textarea id="prep-resposta-textarea" placeholder="Digite a resposta para o atleta...">${prepEscape(r.resposta||'')}</textarea><div class="prep-dias"><label>Dias que a resposta ficará visível<input id="prep-resposta-dias" type="number" min="1" max="30" value="${dias}" oninput="atualizarPreparacaoFisicaDataAtePreview()"></label><span id="prep-resposta-ate-preview"></span></div><div class="prep-actions"><button class="salvar" onclick="salvarRespostaPreparacaoFisica()">Salvar resposta</button><button class="limpar" onclick="limparRespostaPreparacaoFisica()">Limpar resposta</button></div></div>`;
+}
+async function openPreparacaoFisicaQueixasModal(){
+ let modal=document.getElementById('preparacao-fisica-modal');
+ if(!modal){modal=document.createElement('div');modal.id='preparacao-fisica-modal';modal.className='prep-fisica-overlay';document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal)closePreparacaoFisicaQueixasModal();});}
+ modal.style.display='flex';
+ renderPreparacaoFisicaQueixasModal();
+ await carregarPreparacaoFisicaQueixas();
+}
+function closePreparacaoFisicaQueixasModal(){const modal=document.getElementById('preparacao-fisica-modal');if(modal)modal.style.display='none';}
+async function carregarPreparacaoFisicaQueixas(){
+ preparacaoFisicaState.carregando=true;renderPreparacaoFisicaQueixasModal();
+ try{
+  const {data,error}=await _supabase.from(PREPARACAO_FISICA_TABELA).select('*').order('criado_em',{ascending:false});
+  if(error)throw error;
+  preparacaoFisicaState.lista=data||[];
+  if(!preparacaoFisicaState.lista.some(r=>String(r.id)===String(preparacaoFisicaState.selecionadoId)))preparacaoFisicaState.selecionadoId=preparacaoFisicaState.lista[0]?.id||null;
+ }catch(e){console.error(e);alert('Erro ao carregar queixas. Verifique a tabela portal_preparacao_fisica no Supabase.');preparacaoFisicaState.lista=[];}
+ finally{preparacaoFisicaState.carregando=false;renderPreparacaoFisicaQueixasModal();}
+}
+function setPreparacaoFisicaFiltro(filtro){preparacaoFisicaState.filtro=filtro;renderPreparacaoFisicaQueixasModal();}
+function selecionarPreparacaoFisicaQueixa(id){preparacaoFisicaState.selecionadoId=id;renderPreparacaoFisicaQueixasModal();}
+function setPreparacaoRespostaRapida(texto,dias){const t=document.getElementById('prep-resposta-textarea');if(t)t.value=texto;const d=document.getElementById('prep-resposta-dias');if(d)d.value=dias||3;atualizarPreparacaoFisicaDataAtePreview();}
+function atualizarPreparacaoFisicaDataAtePreview(){const el=document.getElementById('prep-resposta-ate-preview');if(!el)return;const dias=document.getElementById('prep-resposta-dias')?.value||1;el.textContent='Visível até '+prepBR(prepDataRespostaAte(dias));}
+async function salvarRespostaPreparacaoFisica(){
+ const r=prepSelecionada();if(!r)return alert('Selecione uma queixa.');
+ const resposta=String(document.getElementById('prep-resposta-textarea')?.value||'').trim();
+ if(!resposta)return alert('Digite uma resposta ou use uma resposta rápida.');
+ const dias=Math.max(1,parseInt(document.getElementById('prep-resposta-dias')?.value,10)||1);
+ const payload={resposta,resposta_dias:dias,resposta_ate:prepDataRespostaAte(dias),respondido_por:'Preparação Física',status:'respondido',visto_atleta:false,atualizado_em:new Date().toISOString()};
+ const btn=document.querySelector('#preparacao-fisica-modal .prep-actions .salvar');if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+ try{
+  const {error}=await _supabase.from(PREPARACAO_FISICA_TABELA).update(payload).eq('id',r.id);
+  if(error)throw error;
+  alert('Resposta salva com sucesso.');
+  await carregarPreparacaoFisicaQueixas();
+ }catch(e){console.error(e);alert('Erro ao salvar resposta.');}
+ finally{if(btn){btn.disabled=false;btn.textContent='Salvar resposta';}}
+}
+async function limparRespostaPreparacaoFisica(){
+ const r=prepSelecionada();if(!r)return alert('Selecione uma queixa.');
+ if(!confirm('Limpar a resposta desta queixa e voltar para pendente?'))return;
+ const payload={resposta:null,resposta_dias:null,resposta_ate:null,respondido_por:null,status:'pendente',visto_atleta:false,atualizado_em:new Date().toISOString()};
+ try{
+  const {error}=await _supabase.from(PREPARACAO_FISICA_TABELA).update(payload).eq('id',r.id);
+  if(error)throw error;
+  await carregarPreparacaoFisicaQueixas();
+ }catch(e){console.error(e);alert('Erro ao limpar resposta.');}
+}
 
 /* === RELATÓRIO PSR / PSE - PORTAL DO ATLETA === */
 const RELATORIO_PSRPSE_EXTRAS_KEY = 'prosol_relatorio_psrpse_extras_v1';
@@ -5879,6 +6064,8 @@ function modernV3EnsureMenu(){
    <button class="nav-btn" onclick="modernV3Action('planejamento',event)"><span class="mv3-ico">🗓️</span><span>Planejamento Semanal</span></button>
    <button class="nav-btn" onclick="modernV3Action('psr',event)"><span class="mv3-ico">💚</span><span>PSR</span></button>
    <button class="nav-btn" onclick="modernV3Action('pse',event)"><span class="mv3-ico">🔥</span><span>PSE</span></button>
+   <button class="nav-btn" onclick="modernV3Action('goleiros',event)"><span class="mv3-ico">🧤</span><span>Goleiros</span></button>
+   <button class="nav-btn" onclick="modernV3Action('preparacao-fisica',event)"><span class="mv3-ico">🩺</span><span>Preparação Física</span></button>
   </div>`;
 }
 function modernV3ToggleGroup(id){
@@ -5951,6 +6138,8 @@ function modernV3Action(action,event){
   if(action==='planejamento'){openPlanejamentoSemanalModal();return;}
   if(action==='psr'){openRelatorioPsrPse('psr');return;}
   if(action==='pse'){openRelatorioPsrPse('pse');return;}
+  if(action==='goleiros'){openGoleirosTecnicoModal();return;}
+  if(action==='preparacao-fisica'){openPreparacaoFisicaQueixasModal();return;}
  }catch(e){console.error(e);alert('Não foi possível abrir este módulo.');}
 }
 function modernV3BuildHome(){
@@ -5959,7 +6148,7 @@ function modernV3BuildHome(){
  home.dataset.modernV3Home='1';
  home.innerHTML=`<div class="modern-v3-dashboard">
   <section class="modern-v3-hero">
-   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button></div></div>
+   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button><button onclick="modernV3Action('goleiros',event)"><i>🧤</i><strong>Goleiros</strong></button><button onclick="modernV3Action('preparacao-fisica',event)"><i>🩺</i><strong>Preparação Física</strong></button></div></div>
    <img src="logo.png" alt="CFA Prosol">
   </section>
   <h3 class="modern-v3-block-title">Módulos principais</h3>
