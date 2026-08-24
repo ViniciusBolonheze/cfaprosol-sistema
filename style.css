@@ -4217,3 +4217,71 @@ html body .jogos-salvos-card .jogo-salvo-acoes button em{display:none!important;
 
 /* Preparação Física - Queixas dos atletas */
 .prep-fisica-overlay{position:fixed;inset:0;background:rgba(0,0,0,.68);display:none;align-items:center;justify-content:center;z-index:19650;padding:16px}.prep-fisica-card{position:relative;width:min(1180px,97vw);max-height:93vh;overflow:hidden;background:#fff;border-radius:18px;box-shadow:0 22px 70px rgba(0,0,0,.36);border-top:8px solid #58111a;display:flex;flex-direction:column}.prep-close{position:absolute;right:12px;top:10px;width:36px;height:36px;border:0;border-radius:50%;background:#58111a;color:#fff;font-size:24px;line-height:1;cursor:pointer;z-index:2}.prep-head{display:flex;align-items:center;gap:14px;padding:22px 24px 16px;background:linear-gradient(135deg,#58111a,#8a1430);color:#fff;flex:0 0 auto}.prep-head img{width:54px;height:54px;object-fit:contain}.prep-head h2{margin:0;color:#f9c614;font-size:27px;font-weight:950}.prep-head p{margin:3px 0 0;color:#fff;font-size:13px;font-weight:750}.prep-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-bottom:1px solid #eee;background:#fafafa}.prep-toolbar>div{display:flex;gap:7px;flex-wrap:wrap}.prep-toolbar button{border:1px solid #ddd;background:#fff;border-radius:999px;padding:8px 12px;font-weight:900;color:#58111a;cursor:pointer}.prep-toolbar button.active{background:#58111a;color:#f9c614;border-color:#58111a}.prep-toolbar .prep-refresh{background:#f9c614;color:#111;border-color:#f9c614}.prep-layout{display:grid;grid-template-columns:390px 1fr;min-height:0;overflow:hidden;flex:1}.prep-layout aside{border-right:1px solid #eee;display:flex;flex-direction:column;min-height:0;background:#fff}.prep-list-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;color:#58111a}.prep-list-head b{font-size:15px}.prep-list-head span{font-size:12px;color:#64748b;font-weight:800}.prep-list{padding:0 12px 14px;overflow:auto;display:grid;gap:8px}.prep-queixa-item{text-align:left;border:1px solid #e5e7eb;border-radius:14px;background:#fff;padding:11px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.04)}.prep-queixa-item:hover,.prep-queixa-item.active{border-color:#f9c614;background:#fffdf2}.prep-queixa-item strong{display:block;color:#111;font-size:13px}.prep-queixa-item span{display:block;color:#64748b;font-size:11px;font-weight:800;margin-top:2px}.prep-queixa-item p{margin:7px 0;color:#333;font-size:12px;line-height:1.3}.prep-queixa-item em,.prep-atleta em{display:inline-flex;border-radius:999px;padding:4px 8px;font-style:normal;font-size:10px;font-weight:950}.prep-queixa-item em.pendente,.prep-atleta em.pendente{background:#fff3cd;color:#856404}.prep-queixa-item em.respondida,.prep-atleta em.respondida{background:#d1fae5;color:#065f46}.prep-queixa-item em.expirada,.prep-atleta em.expirada{background:#fee2e2;color:#991b1b}.prep-layout section{overflow:auto;padding:18px}.prep-detalhe-empty,.prep-empty,.prep-loading{padding:24px;text-align:center;color:#64748b;font-weight:850}.prep-detalhe{display:grid;gap:12px}.prep-atleta{border:1px solid #f9c614;background:#fff8dc;border-radius:16px;padding:13px}.prep-atleta strong{display:block;color:#58111a;font-size:20px;font-weight:950}.prep-atleta span{display:block;color:#111;font-size:12px;font-weight:800;margin-top:3px}.prep-atleta small{display:block;color:#64748b;font-size:11px;font-weight:750;margin:5px 0}.prep-detalhe label{color:#58111a;font-size:13px;font-weight:950}.prep-queixa-texto{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:13px;color:#111;line-height:1.4;font-weight:700}.prep-quick{display:flex;gap:7px;flex-wrap:wrap}.prep-quick button{border:0;border-radius:999px;background:#eef2ff;color:#3730a3;padding:8px 10px;font-size:12px;font-weight:900;cursor:pointer}.prep-quick button:hover{filter:brightness(.97)}.prep-detalhe textarea{width:100%;min-height:150px;resize:vertical;border:1px solid #d7dce2;border-radius:14px;padding:12px;font-size:14px;line-height:1.42;outline:none;background:#fbfcff}.prep-detalhe textarea:focus{border-color:#f9c614;box-shadow:0 0 0 4px rgba(249,198,20,.2)}.prep-dias{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}.prep-dias label{display:grid;gap:5px}.prep-dias input{width:150px;border:1px solid #d7dce2;border-radius:10px;padding:9px;font-weight:900}.prep-dias span{color:#64748b;font-size:12px;font-weight:900}.prep-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}.prep-actions button{border:0;border-radius:12px;padding:12px 16px;font-weight:950;cursor:pointer}.prep-actions .salvar{background:linear-gradient(135deg,#58111a,#8a1430);color:#f9c614}.prep-actions .limpar{background:#e5e7eb;color:#111}.prep-actions button:disabled{opacity:.6;cursor:wait}@media(max-width:850px){.prep-fisica-card{max-height:94vh}.prep-layout{grid-template-columns:1fr}.prep-layout aside{border-right:0;border-bottom:1px solid #eee;max-height:42vh}.prep-layout section{padding:14px}.prep-toolbar{align-items:flex-start;flex-direction:column}.prep-toolbar .prep-refresh{width:100%}.prep-actions{justify-content:stretch}.prep-actions button{flex:1}.prep-dias input{width:120px}}
+
+/* Preparação Física: sinal de atenção quando houver queixa pendente */
+[data-prep-alert]{
+  position:relative!important;
+  overflow:visible!important;
+}
+[data-prep-alert].prep-alerta-pendente::after{
+  content:attr(data-prep-count);
+  position:absolute;
+  top:6px;
+  right:8px;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border-radius:999px;
+  background:#d63031;
+  color:#fff;
+  border:2px solid #f9c614;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:950;
+  line-height:1;
+  box-shadow:0 0 0 3px rgba(214,48,49,.18),0 5px 14px rgba(0,0,0,.22);
+  z-index:20;
+  animation:prep-alerta-pulse 1.25s infinite;
+}
+[data-prep-alert].prep-alerta-pendente::before{
+  content:'!';
+  position:absolute;
+  top:4px;
+  right:4px;
+  width:14px;
+  height:14px;
+  border-radius:50%;
+  background:#f9c614;
+  color:#58111a;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:10px;
+  font-weight:950;
+  z-index:21;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);
+}
+@keyframes prep-alerta-pulse{
+  0%,100%{transform:scale(1);}
+  50%{transform:scale(1.08);}
+}
+.modern-v3-sidebar [data-prep-alert].prep-alerta-pendente::after{top:7px;right:10px;}
+.modern-v3-sidebar [data-prep-alert].prep-alerta-pendente::before{top:5px;right:6px;}
+.relatorios-menu-options [data-prep-alert].prep-alerta-pendente::after{top:8px;right:10px;}
+.relatorios-menu-options [data-prep-alert].prep-alerta-pendente::before{top:6px;right:7px;}
+.modern-v3-hero-reports [data-prep-alert].prep-alerta-pendente::after{top:8px;right:8px;}
+.modern-v3-hero-reports [data-prep-alert].prep-alerta-pendente::before{top:6px;right:5px;}
+@media(max-width:760px){
+  [data-prep-alert].prep-alerta-pendente::after{min-width:20px;height:20px;font-size:10px;top:5px;right:7px;}
+  [data-prep-alert].prep-alerta-pendente::before{top:3px;right:4px;}
+}
+
+/* Goleiros: segundo campo para informações de jogo */
+.goleiros-textarea-group{display:grid;gap:0;margin-bottom:14px;}
+.goleiros-textarea-group + .goleiros-textarea-group{margin-top:4px;}
+.goleiros-textarea-group textarea{min-height:190px!important;}
+@media(max-width:760px){
+  .goleiros-textarea-group textarea{min-height:170px!important;}
+}

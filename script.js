@@ -205,6 +205,8 @@ function enterSystem() {
     document.getElementById('home-screen').classList.add('active-screen');
     document.getElementById('main-nav').style.display = 'flex';
     document.getElementById('yellow-bar-nav').style.display = 'block';
+    renderIndicadorPreparacaoFisica();
+    atualizarIndicadorPreparacaoFisica();
     modernV3ManualSidebarClosed = (typeof modernV3IsMobileViewport === 'function' && modernV3IsMobileViewport());
     document.body.classList.toggle('modern-v3-sidebar-collapsed', modernV3ManualSidebarClosed);
 }
@@ -3937,8 +3939,10 @@ function openRelatoriosMenuModal(){
  document.getElementById('home-screen')?.classList.add('active-screen');
  let m=document.getElementById('relatorios-menu-modal');
  if(!m){m=document.createElement('div');m.id='relatorios-menu-modal';m.className='relatorios-menu-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeRelatoriosMenuModal();});}
- m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button><button onclick="closeRelatoriosMenuModal();openGoleirosTecnicoModal();"><i class="fa-solid fa-shield-halved"></i><span>Goleiros</span><small>Informações técnicas</small></button><button onclick="closeRelatoriosMenuModal();openPreparacaoFisicaQueixasModal();"><i class="fa-solid fa-notes-medical"></i><span>Preparação Física</span><small>Queixas dos atletas</small></button></div></div>`;
+ m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button><button onclick="closeRelatoriosMenuModal();openGoleirosTecnicoModal();"><i class="fa-solid fa-shield-halved"></i><span>Goleiros</span><small>Informações técnicas</small></button><button data-prep-alert="1" onclick="closeRelatoriosMenuModal();openPreparacaoFisicaQueixasModal();"><i class="fa-solid fa-notes-medical"></i><span>Preparação Física</span><small>Queixas dos atletas</small></button></div></div>`;
  m.style.display='flex';
+ renderIndicadorPreparacaoFisica();
+ atualizarIndicadorPreparacaoFisica();
 }
 function closeRelatoriosMenuModal(){const m=document.getElementById('relatorios-menu-modal');if(m)m.style.display='none';}
 function normalizarTextoTrabalho(valor){return String(valor||'').trim().replace(/\s+/g,' ');}
@@ -4466,9 +4470,10 @@ function renderGoleirosTecnicoModal(){
  const selecionado=goleiroSelecionadoAtual();
  const registro=goleirosTecnicoState.registro;
  const texto=registro?.informacoes_tecnicas||'';
+ const textoJogo=registro?.informacoes_jogo||'';
  const atualizado=registro?.atualizado_em?`Última atualização: ${goleiroBRData(registro.atualizado_em)}`:'Nenhuma informação salva ainda.';
  const options=goleiros.map(g=>`<option value="${g.index}" ${String(g.index)===String(goleirosTecnicoState.selecionadoIndex)?'selected':''}>${goleiroEscape(g.apelido)} - ${goleiroEscape(g.ano)}</option>`).join('');
- modal.innerHTML=`<div class="goleiros-tecnico-card"><button class="goleiros-close" onclick="closeGoleirosTecnicoModal()">×</button><div class="goleiros-head"><img src="logo.png"><div><h2>Goleiros</h2><p>Informações técnicas individuais dos goleiros</p></div></div><div class="goleiros-body"><aside><label class="goleiros-label">Selecionar goleiro</label><select id="goleiro-tecnico-select" onchange="selecionarGoleiroTecnico(this.value)" ${goleiros.length?'':'disabled'}><option value="">${goleiros.length?'Escolha um goleiro...':'Nenhum goleiro encontrado'}</option>${options}</select>${goleiroMontarCard(selecionado)}</aside><section><label class="goleiros-text-title" for="goleiro-info-textarea">Informações Técnicas:</label><textarea id="goleiro-info-textarea" placeholder="Escreva aqui as informações técnicas do goleiro selecionado..." ${selecionado?'':'disabled'}>${goleiroEscape(texto)}</textarea><div class="goleiros-footer"><span id="goleiro-info-status">${goleirosTecnicoState.carregando?'Carregando...':goleiroEscape(atualizado)}</span><button type="button" onclick="salvarGoleiroInformacoesTecnicas()" ${selecionado?'':'disabled'}>Salvar informações</button></div></section></div></div>`;
+ modal.innerHTML=`<div class="goleiros-tecnico-card"><button class="goleiros-close" onclick="closeGoleirosTecnicoModal()">×</button><div class="goleiros-head"><img src="logo.png"><div><h2>Goleiros</h2><p>Informações técnicas individuais dos goleiros</p></div></div><div class="goleiros-body"><aside><label class="goleiros-label">Selecionar goleiro</label><select id="goleiro-tecnico-select" onchange="selecionarGoleiroTecnico(this.value)" ${goleiros.length?'':'disabled'}><option value="">${goleiros.length?'Escolha um goleiro...':'Nenhum goleiro encontrado'}</option>${options}</select>${goleiroMontarCard(selecionado)}</aside><section><div class="goleiros-textarea-group"><label class="goleiros-text-title" for="goleiro-info-textarea">Informações Técnicas:</label><textarea id="goleiro-info-textarea" placeholder="Escreva aqui as informações técnicas do goleiro selecionado..." ${selecionado?'':'disabled'}>${goleiroEscape(texto)}</textarea></div><div class="goleiros-textarea-group"><label class="goleiros-text-title" for="goleiro-jogo-textarea">Informações de Jogo:</label><textarea id="goleiro-jogo-textarea" placeholder="Escreva aqui as informações de jogo do goleiro selecionado..." ${selecionado?'':'disabled'}>${goleiroEscape(textoJogo)}</textarea></div><div class="goleiros-footer"><span id="goleiro-info-status">${goleirosTecnicoState.carregando?'Carregando...':goleiroEscape(atualizado)}</span><button type="button" onclick="salvarGoleiroInformacoesTecnicas()" ${selecionado?'':'disabled'}>Salvar informações</button></div></section></div></div>`;
  modal.style.display='flex';
 }
 async function openGoleirosTecnicoModal(){
@@ -4499,18 +4504,21 @@ async function carregarGoleiroInformacaoTecnica(){
 async function salvarGoleiroInformacoesTecnicas(){
  const g=goleiroSelecionadoAtual();if(!g)return alert('Selecione um goleiro.');
  const textarea=document.getElementById('goleiro-info-textarea');
+ const textareaJogo=document.getElementById('goleiro-jogo-textarea');
  const status=document.getElementById('goleiro-info-status');
  const info=String(textarea?.value||'').trim();
+ const infoJogo=String(textareaJogo?.value||'').trim();
  const btn=document.querySelector('#goleiros-tecnico-modal .goleiros-footer button');
  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
  if(status)status.textContent='Salvando no Supabase...';
- const payload={nome_completo:g.nomeCompleto,nascimento:g.nascimento,apelido:g.apelido,ano:g.ano,informacoes_tecnicas:info,atualizado_em:new Date().toISOString()};
+ const payload={nome_completo:g.nomeCompleto,nascimento:g.nascimento,apelido:g.apelido,ano:g.ano,informacoes_tecnicas:info,informacoes_jogo:infoJogo,atualizado_em:new Date().toISOString()};
  try{
   const {error}=await _supabase.from(GOLEIROS_INFO_TABELA).upsert(payload,{onConflict:'nome_completo,nascimento'});
   if(error)throw error;
   goleirosTecnicoState.registro=payload;
-  if(status)status.textContent=info?'Informações salvas com sucesso.':'Informações apagadas e salvas em branco.';
-  alert(info?'Informações técnicas salvas para '+(g.apelido||g.nomeCompleto)+'.':'Informações técnicas apagadas para '+(g.apelido||g.nomeCompleto)+'.');
+  const temAlgumaInfo=!!(info||infoJogo);
+  if(status)status.textContent=temAlgumaInfo?'Informações salvas com sucesso.':'Informações apagadas e salvas em branco.';
+  alert(temAlgumaInfo?'Informações salvas para '+(g.apelido||g.nomeCompleto)+'.':'Informações apagadas para '+(g.apelido||g.nomeCompleto)+'.');
  }catch(e){console.error(e);alert('Erro ao salvar informações técnicas. Verifique a tabela/políticas no Supabase.');if(status)status.textContent='Erro ao salvar.';}
  finally{if(btn){btn.disabled=false;btn.textContent='Salvar informações';}}
 }
@@ -4519,6 +4527,24 @@ async function salvarGoleiroInformacoesTecnicas(){
 /* === PREPARAÇÃO FÍSICA - QUEIXAS DOS ATLETAS === */
 const PREPARACAO_FISICA_TABELA = 'portal_preparacao_fisica';
 let preparacaoFisicaState = { lista: [], selecionadoId: null, filtro: 'pendente', carregando: false };
+
+let preparacaoFisicaPendentesCount = 0;
+function renderIndicadorPreparacaoFisica(){
+ const count=Number(preparacaoFisicaPendentesCount)||0;
+ document.querySelectorAll('[data-prep-alert]').forEach(el=>{
+  el.classList.toggle('prep-alerta-pendente',count>0);
+  if(count>0){el.setAttribute('data-prep-count',String(count));el.title=`${count} queixa(s) pendente(s) na Preparação Física`;}
+  else{el.removeAttribute('data-prep-count');el.title='Preparação Física';}
+ });
+}
+async function atualizarIndicadorPreparacaoFisica(){
+ try{
+  const {count,error}=await _supabase.from(PREPARACAO_FISICA_TABELA).select('id',{count:'exact',head:true}).eq('status','pendente');
+  if(error){console.warn('Indicador de preparação física não carregado:',error.message);return;}
+  preparacaoFisicaPendentesCount=count||0;
+  renderIndicadorPreparacaoFisica();
+ }catch(e){console.warn('Erro ao atualizar indicador de preparação física:',e);}
+}
 
 function prepEscape(valor){return typeof escapeHtmlJogos==='function'?escapeHtmlJogos(valor):String(valor??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));}
 function prepISO(data){const d=new Date(data);if(isNaN(d))return '';return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
@@ -4577,6 +4603,8 @@ async function carregarPreparacaoFisicaQueixas(){
   const {data,error}=await _supabase.from(PREPARACAO_FISICA_TABELA).select('*').order('criado_em',{ascending:false});
   if(error)throw error;
   preparacaoFisicaState.lista=data||[];
+  preparacaoFisicaPendentesCount=preparacaoFisicaState.lista.filter(r=>String(r.status||'').toLowerCase()==='pendente').length;
+  renderIndicadorPreparacaoFisica();
   if(!preparacaoFisicaState.lista.some(r=>String(r.id)===String(preparacaoFisicaState.selecionadoId)))preparacaoFisicaState.selecionadoId=preparacaoFisicaState.lista[0]?.id||null;
  }catch(e){console.error(e);alert('Erro ao carregar queixas. Verifique a tabela portal_preparacao_fisica no Supabase.');preparacaoFisicaState.lista=[];}
  finally{preparacaoFisicaState.carregando=false;renderPreparacaoFisicaQueixasModal();}
@@ -4597,6 +4625,7 @@ async function salvarRespostaPreparacaoFisica(){
   if(error)throw error;
   alert('Resposta salva com sucesso.');
   await carregarPreparacaoFisicaQueixas();
+  await atualizarIndicadorPreparacaoFisica();
  }catch(e){console.error(e);alert('Erro ao salvar resposta.');}
  finally{if(btn){btn.disabled=false;btn.textContent='Salvar resposta';}}
 }
@@ -4608,6 +4637,7 @@ async function limparRespostaPreparacaoFisica(){
   const {error}=await _supabase.from(PREPARACAO_FISICA_TABELA).update(payload).eq('id',r.id);
   if(error)throw error;
   await carregarPreparacaoFisicaQueixas();
+  await atualizarIndicadorPreparacaoFisica();
  }catch(e){console.error(e);alert('Erro ao limpar resposta.');}
 }
 
@@ -6065,8 +6095,10 @@ function modernV3EnsureMenu(){
    <button class="nav-btn" onclick="modernV3Action('psr',event)"><span class="mv3-ico">💚</span><span>PSR</span></button>
    <button class="nav-btn" onclick="modernV3Action('pse',event)"><span class="mv3-ico">🔥</span><span>PSE</span></button>
    <button class="nav-btn" onclick="modernV3Action('goleiros',event)"><span class="mv3-ico">🧤</span><span>Goleiros</span></button>
-   <button class="nav-btn" onclick="modernV3Action('preparacao-fisica',event)"><span class="mv3-ico">🩺</span><span>Preparação Física</span></button>
+   <button class="nav-btn" data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><span class="mv3-ico">🩺</span><span>Preparação Física</span></button>
   </div>`;
+ renderIndicadorPreparacaoFisica();
+ atualizarIndicadorPreparacaoFisica();
 }
 function modernV3ToggleGroup(id){
  const g=document.getElementById(id);if(!g)return;
@@ -6148,7 +6180,7 @@ function modernV3BuildHome(){
  home.dataset.modernV3Home='1';
  home.innerHTML=`<div class="modern-v3-dashboard">
   <section class="modern-v3-hero">
-   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button><button onclick="modernV3Action('goleiros',event)"><i>🧤</i><strong>Goleiros</strong></button><button onclick="modernV3Action('preparacao-fisica',event)"><i>🩺</i><strong>Preparação Física</strong></button></div></div>
+   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button><button onclick="modernV3Action('goleiros',event)"><i>🧤</i><strong>Goleiros</strong></button><button data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><i>🩺</i><strong>Preparação Física</strong></button></div></div>
    <img src="logo.png" alt="CFA Prosol">
   </section>
   <h3 class="modern-v3-block-title">Módulos principais</h3>
@@ -6161,6 +6193,8 @@ function modernV3BuildHome(){
    <button onclick="modernV3Navigate('prancheta',event)"><i>📐</i><strong>Prancheta</strong><small>Organização tática virtual.</small></button>
   </div>
  </div>`;
+ renderIndicadorPreparacaoFisica();
+ atualizarIndicadorPreparacaoFisica();
 }
 
 function modernV3AnyModalOpen(){
