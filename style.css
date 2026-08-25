@@ -4285,3 +4285,85 @@ html body .jogos-salvos-card .jogo-salvo-acoes button em{display:none!important;
 @media(max-width:760px){
   .goleiros-textarea-group textarea{min-height:170px!important;}
 }
+
+/* Monitoramento de Carga - PSR/PSE */
+.mc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.68);display:none;align-items:center;justify-content:center;z-index:19700;padding:16px}.mc-card{position:relative;width:min(1280px,98vw);max-height:94vh;overflow:hidden;background:#fff;border-radius:18px;box-shadow:0 22px 70px rgba(0,0,0,.36);border-top:8px solid #58111a;display:flex;flex-direction:column}.mc-close{position:absolute;right:12px;top:10px;width:36px;height:36px;border:0;border-radius:50%;background:#58111a;color:#fff;font-size:24px;line-height:1;cursor:pointer;z-index:2}.mc-head{display:flex;align-items:center;gap:14px;padding:22px 24px 16px;background:linear-gradient(135deg,#58111a,#8a1430);color:#fff;flex:0 0 auto}.mc-head img{width:54px;height:54px;object-fit:contain}.mc-head h2{margin:0;color:#f9c614;font-size:27px;font-weight:950}.mc-head p{margin:3px 0 0;color:#fff;font-size:13px;font-weight:750}.mc-filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 18px;border-bottom:1px solid #eee;background:#fafafa}.mc-filtros label{font-size:12px;color:#58111a;font-weight:950}.mc-filtros input,.mc-filtros select{border:1px solid #d7dce2;border-radius:10px;padding:8px 10px;background:#fff;font-weight:850}.mc-filtros .mc-busca{min-width:190px}.mc-filtros button{border:1px solid #ddd;background:#fff;border-radius:999px;padding:8px 12px;font-weight:900;color:#58111a;cursor:pointer}.mc-filtros .mc-refresh{background:#f9c614;color:#111;border-color:#f9c614}.mc-check{display:inline-flex!important;gap:6px;align-items:center;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:7px 10px}.mc-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:12px 18px;background:#fff}.mc-summary div{border:1px solid #e5e7eb;border-radius:14px;padding:10px;text-align:center;background:#f8fafc}.mc-summary b{display:block;font-size:22px;color:#58111a}.mc-summary span{font-size:11px;color:#64748b;font-weight:900}.mc-summary .ouro{background:#fff1f2;border-color:#fecdd3}.mc-summary .red{background:#fee2e2;border-color:#fecaca}.mc-summary .yellow{background:#fef3c7;border-color:#fde68a}.mc-note{margin:0 18px 10px;color:#64748b;font-size:12px;font-weight:800}.mc-loading,.mc-empty{margin:14px 18px 18px;padding:24px;text-align:center;color:#64748b;font-weight:900;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:14px}.mc-table-wrap{margin:0 18px 18px;overflow:auto;border:1px solid #e5e7eb;border-radius:14px;max-height:52vh}.mc-table{width:100%;min-width:1180px;border-collapse:collapse;font-size:12px}.mc-table th{position:sticky;top:0;background:#58111a;color:#f9c614;z-index:2}.mc-table th,.mc-table td{border:1px solid #edf1f6;padding:8px;text-align:center;vertical-align:middle}.mc-table tbody tr:nth-child(even){background:#fafafa}.mc-table tbody tr:hover{background:#fff8dc}.mc-table tr.mc-regra{background:#fff1f2!important}.mc-atleta{text-align:left!important;min-width:190px}.mc-atleta b{display:block;color:#111;font-weight:950}.mc-atleta small{display:block;color:#64748b;font-size:10px;font-weight:750;line-height:1.2}.mc-zona{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:5px 9px;font-weight:950;font-size:11px;white-space:nowrap}.mc-zona.azul{background:#dbeafe;color:#1d4ed8}.mc-zona.verde{background:#dcfce7;color:#166534}.mc-zona.amarelo{background:#fef3c7;color:#92400e}.mc-zona.vermelho{background:#fee2e2;color:#991b1b}.mc-zona.sem{background:#e5e7eb;color:#475569}.mc-alertas{min-width:150px}.mc-alertas span{display:block;background:#fff3cd;color:#856404;border-radius:8px;margin:2px 0;padding:3px 5px;font-size:10px;font-weight:900}.mc-alertas em{font-style:normal;color:#94a3b8}.mc-regra .mc-alertas span:last-child{background:#fee2e2;color:#991b1b}@media(max-width:850px){.mc-card{max-height:94vh}.mc-head{padding:18px}.mc-head h2{font-size:22px}.mc-filtros{align-items:stretch;flex-direction:column}.mc-filtros input,.mc-filtros select,.mc-filtros button{width:100%}.mc-summary{grid-template-columns:repeat(2,1fr)}.mc-table-wrap{max-height:48vh;margin:0 12px 14px}.mc-note{margin:0 12px 10px}.mc-table{font-size:11px}}
+
+/* Monitoramento de Carga: visual mais compacto e maior área para atletas */
+.mc-overlay{padding:8px!important;align-items:center!important;}
+.mc-card{
+  height:96vh!important;
+  max-height:96vh!important;
+  width:min(1320px,99vw)!important;
+  border-radius:14px!important;
+}
+.mc-head{
+  padding:10px 16px 8px!important;
+  gap:10px!important;
+}
+.mc-head img{width:38px!important;height:38px!important;}
+.mc-head h2{font-size:22px!important;line-height:1.05!important;}
+.mc-head p{font-size:11px!important;margin-top:2px!important;}
+.mc-close{width:32px!important;height:32px!important;font-size:22px!important;top:8px!important;right:10px!important;}
+.mc-filtros{
+  padding:7px 14px!important;
+  gap:6px!important;
+}
+.mc-filtros label{font-size:11px!important;}
+.mc-filtros input,.mc-filtros select{
+  height:34px!important;
+  padding:6px 9px!important;
+  font-size:12px!important;
+}
+.mc-filtros button{
+  min-height:34px!important;
+  padding:6px 10px!important;
+  font-size:12px!important;
+}
+.mc-check{padding:5px 9px!important;min-height:34px!important;}
+.mc-summary{
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:7px!important;
+  padding:7px 14px!important;
+}
+.mc-summary div{
+  padding:6px 8px!important;
+  border-radius:11px!important;
+  min-height:52px!important;
+}
+.mc-summary b{font-size:18px!important;line-height:1.05!important;}
+.mc-summary span{font-size:10px!important;line-height:1.1!important;}
+#mc-print-area{
+  display:flex!important;
+  flex-direction:column!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+.mc-note{
+  margin:0 14px 5px!important;
+  font-size:11px!important;
+  line-height:1.2!important;
+}
+.mc-table-wrap{
+  flex:1 1 auto!important;
+  max-height:none!important;
+  min-height:0!important;
+  margin:0 14px 12px!important;
+  border-radius:12px!important;
+}
+.mc-table{font-size:11px!important;}
+.mc-table th,.mc-table td{padding:5px 6px!important;}
+.mc-atleta{min-width:210px!important;}
+.mc-zona{padding:4px 7px!important;font-size:10px!important;}
+.mc-alertas span{font-size:9.5px!important;padding:2px 5px!important;}
+@media(max-width:850px){
+  .mc-card{height:96vh!important;max-height:96vh!important;}
+  .mc-head{padding:10px 14px!important;}
+  .mc-filtros{display:grid!important;grid-template-columns:1fr 1fr!important;align-items:stretch!important;}
+  .mc-filtros input,.mc-filtros select,.mc-filtros button,.mc-filtros .mc-busca{width:100%!important;min-width:0!important;}
+  .mc-check{justify-content:center!important;}
+  .mc-summary{grid-template-columns:repeat(5,minmax(72px,1fr))!important;overflow-x:auto!important;}
+  .mc-summary div{min-width:72px!important;}
+  .mc-table-wrap{max-height:none!important;margin:0 10px 10px!important;}
+}

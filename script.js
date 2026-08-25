@@ -3939,7 +3939,7 @@ function openRelatoriosMenuModal(){
  document.getElementById('home-screen')?.classList.add('active-screen');
  let m=document.getElementById('relatorios-menu-modal');
  if(!m){m=document.createElement('div');m.id='relatorios-menu-modal';m.className='relatorios-menu-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeRelatoriosMenuModal();});}
- m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button><button onclick="closeRelatoriosMenuModal();openGoleirosTecnicoModal();"><i class="fa-solid fa-shield-halved"></i><span>Goleiros</span><small>Informações técnicas</small></button><button data-prep-alert="1" onclick="closeRelatoriosMenuModal();openPreparacaoFisicaQueixasModal();"><i class="fa-solid fa-notes-medical"></i><span>Preparação Física</span><small>Queixas dos atletas</small></button></div></div>`;
+ m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button><button onclick="closeRelatoriosMenuModal();openGoleirosTecnicoModal();"><i class="fa-solid fa-shield-halved"></i><span>Goleiros</span><small>Informações técnicas</small></button><button data-prep-alert="1" onclick="closeRelatoriosMenuModal();openPreparacaoFisicaQueixasModal();"><i class="fa-solid fa-notes-medical"></i><span>Preparação Física</span><small>Queixas dos atletas</small></button><button onclick="closeRelatoriosMenuModal();openMonitoramentoCargaModal();"><i class="fa-solid fa-gauge-high"></i><span>Monitoramento de Carga</span><small>PSR/PSE automático</small></button></div></div>`;
  m.style.display='flex';
  renderIndicadorPreparacaoFisica();
  atualizarIndicadorPreparacaoFisica();
@@ -4639,6 +4639,84 @@ async function limparRespostaPreparacaoFisica(){
   await carregarPreparacaoFisicaQueixas();
   await atualizarIndicadorPreparacaoFisica();
  }catch(e){console.error(e);alert('Erro ao limpar resposta.');}
+}
+
+
+/* === MONITORAMENTO DE CARGA - PSR/PSE === */
+const MONITORAMENTO_CARGA_VIEW = 'vw_monitoramento_carga_psr_pse';
+let monitorCargaState = { lista: [], carregando: false, data: '', ano: 'todos', zona: 'todas', busca: '', somenteAlertas: false, regraOuro: false };
+
+function mcEscape(valor){return typeof escapeHtmlJogos==='function'?escapeHtmlJogos(valor):String(valor??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));}
+function mcNorm(valor){return String(valor||'').trim().replace(/\s+/g,' ');}
+function mcBR(valor){if(!valor)return '';const s=String(valor).slice(0,10);const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m)return `${m[3]}/${m[2]}/${m[1]}`;const d=new Date(valor);return isNaN(d)?s:d.toLocaleDateString('pt-BR');}
+function mcNum(valor,dig=0){if(valor===null||valor===undefined||valor==='')return '—';const n=Number(valor);if(Number.isNaN(n))return '—';return dig>0?n.toFixed(dig).replace('.',','):String(Math.round(n));}
+function mcParseAlertas(valor){if(Array.isArray(valor))return valor.filter(Boolean);if(typeof valor==='string'){try{const arr=JSON.parse(valor);return Array.isArray(arr)?arr.filter(Boolean):[];}catch(e){return valor? [valor]:[];}}return [];}
+function mcValorFlex(row,termos){const chave=Object.keys(row||{}).find(k=>termos.some(t=>String(k).toLowerCase().includes(String(t).toLowerCase())));return chave?row[chave]:'';}
+function mcAtletaBase(row){
+ const nome=mcNorm(row?.nome_completo);const nasc=mcNorm(row?.nascimento);
+ return (excelData||[]).find(r=>mcNorm(mcValorFlex(r,['nome completo'])||valorColunaExata(r,'NOME COMPLETO')||mcValorFlex(r,['nome']))===nome && mcNorm(convertExcelDate(mcValorFlex(r,['data de nascimento','nascimento']))||mcValorFlex(r,['data de nascimento','nascimento']))===nasc)||null;
+}
+function mcApelido(row){const base=mcAtletaBase(row);return base?(mcNorm(mcValorFlex(base,['apelido'])||valorColunaExata(base,'APELIDO'))||row.nome_completo):row.nome_completo;}
+function mcAno(row){const base=mcAtletaBase(row);return mcNorm(row?.ano|| (base?(valorColunaExata(base,'Ano')||mcValorFlex(base,['ano'])):''));}
+function mcTemAlerta(row){
+ const alertas=mcParseAlertas(row.alertas_itens);
+ return alertas.length>0 || !!row.regra_ouro_ajustar || ['amarelo','vermelho'].includes(String(row.zona_cor||'')) || ['salto','salto grande'].includes(String(row.alerta_variacao||''));
+}
+function mcDadosFiltrados(){
+ let dados=[...(monitorCargaState.lista||[])];
+ if(monitorCargaState.data)dados=dados.filter(r=>String(r.data).slice(0,10)===monitorCargaState.data);
+ if(monitorCargaState.ano!=='todos')dados=dados.filter(r=>mcAno(r)===monitorCargaState.ano);
+ if(monitorCargaState.zona!=='todas')dados=dados.filter(r=>String(r.zona_cor||'sem')===monitorCargaState.zona);
+ if(monitorCargaState.somenteAlertas)dados=dados.filter(mcTemAlerta);
+ if(monitorCargaState.regraOuro)dados=dados.filter(r=>!!r.regra_ouro_ajustar);
+ const busca=mcNorm(monitorCargaState.busca).toLowerCase();
+ if(busca)dados=dados.filter(r=>`${mcApelido(r)} ${r.nome_completo||''} ${mcAno(r)}`.toLowerCase().includes(busca));
+ return dados.sort((a,b)=>String(b.data).localeCompare(String(a.data))||String(mcApelido(a)).localeCompare(String(mcApelido(b)),'pt-BR'));
+}
+function mcAnosDisponiveis(){return [...new Set((excelData||[]).map(r=>String(valorColunaExata(r,'Ano')||mcValorFlex(r,['ano'])).trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true}));}
+function mcResumo(dados){
+ return {total:dados.length, ouro:dados.filter(r=>r.regra_ouro_ajustar).length, vermelho:dados.filter(r=>r.zona_cor==='vermelho').length, amarelo:dados.filter(r=>r.zona_cor==='amarelo').length, alertas:dados.filter(mcTemAlerta).length};
+}
+function mcZonaLabel(row){return row.zona||'Histórico insuficiente';}
+function mcAlertasHTML(row){
+ const a=mcParseAlertas(row.alertas_itens);
+ if(row.alerta_variacao)a.push(row.alerta_variacao==='salto grande'?'Salto grande de carga':'Salto de carga');
+ if(row.regra_ouro_ajustar)a.push('Regra de ouro: ajustar carga');
+ return a.length?a.map(x=>`<span>${mcEscape(x)}</span>`).join(''):'<em>—</em>';
+}
+function renderMonitoramentoCargaTabela(dados){
+ if(!dados.length)return '<div class="mc-empty">Nenhum registro encontrado para os filtros selecionados.</div>';
+ return `<div class="mc-table-wrap"><table class="mc-table"><thead><tr><th>Atleta</th><th>Data</th><th>PSE</th><th>PSR</th><th>Carga</th><th>CA 7</th><th>CC 28</th><th>ACWR</th><th>Zona</th><th>Recuperação</th><th>Variação</th><th>Alertas</th></tr></thead><tbody>${dados.map(r=>`<tr class="${r.regra_ouro_ajustar?'mc-regra':''}"><td class="mc-atleta"><b>${mcEscape(mcApelido(r))}</b><small>${mcEscape(r.nome_completo||'')} ${mcAno(r)?'• '+mcEscape(mcAno(r)):''}</small></td><td>${mcBR(r.data)}</td><td>${mcNum(r.pse_valor)}</td><td>${mcNum(r.psr_total)}</td><td>${mcNum(r.carga_sessao)}</td><td>${mcNum(r.carga_aguda)}</td><td>${mcNum(r.carga_cronica,1)}</td><td>${mcNum(r.acwr,2)}</td><td><span class="mc-zona ${mcEscape(r.zona_cor||'sem')}">${mcEscape(mcZonaLabel(r))}</span></td><td>${mcEscape(r.classificacao_recuperacao||'—')}</td><td>${r.perc_variacao!==null&&r.perc_variacao!==undefined?mcNum(r.perc_variacao,1)+'%':'—'}</td><td class="mc-alertas">${mcAlertasHTML(r)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function renderMonitoramentoCargaModal(){
+ const modal=document.getElementById('monitoramento-carga-modal');if(!modal)return;
+ const dados=mcDadosFiltrados();const res=mcResumo(dados);const anos=mcAnosDisponiveis();
+ const datas=[...new Set((monitorCargaState.lista||[]).map(r=>String(r.data).slice(0,10)).filter(Boolean))].sort().reverse();
+ modal.innerHTML=`<div class="mc-card"><button class="mc-close" onclick="closeMonitoramentoCargaModal()">×</button><div class="mc-head"><img src="logo.png"><div><h2>Monitoramento de Carga</h2><p>PSR × PSE • sRPE 120min • últimos 7/28 registros válidos</p></div></div><div class="mc-filtros"><label>Data <input type="date" value="${mcEscape(monitorCargaState.data)}" onchange="setMonitorCargaFiltro('data',this.value)"></label><button onclick="setMonitorCargaFiltro('data','')">Todas datas</button><select onchange="setMonitorCargaFiltro('ano',this.value)"><option value="todos">Todos os anos</option>${anos.map(a=>`<option value="${mcEscape(a)}" ${monitorCargaState.ano===a?'selected':''}>${mcEscape(a)}</option>`).join('')}</select><select onchange="setMonitorCargaFiltro('zona',this.value)"><option value="todas">Todas as zonas</option><option value="azul" ${monitorCargaState.zona==='azul'?'selected':''}>Azul - baixa</option><option value="verde" ${monitorCargaState.zona==='verde'?'selected':''}>Verde - normal</option><option value="amarelo" ${monitorCargaState.zona==='amarelo'?'selected':''}>Amarelo - atenção</option><option value="vermelho" ${monitorCargaState.zona==='vermelho'?'selected':''}>Vermelho - sobrecarga</option><option value="sem" ${monitorCargaState.zona==='sem'?'selected':''}>Histórico insuficiente</option></select><input class="mc-busca" placeholder="Buscar atleta..." value="${mcEscape(monitorCargaState.busca)}" oninput="setMonitorCargaFiltro('busca',this.value)"><label class="mc-check"><input type="checkbox" ${monitorCargaState.somenteAlertas?'checked':''} onchange="setMonitorCargaFiltro('somenteAlertas',this.checked)"> Alertas</label><label class="mc-check"><input type="checkbox" ${monitorCargaState.regraOuro?'checked':''} onchange="setMonitorCargaFiltro('regraOuro',this.checked)"> Regra ouro</label><button class="mc-refresh" onclick="carregarMonitoramentoCarga()">Atualizar</button><button onclick="imprimirMonitoramentoCarga()">Imprimir/PDF</button></div><div class="mc-summary"><div><b>${res.total}</b><span>Registros</span></div><div class="ouro"><b>${res.ouro}</b><span>Regra ouro</span></div><div class="red"><b>${res.vermelho}</b><span>Sobrecarga</span></div><div class="yellow"><b>${res.amarelo}</b><span>Atenção</span></div><div><b>${res.alertas}</b><span>Com alertas</span></div></div><div id="mc-print-area"><p class="mc-note">CA e % variação aparecem a partir de 7 registros válidos de PSE. CC e ACWR aparecem a partir de 28 registros válidos.</p>${monitorCargaState.carregando?'<div class="mc-loading">Carregando dados...</div>':renderMonitoramentoCargaTabela(dados)}</div></div>`;
+ modal.style.display='flex';
+}
+async function openMonitoramentoCargaModal(){
+ let modal=document.getElementById('monitoramento-carga-modal');
+ if(!modal){modal=document.createElement('div');modal.id='monitoramento-carga-modal';modal.className='mc-overlay';document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal)closeMonitoramentoCargaModal();});}
+ modal.style.display='flex';renderMonitoramentoCargaModal();await carregarMonitoramentoCarga();
+}
+function closeMonitoramentoCargaModal(){const modal=document.getElementById('monitoramento-carga-modal');if(modal)modal.style.display='none';}
+function setMonitorCargaFiltro(campo,valor){monitorCargaState[campo]=valor;renderMonitoramentoCargaModal();}
+async function carregarMonitoramentoCarga(){
+ monitorCargaState.carregando=true;renderMonitoramentoCargaModal();
+ try{
+  const {data,error}=await _supabase.from(MONITORAMENTO_CARGA_VIEW).select('*').order('data',{ascending:false}).limit(5000);
+  if(error)throw error;
+  monitorCargaState.lista=data||[];
+  if(!monitorCargaState.data&&monitorCargaState.lista.length)monitorCargaState.data=String(monitorCargaState.lista[0].data).slice(0,10);
+ }catch(e){console.error(e);alert('Erro ao carregar Monitoramento de Carga. Verifique a view vw_monitoramento_carga_psr_pse no Supabase.');monitorCargaState.lista=[];}
+ finally{monitorCargaState.carregando=false;renderMonitoramentoCargaModal();}
+}
+function imprimirMonitoramentoCarga(){
+ const area=document.getElementById('mc-print-area');if(!area)return;
+ const w=window.open('','_blank','width=1200,height=850');
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Monitoramento de Carga</title><style>body{font-family:Arial,sans-serif;margin:12px}.mc-note{font-size:11px;color:#555}.mc-table{width:100%;border-collapse:collapse;font-size:10px}.mc-table th{background:#58111a;color:#f9c614}.mc-table th,.mc-table td{border:1px solid #999;padding:4px;text-align:center}.mc-atleta{text-align:left!important}.mc-atleta b{display:block}.mc-atleta small{display:block;color:#555}.mc-zona{border-radius:8px;padding:3px 6px;font-weight:bold}.mc-zona.azul{background:#dbeafe}.mc-zona.verde{background:#dcfce7}.mc-zona.amarelo{background:#fef3c7}.mc-zona.vermelho{background:#fee2e2}.mc-alertas span{display:block}.mc-regra{background:#fff1f2}@page{size:landscape;margin:8mm}</style></head><body><h2>Monitoramento de Carga - CFA Prosol</h2>${area.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);
+ w.document.close();
 }
 
 /* === RELATÓRIO PSR / PSE - PORTAL DO ATLETA === */
@@ -6096,6 +6174,7 @@ function modernV3EnsureMenu(){
    <button class="nav-btn" onclick="modernV3Action('pse',event)"><span class="mv3-ico">🔥</span><span>PSE</span></button>
    <button class="nav-btn" onclick="modernV3Action('goleiros',event)"><span class="mv3-ico">🧤</span><span>Goleiros</span></button>
    <button class="nav-btn" data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><span class="mv3-ico">🩺</span><span>Preparação Física</span></button>
+   <button class="nav-btn" onclick="modernV3Action('monitoramento-carga',event)"><span class="mv3-ico">📈</span><span>Monitoramento de Carga</span></button>
   </div>`;
  renderIndicadorPreparacaoFisica();
  atualizarIndicadorPreparacaoFisica();
@@ -6172,6 +6251,7 @@ function modernV3Action(action,event){
   if(action==='pse'){openRelatorioPsrPse('pse');return;}
   if(action==='goleiros'){openGoleirosTecnicoModal();return;}
   if(action==='preparacao-fisica'){openPreparacaoFisicaQueixasModal();return;}
+  if(action==='monitoramento-carga'){openMonitoramentoCargaModal();return;}
  }catch(e){console.error(e);alert('Não foi possível abrir este módulo.');}
 }
 function modernV3BuildHome(){
@@ -6180,7 +6260,7 @@ function modernV3BuildHome(){
  home.dataset.modernV3Home='1';
  home.innerHTML=`<div class="modern-v3-dashboard">
   <section class="modern-v3-hero">
-   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button><button onclick="modernV3Action('goleiros',event)"><i>🧤</i><strong>Goleiros</strong></button><button data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><i>🩺</i><strong>Preparação Física</strong></button></div></div>
+   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button><button onclick="modernV3Action('goleiros',event)"><i>🧤</i><strong>Goleiros</strong></button><button data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><i>🩺</i><strong>Preparação Física</strong></button><button onclick="modernV3Action('monitoramento-carga',event)"><i>📈</i><strong>Monitoramento</strong></button></div></div>
    <img src="logo.png" alt="CFA Prosol">
   </section>
   <h3 class="modern-v3-block-title">Módulos principais</h3>
