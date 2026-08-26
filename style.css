@@ -4374,11 +4374,11 @@ html body .jogos-salvos-card .jogo-salvo-acoes button em{display:none!important;
 @media screen and (min-width: 701px){
   #campo-convocacao-modal .campo-futebol .jogador-campo,
   #campo-convocacao-modal .campo-futebol .jogador-campo span{
-    font-size:12.96px!important;
+    font-size:12.31px!important;
     font-weight:bold!important;
   }
   #campo-convocacao-modal .campo-futebol .jogador-campo img{
-    width:45px!important;
+    width:42.75px!important;
   }
 }
 /* Visualização celular: mantém o tamanho da tela (não é o PDF). */
