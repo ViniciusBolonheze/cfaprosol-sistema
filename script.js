@@ -5434,12 +5434,25 @@ function prosolPrepararWrapperPDF(elemento, orientacao='portrait', tipo='normal'
   clone.style.overflow='hidden';
   clone.style.margin='0';
   clone.style.boxShadow='none';
-  // Celular Compartilhar PDF: tamanho original do campo +1% (titulares).
+  // Celular Compartilhar PDF: titulares +1% extra; logo +3%; X +2%; adversário +3%.
   if(typeof prosolIsMobile==='function' && prosolIsMobile()){
    clone.querySelectorAll('.campo-futebol .jogador-campo').forEach(el=>{
-    el.style.fontSize='12.12px';
-    el.querySelectorAll('span').forEach(sp=>{sp.style.fontSize='12.12px';sp.style.fontWeight='bold';});
-    el.querySelectorAll('img').forEach(img=>{img.style.width='42.42px';});
+    el.style.fontSize='12.24px';
+    el.querySelectorAll('span').forEach(sp=>{sp.style.fontSize='12.24px';sp.style.fontWeight='bold';});
+    el.querySelectorAll('img').forEach(img=>{img.style.width='42.84px';});
+   });
+   clone.querySelectorAll('.campo-adversario').forEach(box=>{
+    box.querySelectorAll(':scope > img').forEach(img=>{
+     img.style.width='43.26px';
+     img.style.height='43.26px';
+    });
+    box.querySelectorAll(':scope > b').forEach(b=>{
+     b.style.fontSize='22.44px';
+    });
+    box.querySelectorAll(':scope > span, :scope > input').forEach(el=>{
+     el.style.fontSize='14.42px';
+     el.style.fontWeight='bold';
+    });
    });
   }
  }
