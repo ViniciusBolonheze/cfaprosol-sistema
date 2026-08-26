@@ -4367,3 +4367,41 @@ html body .jogos-salvos-card .jogo-salvo-acoes button em{display:none!important;
   .mc-summary div{min-width:72px!important;}
   .mc-table-wrap{max-height:none!important;margin:0 10px 10px!important;}
 }
+
+
+/* ===== CONVOCAÇÃO CAMPO: +20% fonte e uniforme SOMENTE dos titulares no campo (tela e impressão). Suplentes intactos. ===== */
+#campo-convocacao-modal .campo-futebol .jogador-campo{
+  font-size:14.4px!important;
+}
+#campo-convocacao-modal .campo-futebol .jogador-campo span{
+  font-size:14.4px!important;
+  font-weight:bold!important;
+}
+#campo-convocacao-modal .campo-futebol .jogador-campo img{
+  width:50px!important;
+}
+@media(max-width:700px){
+  #campo-convocacao-modal .campo-futebol .jogador-campo,
+  #campo-convocacao-modal .campo-futebol .jogador-campo span{
+    font-size:9.6px!important;
+  }
+  #campo-convocacao-modal .campo-futebol .jogador-campo img{
+    width:38px!important;
+  }
+}
+@media print{
+  #print-convocacao-layout .print-players .jogador-campo,
+  #print-convocacao-layout .print-players .jogador-campo span{
+    font-size:12px!important;
+  }
+  #print-convocacao-layout .print-players .jogador-campo img{
+    width:48px!important;
+  }
+  html body.imprimindo-campo #campo-convocacao-modal .campo-futebol .jogador-campo,
+  html body.imprimindo-campo #campo-convocacao-modal .campo-futebol .jogador-campo span{
+    font-size:14.4px!important;
+  }
+  html body.imprimindo-campo #campo-convocacao-modal .campo-futebol .jogador-campo img{
+    width:50px!important;
+  }
+}
