@@ -5434,14 +5434,12 @@ function prosolPrepararWrapperPDF(elemento, orientacao='portrait', tipo='normal'
   clone.style.overflow='hidden';
   clone.style.margin='0';
   clone.style.boxShadow='none';
-  // Celular: +20% só no PDF compartilhado, titulares do campo (não suplentes).
+  // Celular Compartilhar PDF: volta à base e aplica só +10% nos titulares do campo.
   if(typeof prosolIsMobile==='function' && prosolIsMobile()){
    clone.querySelectorAll('.campo-futebol .jogador-campo').forEach(el=>{
-    const cs=window.getComputedStyle(el);
-    const fs=parseFloat(cs.fontSize)||14.4;
-    el.style.fontSize=(fs*1.2)+'px';
-    el.querySelectorAll('span').forEach(sp=>{const s=window.getComputedStyle(sp);sp.style.fontSize=((parseFloat(s.fontSize)||fs)*1.2)+'px';sp.style.fontWeight='bold';});
-    el.querySelectorAll('img').forEach(img=>{const w=parseFloat(img.getBoundingClientRect().width||img.width||50)||50;img.style.width=(w*1.2)+'px';});
+    el.style.fontSize='15.84px';
+    el.querySelectorAll('span').forEach(sp=>{sp.style.fontSize='15.84px';sp.style.fontWeight='bold';});
+    el.querySelectorAll('img').forEach(img=>{img.style.width='55px';});
    });
   }
  }
