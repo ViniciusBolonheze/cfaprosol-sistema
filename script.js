@@ -4433,7 +4433,8 @@ function imprimirRelatorioVisualizacao(){const card=document.querySelector('#rel
 
 /* === GOLEIROS - INFORMAÇÕES TÉCNICAS === */
 const GOLEIROS_INFO_TABELA = 'goleiros_informacoes_tecnicas';
-let goleirosTecnicoState = { selecionadoIndex: null, registro: null, carregando: false };
+const GOLEIROS_JOGOS_TABELA = 'goleiros_informacoes_jogos';
+let goleirosTecnicoState = { selecionadoIndex: null, registro: null, carregando: false, jogos: [], jogoId: null, jogoModo: 'idle' };
 
 function goleiroEscape(valor){return typeof escapeHtmlJogos==='function'?escapeHtmlJogos(valor):String(valor??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));}
 function goleiroNormalizar(valor){return String(valor||'').trim().replace(/\s+/g,' ');}
@@ -4456,6 +4457,11 @@ function goleiroBRData(data){
  if(isNaN(d))return '';
  return d.toLocaleString('pt-BR');
 }
+function goleiroJogoDataBR(v){
+ const s=String(v||'').slice(0,10);
+ const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+ return m?`${m[3]}/${m[2]}/${m[1]}`:s;
+}
 function goleiroSelecionadoAtual(){
  const idx=parseInt(goleirosTecnicoState.selecionadoIndex,10);
  return Number.isInteger(idx)&&idx>=0?goleiroIdentidade(idx):null;
@@ -4464,65 +4470,174 @@ function goleiroMontarCard(g){
  if(!g)return '<div class="goleiro-info-empty">Selecione um goleiro para visualizar e editar as informações técnicas.</div>';
  return `<div class="goleiro-player-card"><img src="${goleiroEscape(g.foto)}" onerror="this.src='logo.png'" alt="${goleiroEscape(g.apelido)}"><div><strong>${goleiroEscape(g.apelido||g.nomeCompleto)}</strong><span>${goleiroEscape(g.nomeCompleto)}</span><small>Ano ${goleiroEscape(g.ano||'-')} • Nasc. ${goleiroEscape(g.nascimento||'-')}</small></div></div>`;
 }
+function goleiroJogoAtual(){
+ const id=goleirosTecnicoState.jogoId;
+ if(!id)return null;
+ return (goleirosTecnicoState.jogos||[]).find(j=>String(j.id)===String(id))||null;
+}
 function renderGoleirosTecnicoModal(){
  const modal=document.getElementById('goleiros-tecnico-modal');if(!modal)return;
  const goleiros=goleirosListaTecnica();
  const selecionado=goleiroSelecionadoAtual();
  const registro=goleirosTecnicoState.registro;
  const texto=registro?.informacoes_tecnicas||'';
- const textoJogo=registro?.informacoes_jogo||'';
  const atualizado=registro?.atualizado_em?`Última atualização: ${goleiroBRData(registro.atualizado_em)}`:'Nenhuma informação salva ainda.';
  const options=goleiros.map(g=>`<option value="${g.index}" ${String(g.index)===String(goleirosTecnicoState.selecionadoIndex)?'selected':''}>${goleiroEscape(g.apelido)} - ${goleiroEscape(g.ano)}</option>`).join('');
- modal.innerHTML=`<div class="goleiros-tecnico-card"><button class="goleiros-close" onclick="closeGoleirosTecnicoModal()">×</button><div class="goleiros-head"><img src="logo.png"><div><h2>Goleiros</h2><p>Informações técnicas individuais dos goleiros</p></div></div><div class="goleiros-body"><aside><label class="goleiros-label">Selecionar goleiro</label><select id="goleiro-tecnico-select" onchange="selecionarGoleiroTecnico(this.value)" ${goleiros.length?'':'disabled'}><option value="">${goleiros.length?'Escolha um goleiro...':'Nenhum goleiro encontrado'}</option>${options}</select>${goleiroMontarCard(selecionado)}</aside><section><div class="goleiros-textarea-group"><label class="goleiros-text-title" for="goleiro-info-textarea">Informações Técnicas:</label><textarea id="goleiro-info-textarea" placeholder="Escreva aqui as informações técnicas do goleiro selecionado..." ${selecionado?'':'disabled'}>${goleiroEscape(texto)}</textarea></div><div class="goleiros-textarea-group"><label class="goleiros-text-title" for="goleiro-jogo-textarea">Informações de Jogo:</label><textarea id="goleiro-jogo-textarea" placeholder="Escreva aqui as informações de jogo do goleiro selecionado..." ${selecionado?'':'disabled'}>${goleiroEscape(textoJogo)}</textarea></div><div class="goleiros-footer"><span id="goleiro-info-status">${goleirosTecnicoState.carregando?'Carregando...':goleiroEscape(atualizado)}</span><button type="button" onclick="salvarGoleiroInformacoesTecnicas()" ${selecionado?'':'disabled'}>Salvar informações</button></div></section></div></div>`;
+ const jogos=goleirosTecnicoState.jogos||[];
+ const jogo=goleiroJogoAtual();
+ const mostrarDetalhe=!!jogo && goleirosTecnicoState.jogoModo==='editar';
+ const jogosOpts=jogos.map(j=>`<option value="${goleiroEscape(String(j.id))}" ${mostrarDetalhe&&String(j.id)===String(goleirosTecnicoState.jogoId)?'selected':''}>${goleiroEscape(goleiroJogoDataBR(j.data_jogo))} – ${goleiroEscape(j.adversario||'Adversário')}</option>`).join('');
+ const dataVal=mostrarDetalhe?String(jogo?.data_jogo||'').slice(0,10):'';
+ const advVal=mostrarDetalhe?(jogo?.adversario||''):'';
+ const infoJogoVal=mostrarDetalhe?(jogo?.informacoes||''):'';
+ const disabled=!selecionado?'disabled':'';
+ const detalhe=mostrarDetalhe?`<div class="goleiros-jogo-campos"><label class="goleiros-label" for="goleiro-jogo-data">Data do jogo</label><input type="date" id="goleiro-jogo-data" value="${goleiroEscape(dataVal)}" ${disabled}><label class="goleiros-label" for="goleiro-jogo-adversario">Adversário</label><input type="text" id="goleiro-jogo-adversario" placeholder="Nome do adversário" value="${goleiroEscape(advVal)}" ${disabled}><label class="goleiros-label" for="goleiro-jogo-info">Informação do jogo</label><textarea id="goleiro-jogo-info" placeholder="Escreva aqui a informação deste jogo..." ${disabled}>${goleiroEscape(infoJogoVal)}</textarea></div><div class="goleiros-jogo-acoes"><button type="button" onclick="salvarGoleiroJogo()" ${selecionado?'':'disabled'}>Salvar jogo</button><button type="button" class="goleiros-jogo-excluir" onclick="excluirGoleiroJogo()" ${selecionado?'':'disabled'}>Excluir jogo</button><span id="goleiro-jogo-status"></span></div>`:'';
+ modal.innerHTML=`<div class="goleiros-tecnico-card"><button class="goleiros-close" onclick="closeGoleirosTecnicoModal()">×</button><div class="goleiros-head"><img src="logo.png"><div><h2>Goleiros</h2><p>Informações técnicas individuais dos goleiros</p></div></div><div class="goleiros-body"><aside><label class="goleiros-label">Selecionar goleiro</label><select id="goleiro-tecnico-select" onchange="selecionarGoleiroTecnico(this.value)" ${goleiros.length?'':'disabled'}><option value="">${goleiros.length?'Escolha um goleiro...':'Nenhum goleiro encontrado'}</option>${options}</select>${goleiroMontarCard(selecionado)}</aside><section><div class="goleiros-textarea-group"><label class="goleiros-text-title" for="goleiro-info-textarea">Informações Técnicas:</label><textarea id="goleiro-info-textarea" placeholder="Escreva aqui as informações técnicas do goleiro selecionado..." ${disabled}>${goleiroEscape(texto)}</textarea></div><div class="goleiros-footer"><span id="goleiro-info-status">${goleirosTecnicoState.carregando?'Carregando...':goleiroEscape(atualizado)}</span><button type="button" onclick="salvarGoleiroInformacoesTecnicas()" ${selecionado?'':'disabled'}>Salvar informações técnicas</button></div><div class="goleiros-jogos-box"><div class="goleiros-jogos-head"><label class="goleiros-text-title">Informações do jogo</label><button type="button" class="goleiros-jogo-novo" onclick="novoGoleiroJogo()" ${disabled}>Novo jogo</button></div><label class="goleiros-label" for="goleiro-jogo-select">Selecionar o jogo</label><select id="goleiro-jogo-select" onchange="selecionarGoleiroJogo(this.value)" ${disabled}><option value="">Selecione o jogo</option>${jogosOpts}</select>${detalhe}</div></section></div></div>`;
  modal.style.display='flex';
 }
 async function openGoleirosTecnicoModal(){
  let modal=document.getElementById('goleiros-tecnico-modal');
  if(!modal){modal=document.createElement('div');modal.id='goleiros-tecnico-modal';modal.className='goleiros-tecnico-overlay';document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal)closeGoleirosTecnicoModal();});}
  const goleiros=goleirosListaTecnica();
- goleirosTecnicoState={selecionadoIndex:goleiros[0]?.index??null,registro:null,carregando:false};
+ goleirosTecnicoState={selecionadoIndex:goleiros[0]?.index??null,registro:null,carregando:false,jogos:[],jogoId:null,jogoModo:'idle'};
  renderGoleirosTecnicoModal();
  if(goleirosTecnicoState.selecionadoIndex!==null) await carregarGoleiroInformacaoTecnica();
 }
-function closeGoleirosTecnicoModal(){const modal=document.getElementById('goleiros-tecnico-modal');if(modal)modal.style.display='none';}
+function closeGoleirosTecnicoModal(){const modal=document.getElementById('goleiros-tecnico-modal');if(modal)modal.style.display='none';fecharPopupNovoGoleiroJogo();}
 async function selecionarGoleiroTecnico(index){
  goleirosTecnicoState.selecionadoIndex=index!==''?parseInt(index,10):null;
  goleirosTecnicoState.registro=null;
+ goleirosTecnicoState.jogos=[];
+ goleirosTecnicoState.jogoId=null;
+ goleirosTecnicoState.jogoModo='idle';
  renderGoleirosTecnicoModal();
  if(goleirosTecnicoState.selecionadoIndex!==null) await carregarGoleiroInformacaoTecnica();
 }
 async function carregarGoleiroInformacaoTecnica(){
  const g=goleiroSelecionadoAtual();if(!g)return;
+ const keepId=goleirosTecnicoState.jogoId;
+ const keepModo=goleirosTecnicoState.jogoModo;
  goleirosTecnicoState.carregando=true;renderGoleirosTecnicoModal();
  try{
-  const {data,error}=await _supabase.from(GOLEIROS_INFO_TABELA).select('*').eq('nome_completo',g.nomeCompleto).eq('nascimento',g.nascimento).maybeSingle();
+  const [{data,error},{data:jogos,error:erroJogos}]=await Promise.all([
+   _supabase.from(GOLEIROS_INFO_TABELA).select('*').eq('nome_completo',g.nomeCompleto).eq('nascimento',g.nascimento).maybeSingle(),
+   _supabase.from(GOLEIROS_JOGOS_TABELA).select('*').eq('nome_completo',g.nomeCompleto).eq('nascimento',g.nascimento).order('data_jogo',{ascending:false}).order('atualizado_em',{ascending:false})
+  ]);
   if(error)throw error;
+  if(erroJogos)throw erroJogos;
   goleirosTecnicoState.registro=data||null;
- }catch(e){console.error(e);alert('Não foi possível carregar informações técnicas. Verifique a tabela de goleiros no Supabase.');}
+  goleirosTecnicoState.jogos=Array.isArray(jogos)?jogos:[];
+  const aindaExiste=keepId && goleirosTecnicoState.jogos.some(j=>String(j.id)===String(keepId));
+  if(aindaExiste && keepModo==='editar'){
+   goleirosTecnicoState.jogoId=keepId;
+   goleirosTecnicoState.jogoModo='editar';
+  }else{
+   goleirosTecnicoState.jogoId=null;
+   goleirosTecnicoState.jogoModo='idle';
+  }
+ }catch(e){console.error(e);alert('Não foi possível carregar informações do goleiro. Verifique as tabelas no Supabase.');}
  finally{goleirosTecnicoState.carregando=false;renderGoleirosTecnicoModal();}
 }
 async function salvarGoleiroInformacoesTecnicas(){
  const g=goleiroSelecionadoAtual();if(!g)return alert('Selecione um goleiro.');
  const textarea=document.getElementById('goleiro-info-textarea');
- const textareaJogo=document.getElementById('goleiro-jogo-textarea');
  const status=document.getElementById('goleiro-info-status');
  const info=String(textarea?.value||'').trim();
- const infoJogo=String(textareaJogo?.value||'').trim();
  const btn=document.querySelector('#goleiros-tecnico-modal .goleiros-footer button');
  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
  if(status)status.textContent='Salvando no Supabase...';
- const payload={nome_completo:g.nomeCompleto,nascimento:g.nascimento,apelido:g.apelido,ano:g.ano,informacoes_tecnicas:info,informacoes_jogo:infoJogo,atualizado_em:new Date().toISOString()};
+ const payload={nome_completo:g.nomeCompleto,nascimento:g.nascimento,apelido:g.apelido,ano:g.ano,informacoes_tecnicas:info,informacoes_jogo:goleirosTecnicoState.registro?.informacoes_jogo||'',atualizado_em:new Date().toISOString()};
  try{
   const {error}=await _supabase.from(GOLEIROS_INFO_TABELA).upsert(payload,{onConflict:'nome_completo,nascimento'});
   if(error)throw error;
-  goleirosTecnicoState.registro=payload;
-  const temAlgumaInfo=!!(info||infoJogo);
-  if(status)status.textContent=temAlgumaInfo?'Informações salvas com sucesso.':'Informações apagadas e salvas em branco.';
-  alert(temAlgumaInfo?'Informações salvas para '+(g.apelido||g.nomeCompleto)+'.':'Informações apagadas para '+(g.apelido||g.nomeCompleto)+'.');
+  goleirosTecnicoState.registro=Object.assign({},goleirosTecnicoState.registro||{},payload);
+  if(status)status.textContent=info?'Informações técnicas salvas.':'Informações técnicas apagadas e salvas em branco.';
+  alert((info?'Informações técnicas salvas para ':'Informações técnicas apagadas para ')+(g.apelido||g.nomeCompleto)+'.');
  }catch(e){console.error(e);alert('Erro ao salvar informações técnicas. Verifique a tabela/políticas no Supabase.');if(status)status.textContent='Erro ao salvar.';}
- finally{if(btn){btn.disabled=false;btn.textContent='Salvar informações';}}
+ finally{if(btn){btn.disabled=false;btn.textContent='Salvar informações técnicas';}}
 }
-
+function fecharPopupNovoGoleiroJogo(){
+ const pop=document.getElementById('goleiros-jogo-novo-overlay');
+ if(pop)pop.style.display='none';
+}
+function novoGoleiroJogo(){
+ const g=goleiroSelecionadoAtual();
+ if(!g)return alert('Selecione um goleiro.');
+ let pop=document.getElementById('goleiros-jogo-novo-overlay');
+ if(!pop){
+  pop=document.createElement('div');
+  pop.id='goleiros-jogo-novo-overlay';
+  pop.className='goleiros-jogo-novo-overlay';
+  document.body.appendChild(pop);
+  pop.addEventListener('click',e=>{if(e.target===pop)fecharPopupNovoGoleiroJogo();});
+ }
+ pop.innerHTML=`<div class="goleiros-jogo-novo-card"><button type="button" class="goleiros-close" onclick="fecharPopupNovoGoleiroJogo()">×</button><h3>Novo jogo</h3><p>${goleiroEscape(g.apelido||g.nomeCompleto)}</p><label class="goleiros-label" for="goleiro-jogo-novo-data">Data do jogo</label><input type="date" id="goleiro-jogo-novo-data"><label class="goleiros-label" for="goleiro-jogo-novo-adversario">Adversário</label><input type="text" id="goleiro-jogo-novo-adversario" placeholder="Nome do adversário"><label class="goleiros-label" for="goleiro-jogo-novo-info">Informação do jogo</label><textarea id="goleiro-jogo-novo-info" placeholder="Escreva aqui a informação deste jogo..."></textarea><div class="goleiros-jogo-acoes"><button type="button" onclick="salvarNovoGoleiroJogoPopup()">Salvar jogo</button><button type="button" class="goleiros-jogo-excluir" onclick="fecharPopupNovoGoleiroJogo()">Cancelar</button></div></div>`;
+ pop.style.display='flex';
+}
+function selecionarGoleiroJogo(id){
+ if(!id){
+  goleirosTecnicoState.jogoId=null;
+  goleirosTecnicoState.jogoModo='idle';
+  renderGoleirosTecnicoModal();
+  return;
+ }
+ goleirosTecnicoState.jogoId=id;
+ goleirosTecnicoState.jogoModo='editar';
+ renderGoleirosTecnicoModal();
+}
+async function persistirGoleiroJogo(payload, manterId){
+ const {data,error}=await _supabase.from(GOLEIROS_JOGOS_TABELA).upsert(payload).select().maybeSingle();
+ if(error)throw error;
+ goleirosTecnicoState.jogoId=(data&&data.id)||manterId||null;
+ goleirosTecnicoState.jogoModo=goleirosTecnicoState.jogoId?'editar':'idle';
+ await carregarGoleiroInformacaoTecnica();
+}
+async function salvarNovoGoleiroJogoPopup(){
+ const g=goleiroSelecionadoAtual();if(!g)return alert('Selecione um goleiro.');
+ const dataJogo=String(document.getElementById('goleiro-jogo-novo-data')?.value||'').trim();
+ const adversario=goleiroNormalizar(document.getElementById('goleiro-jogo-novo-adversario')?.value||'');
+ const informacoes=String(document.getElementById('goleiro-jogo-novo-info')?.value||'').trim();
+ if(!dataJogo)return alert('Informe a data do jogo.');
+ if(!adversario)return alert('Informe o adversário.');
+ const payload={nome_completo:g.nomeCompleto,nascimento:g.nascimento,apelido:g.apelido,ano:g.ano,data_jogo:dataJogo,adversario,informacoes,atualizado_em:new Date().toISOString()};
+ try{
+  await persistirGoleiroJogo(payload,null);
+  fecharPopupNovoGoleiroJogo();
+  alert('Jogo salvo.');
+ }catch(e){console.error(e);alert('Erro ao salvar o jogo. Verifique a tabela goleiros_informacoes_jogos no Supabase.');}
+}
+async function salvarGoleiroJogo(){
+ const g=goleiroSelecionadoAtual();if(!g)return alert('Selecione um goleiro.');
+ if(goleirosTecnicoState.jogoModo!=='editar'||!goleirosTecnicoState.jogoId)return alert('Selecione um jogo.');
+ const dataJogo=String(document.getElementById('goleiro-jogo-data')?.value||'').trim();
+ const adversario=goleiroNormalizar(document.getElementById('goleiro-jogo-adversario')?.value||'');
+ const informacoes=String(document.getElementById('goleiro-jogo-info')?.value||'').trim();
+ const status=document.getElementById('goleiro-jogo-status');
+ if(!dataJogo)return alert('Informe a data do jogo.');
+ if(!adversario)return alert('Informe o adversário.');
+ const payload={id:goleirosTecnicoState.jogoId,nome_completo:g.nomeCompleto,nascimento:g.nascimento,apelido:g.apelido,ano:g.ano,data_jogo:dataJogo,adversario,informacoes,atualizado_em:new Date().toISOString()};
+ try{
+  if(status)status.textContent='Salvando jogo...';
+  await persistirGoleiroJogo(payload,payload.id);
+  const st=document.getElementById('goleiro-jogo-status');
+  if(st)st.textContent='Jogo salvo.';
+ }catch(e){console.error(e);alert('Erro ao salvar o jogo. Verifique a tabela goleiros_informacoes_jogos no Supabase.');if(status)status.textContent='Erro ao salvar jogo.';}
+}
+async function excluirGoleiroJogo(){
+ const g=goleiroSelecionadoAtual();if(!g)return;
+ const id=goleirosTecnicoState.jogoId;
+ if(!id || goleirosTecnicoState.jogoModo!=='editar')return alert('Selecione um jogo para excluir.');
+ const jogo=goleiroJogoAtual();
+ const rotulo=jogo?`${goleiroJogoDataBR(jogo.data_jogo)} – ${jogo.adversario||''}`:'este jogo';
+ if(!confirm('Excluir as informações de '+rotulo+'?'))return;
+ try{
+  const {error}=await _supabase.from(GOLEIROS_JOGOS_TABELA).delete().eq('id',id).eq('nome_completo',g.nomeCompleto).eq('nascimento',g.nascimento);
+  if(error)throw error;
+  goleirosTecnicoState.jogoId=null;
+  goleirosTecnicoState.jogoModo='idle';
+  await carregarGoleiroInformacaoTecnica();
+ }catch(e){console.error(e);alert('Erro ao excluir o jogo.');}
+}
 
 /* === PREPARAÇÃO FÍSICA - QUEIXAS DOS ATLETAS === */
 const PREPARACAO_FISICA_TABELA = 'portal_preparacao_fisica';
@@ -5549,6 +5664,15 @@ let controlePesoData = { atletas: [], datas: [], pesos: {} };
 let controlePesoSaveTimer = null;
 let controlePesoOrdenacaoSelecao = 'padrao';
 let controlePesoGorduraDir = 'desc';
+let controlePesoSelecaoAberta = false;
+const CONTROLE_PESO_IDEAL_KEY = '__peso_ideal';
+const CONTROLE_PESO_CATEGORIAS = [
+ {id:'sub11',label:'1º Sub 11',anos:['2015','2016','2017','2018']},
+ {id:'sub12',label:'Sub 12',anos:['2014']},
+ {id:'sub13',label:'Sub 13',anos:['2013']},
+ {id:'sub14',label:'Sub 14',anos:['2012']},
+ {id:'sub16',label:'Sub 16',anos:['2011','2010','2009']}
+];
 function normalizarTextoPeso(valor){return String(valor||'').trim().replace(/\s+/g,' ');}
 function valorPesoColunaFlex(row, termos){
  const chave=Object.keys(row||{}).find(k=>termos.some(t=>String(k).toLowerCase().includes(String(t).toLowerCase())));
@@ -5580,6 +5704,12 @@ function anoControlePesoAtleta(id){
  const m=String(id?.nascimento||'').match(/(\d{4})$/);
  return m?m[1]:'';
 }
+function nomeControlePesoLinha(id){
+ const nome=id?.apelido||id?.nomeCompleto||'Atleta';
+ const ano=anoControlePesoAtleta(id);
+ return ano?`${nome} - ${ano}`:nome;
+}
+function ehDataPesoKey(k){return k && String(k)!==CONTROLE_PESO_IDEAL_KEY && !String(k).startsWith('__');}
 function datasControlePesoOrdenadas(datas){
  return [...(datas||[])].sort((a,b)=>{
   const pa=String(a.label||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -5588,6 +5718,35 @@ function datasControlePesoOrdenadas(datas){
   const tb=pb?new Date(+pb[3],+pb[2]-1,+pb[1]).getTime():0;
   return ta-tb;
  });
+}
+function parseKgPeso(valor){
+ const n=parseFloat(String(valor||'').replace(',','.').trim());
+ return (valor===''||valor==null||isNaN(n))?null:n;
+}
+function formatKgPeso(n){
+ return Number(n).toLocaleString('pt-BR',{minimumFractionDigits:Number.isInteger(n)?0:1,maximumFractionDigits:1});
+}
+function ultimoPesoLancadoAtleta(pesos,datas){
+ const mapa=pesos||{};
+ for(let i=(datas||[]).length-1;i>=0;i--){
+  const id=datas[i].id;
+  const n=parseKgPeso(mapa[id]);
+  if(n!==null)return n;
+ }
+ return null;
+}
+function htmlDeltaPesoIdeal(pesos,datas){
+ const ideal=parseKgPeso((pesos||{})[CONTROLE_PESO_IDEAL_KEY]);
+ const atual=ultimoPesoLancadoAtleta(pesos,datas);
+ if(ideal===null||atual===null)return '';
+ const diff=Math.round((atual-ideal)*10)/10;
+ if(diff===0)return `<span class="peso-delta ok">no peso ideal</span>`;
+ if(diff>0)return `<span class="peso-delta emagrecer">emagrecer ${formatKgPeso(diff)} kg</span>`;
+ return `<span class="peso-delta engordar">engordar ${formatKgPeso(Math.abs(diff))} kg</span>`;
+}
+function categoriaControlePesoAno(ano){
+ const a=String(ano||'');
+ return CONTROLE_PESO_CATEGORIAS.find(c=>c.anos.includes(a))||{id:'outros',label:'Outros',anos:[]};
 }
 async function carregarControlePesoStorage(){
  try{
@@ -5602,7 +5761,7 @@ async function carregarControlePesoStorage(){
    atletas.push(id);
    const key=chaveAtletaPeso(id);
    pesos[key]=r.pesos&&typeof r.pesos==='object'?r.pesos:{};
-   Object.keys(pesos[key]).forEach(d=>datasSet.add(d));
+   Object.keys(pesos[key]).forEach(d=>{if(ehDataPesoKey(d))datasSet.add(d);});
   });
   controlePesoData={
    atletas,
@@ -5633,7 +5792,6 @@ async function salvarControlePesoStorage(){
    if(upsertError){console.error('Erro ao salvar controle de peso:',upsertError);alert('Erro ao salvar controle de peso no Supabase.');return false;}
   }
 
-  // Remove da tabela própria os atletas que foram removidos do controle.
   const ativos=new Set(rows.map(r=>normalizarTextoPeso(r.nome_completo)+'||'+normalizarTextoPeso(r.nascimento)));
   const {data:atuais,error:selectError}=await _supabase.from('controle_peso').select('id,nome_completo,nascimento');
   if(!selectError){
@@ -5660,13 +5818,31 @@ function ensurePesoButton(){
   document.body.appendChild(b);
  }
 }
+function aplicarVisibilidadeSelecaoPeso(){
+ const layout=document.querySelector('#controle-peso-modal .controle-peso-layout');
+ const btn=document.getElementById('btn-toggle-selecao-peso');
+ const extra=document.getElementById('controle-peso-acoes-selecao');
+ if(layout)layout.classList.toggle('selecao-aberta',!!controlePesoSelecaoAberta);
+ if(btn){
+  btn.classList.toggle('ativo',!!controlePesoSelecaoAberta);
+  btn.textContent=controlePesoSelecaoAberta?'Ocultar seleção':'Selecionar atletas';
+ }
+ if(extra)extra.style.display=controlePesoSelecaoAberta?'inline-flex':'none';
+}
+function toggleSelecaoControlePeso(){
+ controlePesoSelecaoAberta=!controlePesoSelecaoAberta;
+ aplicarVisibilidadeSelecaoPeso();
+ if(controlePesoSelecaoAberta)renderControlePesoSelecao();
+}
 function abrirControlePesoModal(){
  garantirControlePesoData();
+ controlePesoSelecaoAberta=false;
  let m=document.getElementById('controle-peso-modal');
  if(!m){m=document.createElement('div');m.className='escalacao-overlay';m.id='controle-peso-modal';document.body.appendChild(m)}
  const anos=['2009','2010','2011','2012','2013','2014','2015','2016','2017','2018'];
- m.innerHTML=`<div class="controle-peso-card"><div class="controle-peso-title"><b>Controle de Peso</b><button onclick="document.getElementById('controle-peso-modal').style.display='none'">×</button></div><div class="controle-peso-top"><input id="controle-peso-busca" placeholder="Buscar atleta..." oninput="renderControlePesoSelecao()"><div class="controle-peso-anos">${anos.map(a=>`<label><input type="checkbox" class="controle-peso-ano" value="${a}" onchange="renderControlePesoSelecao()"> ${a}</label>`).join('')}</div><div class="controle-peso-acoes"><button onclick="adicionarSelecionadosControlePeso()">Adicionar selecionados</button><button onclick="adicionarDataControlePeso()">Adicionar data</button><select id="controle-peso-data-excluir"><option value="">Excluir data...</option>${controlePesoData.datas.map(d=>`<option value="${d.id}">${d.label}</option>`).join('')}</select><button class="perigo" onclick="excluirDataControlePeso()">Excluir data</button></div></div><div class="controle-peso-layout"><div class="controle-peso-selecao"><h4 class="controle-peso-selecao-header"><button type="button" id="peso-sort-padrao" onclick="ordenarControlePesoSelecao('padrao')">Selecionar atletas</button><button type="button" id="peso-sort-gordura" onclick="ordenarControlePesoSelecao('gordura')">% de Gordura</button></h4><div id="controle-peso-lista-selecao"></div></div><div class="controle-peso-tabela-wrap"><h4>Pesagens</h4><div id="controle-peso-tabela"></div></div></div></div>`;
+ m.innerHTML=`<div class="controle-peso-card"><div class="controle-peso-title"><b>Controle de Peso</b><button onclick="document.getElementById('controle-peso-modal').style.display='none'">×</button></div><div class="controle-peso-top"><div class="controle-peso-acoes"><button type="button" id="btn-toggle-selecao-peso" onclick="toggleSelecaoControlePeso()">Selecionar atletas</button><span id="controle-peso-acoes-selecao" style="display:none"><button type="button" onclick="adicionarSelecionadosControlePeso()">Adicionar selecionados</button><button type="button" onclick="removerSelecionadosControlePeso()">Remover selecionados</button></span><button type="button" onclick="adicionarDataControlePeso()">Adicionar data</button><select id="controle-peso-data-excluir"><option value="">Excluir data...</option>${controlePesoData.datas.map(d=>`<option value="${d.id}">${d.label}</option>`).join('')}</select><button type="button" class="perigo" onclick="excluirDataControlePeso()">Excluir data</button></div></div><div class="controle-peso-layout"><div class="controle-peso-selecao"><input id="controle-peso-busca" placeholder="Buscar atleta..." oninput="renderControlePesoSelecao()"><div class="controle-peso-anos">${anos.map(a=>`<label><input type="checkbox" class="controle-peso-ano" value="${a}" onchange="renderControlePesoSelecao()"> ${a}</label>`).join('')}</div><h4 class="controle-peso-selecao-header"><button type="button" id="peso-sort-padrao" onclick="ordenarControlePesoSelecao('padrao')">Selecionar atletas</button><button type="button" id="peso-sort-gordura" onclick="ordenarControlePesoSelecao('gordura')">% de Gordura</button></h4><div id="controle-peso-lista-selecao"></div></div><div class="controle-peso-tabela-wrap"><h4>Pesagens</h4><div id="controle-peso-tabela"></div></div></div></div>`;
  m.style.display='flex';
+ aplicarVisibilidadeSelecaoPeso();
  renderControlePesoSelecao();
  renderControlePesoTabela();
 }
@@ -5775,10 +5951,23 @@ function excluirDataControlePeso(){
  if(sel)sel.innerHTML='<option value="">Excluir data...</option>'+controlePesoData.datas.map(d=>`<option value="${d.id}">${d.label}</option>`).join('');
  salvarControlePesoDebounced();
 }
+function atualizarBadgeDeltaPeso(chave){
+ document.querySelectorAll('[data-peso-delta]').forEach(el=>{
+  if(el.getAttribute('data-peso-delta')===chave) el.innerHTML=htmlDeltaPesoIdeal(controlePesoData.pesos[chave]||{},controlePesoData.datas);
+ });
+}
 function atualizarPesoControleAtleta(chave,dataId,valor){
  garantirControlePesoData();
  if(!controlePesoData.pesos[chave])controlePesoData.pesos[chave]={};
  controlePesoData.pesos[chave][dataId]=String(valor||'').trim();
+ atualizarBadgeDeltaPeso(chave);
+ salvarControlePesoDebounced();
+}
+function atualizarPesoIdealControleAtleta(chave,valor){
+ garantirControlePesoData();
+ if(!controlePesoData.pesos[chave])controlePesoData.pesos[chave]={};
+ controlePesoData.pesos[chave][CONTROLE_PESO_IDEAL_KEY]=String(valor||'').trim();
+ atualizarBadgeDeltaPeso(chave);
  salvarControlePesoDebounced();
 }
 function removerAtletaControlePeso(chave){
@@ -5793,19 +5982,36 @@ function removerAtletaControlePeso(chave){
  renderControlePesoTabela();
  salvarControlePesoDebounced();
 }
+function htmlLinhaControlePeso(a,datas){
+ const key=chaveAtletaPeso(a); const pesos=controlePesoData.pesos[key]||{};
+ const keyEncoded=encodeURIComponent(key);
+ const ideal=pesos[CONTROLE_PESO_IDEAL_KEY]||'';
+ return `<tr><td><button type="button" class="controle-peso-remove-row" title="Remover atleta" onclick="removerAtletaControlePeso(decodeURIComponent('${keyEncoded}'))">×</button><span class="peso-nome-ano">${escapeHtmlJogos(nomeControlePesoLinha(a))}</span><span class="peso-delta-wrap" data-peso-delta="${escapeHtmlJogos(key)}">${htmlDeltaPesoIdeal(pesos,datas)}</span></td><td><input type="number" step="0.1" class="peso-ideal-input" value="${escapeHtmlJogos(ideal)}" onchange="atualizarPesoIdealControleAtleta(decodeURIComponent('${keyEncoded}'),this.value)" placeholder="Kg"></td>${datas.map(d=>`<td><input type="number" step="0.1" value="${escapeHtmlJogos(pesos[d.id]||'')}" onchange="atualizarPesoControleAtleta(decodeURIComponent('${keyEncoded}'),'${d.id}',this.value)" placeholder="Kg"></td>`).join('')}</tr>`;
+}
 function renderControlePesoTabela(){
  garantirControlePesoData();
  const box=document.getElementById('controle-peso-tabela');if(!box)return;
  if(!controlePesoData.atletas.length){box.innerHTML='<p class="controle-peso-vazio">Nenhum atleta adicionado ao controle de peso.</p>';return;}
  const datas=controlePesoData.datas;
- const head=`<tr><th>Atleta</th><th>Ano</th>${datas.map(d=>`<th>${d.label}</th>`).join('')}</tr>`;
- const rows=controlePesoData.atletas.map(a=>{
-  const key=chaveAtletaPeso(a); const pesos=controlePesoData.pesos[key]||{};
-  const keyEncoded=encodeURIComponent(key);
-  return `<tr><td><button type="button" class="controle-peso-remove-row" title="Remover atleta" onclick="removerAtletaControlePeso(decodeURIComponent('${keyEncoded}'))">×</button><span>${escapeHtmlJogos(a.apelido||a.nomeCompleto)}</span></td><td>${escapeHtmlJogos(anoControlePesoAtleta(a))}</td>${datas.map(d=>`<td><input type="number" step="0.1" value="${escapeHtmlJogos(pesos[d.id]||'')}" onchange="atualizarPesoControleAtleta(decodeURIComponent('${keyEncoded}'),'${d.id}',this.value)" placeholder="Kg"></td>`).join('')}</tr>`;
- }).join('');
- box.innerHTML=`<table class="controle-peso-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+ const grupos=new Map();
+ CONTROLE_PESO_CATEGORIAS.forEach(c=>grupos.set(c.id,{cat:c,atletas:[]}));
+ grupos.set('outros',{cat:{id:'outros',label:'Outros'},atletas:[]});
+ controlePesoData.atletas.forEach(a=>{
+  const cat=categoriaControlePesoAno(anoControlePesoAtleta(a));
+  if(!grupos.has(cat.id))grupos.set(cat.id,{cat,atletas:[]});
+  grupos.get(cat.id).atletas.push(a);
+ });
+ const cards=[];
+ grupos.forEach(g=>{
+  if(!g.atletas.length)return;
+  g.atletas.sort((a,b)=>nomeControlePesoLinha(a).localeCompare(nomeControlePesoLinha(b),'pt-BR'));
+  const head=`<tr><th>Atleta</th><th>Peso ideal</th>${datas.map(d=>`<th>${d.label}</th>`).join('')}</tr>`;
+  const rows=g.atletas.map(a=>htmlLinhaControlePeso(a,datas)).join('');
+  cards.push(`<article class="controle-peso-cat-card cat-${g.cat.id}"><header><strong>${escapeHtmlJogos(g.cat.label)}</strong><span>${g.atletas.length} atleta(s)</span></header><div class="controle-peso-cat-table"><table class="controle-peso-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div></article>`);
+ });
+ box.innerHTML=`<div class="controle-peso-cats">${cards.join('')}</div>`;
 }
+
 
 
 /* === GALERIA DE FOTOS DOS ATLETAS === */
