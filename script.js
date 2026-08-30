@@ -6030,8 +6030,7 @@ function ajustarLarguraColunaAtletaPeso(){
   controlePesoResizeBound=true;
   window.addEventListener('resize',()=>{if(document.getElementById('controle-peso-modal')?.style.display==='flex')ajustarLarguraColunaAtletaPeso();});
  }
-
-
+}
 
 /* === GALERIA DE FOTOS DOS ATLETAS === */
 function fotosCategoriasConfig(){
