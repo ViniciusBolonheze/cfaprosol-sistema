@@ -4595,4 +4595,26 @@ html body .jogos-salvos-card .jogo-salvo-acoes button em{display:none!important;
 @media(max-width:900px){
   .controle-peso-layout.selecao-aberta{grid-template-columns:1fr!important;}
   .controle-peso-layout.selecao-aberta .controle-peso-selecao{max-height:240px;}
+  #controle-peso-tabela{
+    --peso-atleta-col: max-content;
+  }
+  .controle-peso-table th:first-child,
+  .controle-peso-table td:first-child{
+    min-width:var(--peso-atleta-col)!important;
+    width:var(--peso-atleta-col)!important;
+    max-width:var(--peso-atleta-col)!important;
+    white-space:normal!important;
+    padding:5px 6px!important;
+  }
+  .peso-nome-ano{
+    display:inline;
+    white-space:nowrap;
+    font-size:11px;
+    line-height:1.2;
+  }
+  .peso-delta-wrap{margin-top:2px;}
+  .peso-delta{font-size:9px;padding:1px 6px;white-space:normal;max-width:100%;}
+  .controle-peso-table input[type=number],
+  .peso-ideal-input{width:58px!important;padding:4px 2px!important;font-size:12px;}
+  .controle-peso-table th,.controle-peso-table td{padding:4px 5px!important;}
 }

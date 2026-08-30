@@ -5665,6 +5665,7 @@ let controlePesoSaveTimer = null;
 let controlePesoOrdenacaoSelecao = 'padrao';
 let controlePesoGorduraDir = 'desc';
 let controlePesoSelecaoAberta = false;
+let controlePesoResizeBound = false;
 const CONTROLE_PESO_IDEAL_KEY = '__peso_ideal';
 const CONTROLE_PESO_CATEGORIAS = [
  {id:'sub11',label:'1º Sub 11',anos:['2015','2016','2017','2018']},
@@ -6010,7 +6011,25 @@ function renderControlePesoTabela(){
   cards.push(`<article class="controle-peso-cat-card cat-${g.cat.id}"><header><strong>${escapeHtmlJogos(g.cat.label)}</strong><span>${g.atletas.length} atleta(s)</span></header><div class="controle-peso-cat-table"><table class="controle-peso-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div></article>`);
  });
  box.innerHTML=`<div class="controle-peso-cats">${cards.join('')}</div>`;
+ ajustarLarguraColunaAtletaPeso();
 }
+function ajustarLarguraColunaAtletaPeso(){
+ const box=document.getElementById('controle-peso-tabela');
+ if(!box)return;
+ if(window.innerWidth>900){
+  box.style.removeProperty('--peso-atleta-col');
+  return;
+ }
+ const nomes=[...box.querySelectorAll('.peso-nome-ano')];
+ if(!nomes.length){box.style.removeProperty('--peso-atleta-col');return;}
+ let max=0;
+ nomes.forEach(n=>{max=Math.max(max,Math.ceil(n.scrollWidth||n.offsetWidth||0));});
+ const largura=Math.max(92, Math.min(max+36, Math.floor(window.innerWidth*0.42)));
+ box.style.setProperty('--peso-atleta-col', largura+'px');
+ if(!controlePesoResizeBound){
+  controlePesoResizeBound=true;
+  window.addEventListener('resize',()=>{if(document.getElementById('controle-peso-modal')?.style.display==='flex')ajustarLarguraColunaAtletaPeso();});
+ }
 
 
 
