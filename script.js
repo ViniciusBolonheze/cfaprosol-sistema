@@ -4128,6 +4128,48 @@ async function removerArquivoAntigoTrabalho(catId){
  const reg=trabalhoDiarioEstado[catId]&&trabalhoDiarioEstado[catId].registro;
  if(reg&&reg.storage_path){try{await _supabase.storage.from(TRABALHOS_DIARIOS_BUCKET).remove([reg.storage_path]);}catch(e){console.warn('Não foi possível remover PDF antigo:',e);}}
 }
+async function notificarPortalDocumentoPush(opts){
+  const tipo=opts&&opts.tipo;
+  const categoriaLabel=opts&&opts.categoriaLabel||'';
+  const anosPadrao=(opts&&opts.anosPadrao)||[];
+  const extras=(opts&&opts.extras)||[];
+  try{
+    const {data:tokens,error}=await _supabase.from('portal_push_tokens').select('token,nome_completo,nascimento,ano,atualizado_em');
+    if(error){console.warn('Tokens push:',error.message);return 0;}
+    if(!tokens||!tokens.length)return 0;
+    const porToken=new Map();
+    tokens.forEach(t=>{
+      if(!t||!t.token)return;
+      const prev=porToken.get(t.token);
+      if(!prev||String(t.atualizado_em||'')>=String(prev.atualizado_em||'')) porToken.set(t.token,t);
+    });
+    const anos=(anosPadrao||[]).map(a=>String(a||'').trim());
+    const extrasNomes=new Set((extras||[]).map(e=>normalizarTextoTrabalho(e.nomeCompleto||e.nome_completo||e.nome||'')));
+    const tabelaExtras=tipo==='planejamento'?'planejamentos_semanais':'trabalhos_diarios';
+    let extrasGlobais=new Set(extrasNomes);
+    try{
+      const {data:regs}=await _supabase.from(tabelaExtras).select('atletas');
+      (regs||[]).forEach(r=>{(r.atletas||[]).forEach(e=>{
+        const n=normalizarTextoTrabalho(e.nomeCompleto||e.nome_completo||e.nome||'');
+        if(n)extrasGlobais.add(n);
+      });});
+    }catch(eEx){}
+    const lista=[...porToken.values()].filter(t=>{
+      const nome=normalizarTextoTrabalho(t.nome_completo||'');
+      const ano=String(t.ano||'').trim();
+      if(nome&&extrasNomes.has(nome))return true;
+      if(nome&&extrasGlobais.has(nome))return false;
+      if(ano&&anos.includes(ano))return true;
+      return false;
+    }).map(t=>t.token).filter(Boolean);
+    if(!lista.length)return 0;
+    const title=tipo==='planejamento'?'Planejamento semanal':'Trabalho diário';
+    const body=(categoriaLabel?categoriaLabel+' — ':'')+'Novo documento no Portal.';
+    const {error:fnErr}=await _supabase.functions.invoke('notify-portal-doc',{body:{tokens:lista,title,body}});
+    if(fnErr)console.warn('Falha ao enviar push (função notify-portal-doc):',fnErr.message||fnErr);
+    return lista.length;
+  }catch(e){console.warn('Push documento:',e);return 0;}
+}
 async function enviarTrabalhoDiario(catId){
  inicializarEstadoTrabalhoDiario();
  const cat=categoriasTrabalhoDiarioConfig()[catId];const estado=trabalhoDiarioEstado[catId];
@@ -4149,7 +4191,8 @@ async function enviarTrabalhoDiario(catId){
   const res=await _supabase.from('trabalhos_diarios').upsert(payload,{onConflict:'categoria_id'});
   if(res.error)throw res.error;
   estado.registro=payload;estado.file=null;
-  alert('Trabalho enviado para '+cat.label+' com sucesso.');
+  const nPush=await notificarPortalDocumentoPush({tipo:'trabalho',categoriaLabel:cat.label,anosPadrao:cat.anos,extras:atletas});
+  alert('Trabalho enviado para '+cat.label+' com sucesso.'+(nPush?(' Notificação enviada para '+nPush+' aparelho(s).'):' (nenhum app registrado nesta categoria ainda)'));
   openTrabalhoDiarioModal();
  }catch(e){console.error(e);alert('Erro ao enviar trabalho. Verifique tabela/bucket no Supabase.');}
  finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-upload"></i> Enviar/Substituir';}}
@@ -4316,7 +4359,8 @@ async function enviarPlanejamentoSemanal(catId){
   const res=await _supabase.from('planejamentos_semanais').upsert(payload,{onConflict:'categoria_id'});
   if(res.error)throw res.error;
   estado.registro=payload;estado.file=null;
-  alert('Planejamento enviado para '+cat.label+' com sucesso.');
+  const nPush=await notificarPortalDocumentoPush({tipo:'planejamento',categoriaLabel:cat.label,anosPadrao:cat.anos,extras:atletas});
+  alert('Planejamento enviado para '+cat.label+' com sucesso.'+(nPush?(' Notificação enviada para '+nPush+' aparelho(s).'):' (nenhum app registrado nesta categoria ainda)'));
   openPlanejamentoSemanalModal();
  }catch(e){console.error(e);alert('Erro ao enviar planejamento. Verifique tabela/bucket no Supabase.');}
  finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-upload"></i> Enviar/Substituir';}}
