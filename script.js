@@ -5503,6 +5503,8 @@ function renderPranchetaVirtual(){
   <div class="tp-body">
    <aside class="tp-tools">
     <b>Peças</b>
+    <button type="button" class="tp-add-els" onclick="tpToggleAddPop(event)">+ Adicionar elementos</button>
+    <div id="tp-add-pop" class="tp-add-pop">
     <button type="button" class="tp-tool home" onclick="tpAdd('home')">+ Jogador casa</button>
     <button type="button" class="tp-tool away" onclick="tpAdd('away')">+ Jogador fora</button>
     <button type="button" class="tp-tool gk-home" onclick="tpAdd('gk-home')">+ Goleiro casa</button>
@@ -5513,6 +5515,7 @@ function renderPranchetaVirtual(){
     <button type="button" class="tp-tool arrow" onclick="tpAdd('arrow')">+ Seta</button>
     <button type="button" class="tp-tool square" onclick="tpAdd('square')">+ Quadrado</button>
     <button type="button" class="tp-tool circle" onclick="tpAdd('circle')">+ Círculo</button>
+    </div>
     <button type="button" class="tp-tool trashmove" id="tp-trash-mover-btn" onclick="tpTrashModoMover()">↔ Mover lixeira</button>
     <p class="tp-hint">Duplo clique no jogador para número. Arraste para a lixeira para tirar. Cone e trave: arraste as bolinhas para girar e redimensionar.</p>
    </aside>
@@ -5546,6 +5549,25 @@ function renderPranchetaVirtual(){
    tpState.sel=null; tpRenderPieces(); tpHideCtx();
   });
  }
+}
+function tpToggleAddPop(e){
+ if(e){ e.preventDefault(); e.stopPropagation(); }
+ const p=document.getElementById('tp-add-pop');
+ if(!p)return;
+ const on=p.classList.toggle('open');
+ if(on){
+  const bg=document.getElementById('tp-add-bg')||document.createElement('div');
+  bg.id='tp-add-bg'; bg.className='tp-add-bg';
+  bg.onclick=tpFecharAddPop;
+  if(!bg.parentNode) document.body.appendChild(bg);
+ }
+ else tpFecharAddPop();
+}
+function tpFecharAddPop(){
+ const p=document.getElementById('tp-add-pop');
+ if(p) p.classList.remove('open');
+ const bg=document.getElementById('tp-add-bg');
+ if(bg) bg.remove();
 }
 function resetPrancheta(){
  const sel=document.getElementById('mini-tactical-system');
@@ -5604,6 +5626,7 @@ function tpAdd(type){
  }
  tpState.sel=piece.id;
  tpRenderPieces();
+ tpFecharAddPop();
 }
 function tpPieceInner(p){
  const hs = '<span class="tp-handle tp-h-rot" data-h="rot"></span><span class="tp-handle tp-h-se" data-h="se"></span>';
