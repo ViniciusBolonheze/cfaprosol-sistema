@@ -2336,66 +2336,17 @@ body {
     padding:16px;
     border-radius:0 0 8px 8px;
 }
+/* Campo da prancheta: imagem base_prancheta.png (linhas já desenhadas na imagem) */
 #mini-football-board{
     position:relative;
     width:100%;
     max-width:1040px;
     margin:0 auto;
-    aspect-ratio:1.65;
+    aspect-ratio:1.5;
     overflow:hidden;
-    border:4px solid #fff;
-    background:
-      linear-gradient(90deg,rgba(255,255,255,.06) 0 2px,transparent 2px 100%),
-      repeating-linear-gradient(90deg,#248838 0,#248838 9%,#2d9942 9%,#2d9942 18%);
-    box-shadow:inset 0 0 0 2px rgba(255,255,255,.25),0 5px 18px rgba(0,0,0,.35);
+    background:url('base_prancheta.png') center/100% 100% no-repeat;
+    box-shadow:0 5px 18px rgba(0,0,0,.35);
 }
-.mini-field-line.center{
-    position:absolute;
-    left:50%;
-    top:0;
-    bottom:0;
-    border-left:3px solid rgba(255,255,255,.9);
-}
-.mini-center-circle{
-    position:absolute;
-    width:22%;
-    aspect-ratio:1;
-    left:39%;
-    top:39%;
-    border:3px solid rgba(255,255,255,.85);
-    border-radius:50%;
-}
-.mini-center-dot{
-    position:absolute;
-    left:50%;
-    top:50%;
-    width:8px;
-    height:8px;
-    margin-left:-4px;
-    margin-top:-4px;
-    background:#fff;
-    border-radius:50%;
-}
-.mini-box{
-    position:absolute;
-    border:3px solid rgba(255,255,255,.85);
-    top:23%;
-    height:54%;
-}
-.mini-box.big{width:18%;}
-.mini-box.small{width:8%;top:36%;height:28%;}
-.mini-box.left{left:-3px;}
-.mini-box.right{right:-3px;}
-.mini-goal{
-    position:absolute;
-    top:42%;
-    height:16%;
-    width:3%;
-    border:3px solid #fff;
-    background:rgba(255,255,255,.08);
-}
-.mini-goal.left{left:-3.2%;}
-.mini-goal.right{right:-3.2%;}
 #mini-board-players{
     position:absolute;
     inset:0;
@@ -2452,6 +2403,87 @@ body {
     .mini-tactical-player{width:34px;height:34px;font-size:11px;}
 }
 
+/* === Prancheta tática extra (Tactical Pad) === */
+.tp-overlay .tp-box{width:min(1280px,98vw);max-height:96vh;padding:0;overflow:auto;background:#121418;border:3px solid #f9c614;}
+.tp-wrap{display:flex;flex-direction:column;max-height:96vh;}
+.tp-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#58111a;color:#fff;padding:10px 12px;}
+.tp-head strong{color:#f9c614;font-size:18px;margin-right:auto;}
+.tp-head label{font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px;}
+.tp-head select,.tp-head button{border:0;border-radius:6px;padding:8px 10px;font-weight:800;font-size:12px;cursor:pointer;}
+.tp-head button{background:#f9c614;color:#111;}
+.tp-head .tp-save{background:#27ae60;color:#fff;}
+.tp-head .tp-export{background:#0984e3;color:#fff;}
+.tp-head .mini-close{background:#6c757d;color:#fff;}
+.tp-body{display:grid;grid-template-columns:168px 1fr 168px;gap:8px;padding:8px;min-height:0;flex:1;}
+.tp-tools,.tp-frames{background:#1c2128;border-radius:8px;padding:8px;overflow:auto;color:#eee;}
+.tp-tools b,.tp-frames b{display:block;color:#f9c614;margin-bottom:8px;font-size:12px;}
+.tp-tool{display:block;width:100%;margin:0 0 6px;border:0;border-radius:6px;padding:8px 8px;font-weight:800;font-size:11px;cursor:pointer;text-align:left;color:#fff;}
+.tp-tool.home{background:#d63031;}
+.tp-tool.away{background:#0984e3;}
+.tp-tool.gk-home{background:#f9c614;color:#111;}
+.tp-tool.gk-away{background:#111;color:#f9c614;border:1px solid #f9c614;}
+.tp-tool.ball{background:#fff;color:#111;}
+.tp-tool.cone{background:#e67e22;}
+.tp-tool.goal{background:#8e44ad;}
+.tp-tool.trashmove{background:#6c757d;}
+.tp-tool.trashmove.active{background:#f9c614;color:#111;}
+.tp-tool.arrow,.tp-tool.square,.tp-tool.circle{background:#3d4a5c;}
+.tp-hint{font-size:10px;color:#9aa;line-height:1.35;margin:8px 0 0;}
+.tp-field-col{display:flex;flex-direction:column;gap:6px;min-width:0;}
+.tp-field-wrap{padding:10px;border-radius:8px;flex:1;position:relative;}
+#mini-football-board{overflow:visible;}
+.tp-trash{
+  position:absolute;right:8px;bottom:8px;z-index:40;
+  width:92px;min-height:64px;padding:8px 6px;
+  background:#3a1515ee;color:#ffd6d6;border:2px dashed #ff5a4a;border-radius:10px;
+  text-align:center;font-weight:900;font-size:12px;line-height:1.2;
+  pointer-events:none;box-shadow:0 4px 14px #0008;
+}
+.tp-trash small{display:block;font-size:9px;font-weight:700;opacity:.9;margin-top:2px;}
+.tp-trash.hot{background:#c0392b;color:#fff;border-style:solid;transform:scale(1.06);}
+.tp-trash.mover{cursor:move;border-style:solid;touch-action:none;}
+.tp-frame-list{display:flex;flex-direction:column;gap:6px;}
+.tp-thumb{background:#2a323c;border-radius:6px;padding:6px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;}
+.tp-thumb span{flex:1;font-size:11px;font-weight:800;}
+.tp-thumb button{border:0;border-radius:4px;padding:4px 6px;font-size:10px;font-weight:800;cursor:pointer;background:#f9c614;color:#111;}
+.tp-thumb button.del{background:#c0392b;color:#fff;}
+.tp-piece{position:absolute;z-index:6;touch-action:none;cursor:grab;user-select:none;background:transparent;}
+.tp-piece.selected{outline:2px dashed #f9c614;outline-offset:3px;}
+.tp-home,.tp-gk-home,.tp-away,.tp-gk-away{
+  width:23px;height:23px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px;color:#fff;box-shadow:0 2px 5px #0008;
+}
+.tp-home{background:#d63031;}
+.tp-away{background:#0984e3;}
+.tp-gk-home{background:#f9c614;color:#111;}
+.tp-gk-away{background:#111;color:#f9c614;border-color:#f9c614;}
+.tp-ball{width:19px;height:19px;border:0;background:transparent;box-shadow:none;display:flex;align-items:center;justify-content:center;}
+.tp-cone{width:20px;height:24px;border:0;background:transparent;box-shadow:none;display:flex;align-items:center;justify-content:center;}
+.tp-goal{width:40px;height:80px;border:0;background:transparent;box-shadow:none;display:flex;align-items:center;justify-content:center;}
+.tp-ico{width:100%;height:100%;display:block;pointer-events:none;filter:drop-shadow(0 2px 3px #0008);}
+.tp-ico-img{width:100%;height:100%;display:block;pointer-events:none;filter:drop-shadow(0 2px 3px #0008);object-fit:contain;}
+.tp-arrow{height:8px;background:transparent;border:0;}
+.tp-arrow-body{display:block;height:2px;width:100%;background:#111;border-radius:1px;position:relative;top:3px;pointer-events:none;}
+.tp-arrow-body:after{content:'';position:absolute;right:-1px;top:-4px;border:5px solid transparent;border-left:8px solid #111;}
+.tp-shape-sq,.tp-shape-ci{z-index:1!important;pointer-events:none;}
+.tp-shape-sq .tp-shape-svg,.tp-shape-ci .tp-shape-svg{pointer-events:stroke;}
+.tp-shape-sq .tp-handle,.tp-shape-ci .tp-handle{pointer-events:auto;}
+.tp-shape-sq.selected,.tp-shape-ci.selected{pointer-events:auto;}
+.tp-shape-sq,.tp-shape-ci{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;}
+.tp-shape-svg{width:100%;height:100%;display:block;pointer-events:none;overflow:visible;filter:drop-shadow(0 1px 2px #0008);}
+.tp-field-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;z-index:0;display:block;}
+#mini-board-players{z-index:1;}
+.tp-piece:not(.selected) .tp-handle{display:none!important;}
+.tp-ctx{position:fixed;z-index:99999;background:#1c2128;border:1px solid #f9c614;border-radius:8px;padding:6px;display:none;min-width:170px;box-shadow:0 8px 24px #0008;}
+.tp-ctx button{display:block;width:100%;text-align:left;border:0;background:transparent;color:#fff;padding:8px 10px;font-weight:800;font-size:12px;cursor:pointer;border-radius:4px;}
+.tp-ctx button:hover{background:#f9c614;color:#111;}
+.tp-handle{position:absolute;width:14px;height:14px;background:#f9c614;border:1px solid #111;border-radius:50%;z-index:8;}
+.tp-h-len{right:-7px;top:50%;margin-top:-7px;}
+.tp-h-rot{left:50%;top:-18px;margin-left:-7px;}
+.tp-h-se{right:-7px;bottom:-7px;cursor:nwse-resize;}
+@media(max-width:900px){
+ .tp-body{grid-template-columns:1fr;max-height:none;}
+ .tp-overlay .tp-box{max-height:none;overflow:auto;}
+}
 
 /* =========================================================
    CAMADA RESPONSIVA MOBILE/TABLET
