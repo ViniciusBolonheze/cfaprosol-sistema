@@ -4903,9 +4903,29 @@ function rppDataPadrao(){return rppAjustarFimSemanaParaSexta(rppDataISO(new Date
 function rppInicioSemana(valor){const d=rppParseData(valor);const dia=d.getDay();const diff=dia===0?-6:1-dia;d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
 function rppDiasUteisSemana(valor){const ini=rppInicioSemana(valor);return [0,1,2,3,4].map(i=>{const d=new Date(ini);d.setDate(ini.getDate()+i);return rppDataISO(d);});}
 function rppDiasUteisMes(valor){const base=rppParseData(valor);const d=new Date(base.getFullYear(),base.getMonth(),1);const out=[];while(d.getMonth()===base.getMonth()){const dia=d.getDay();if(dia>=1&&dia<=5)out.push(rppDataISO(d));d.setDate(d.getDate()+1);}return out;}
+function rppDiasUteisEntre(iniISO,fimISO){
+ const a=rppParseData(iniISO), b=rppParseData(fimISO);
+ if(isNaN(a)||isNaN(b)) return [relatorioPsrPseState.data];
+ const ini=a<=b?a:b, fim=a<=b?b:a;
+ const out=[]; const d=new Date(ini.getFullYear(),ini.getMonth(),ini.getDate());
+ while(d<=fim){ const wd=d.getDay(); if(wd>=1&&wd<=5) out.push(rppDataISO(d)); d.setDate(d.getDate()+1); }
+ return out.length?out:[rppDataISO(ini)];
+}
 function rppPeriodoAtual(){
  if(relatorioPsrPseState.view==='semanal'){const dias=rppDiasUteisSemana(relatorioPsrPseState.data);return {inicio:dias[0],fim:dias[dias.length-1],dias};}
  if(relatorioPsrPseState.view==='mensal'){const dias=rppDiasUteisMes(relatorioPsrPseState.data);return {inicio:dias[0]||relatorioPsrPseState.data,fim:dias[dias.length-1]||relatorioPsrPseState.data,dias};}
+ if(relatorioPsrPseState.view==='medias'){
+  const modo=relatorioPsrPseState.mediasModo||'diaria';
+  if(modo==='semanal'){const dias=rppDiasUteisSemana(relatorioPsrPseState.data);return {inicio:dias[0],fim:dias[dias.length-1],dias};}
+  if(modo==='mensal'){const dias=rppDiasUteisMes(relatorioPsrPseState.data);return {inicio:dias[0]||relatorioPsrPseState.data,fim:dias[dias.length-1]||relatorioPsrPseState.data,dias};}
+  if(modo==='periodo'){
+   const de=relatorioPsrPseState.mediasDe||relatorioPsrPseState.data;
+   const ate=relatorioPsrPseState.mediasAte||relatorioPsrPseState.data;
+   const dias=rppDiasUteisEntre(de,ate);
+   return {inicio:dias[0],fim:dias[dias.length-1],dias};
+  }
+  return {inicio:relatorioPsrPseState.data,fim:relatorioPsrPseState.data,dias:[relatorioPsrPseState.data]};
+ }
  return {inicio:relatorioPsrPseState.data,fim:relatorioPsrPseState.data,dias:[relatorioPsrPseState.data]};
 }
 function rppDefaultCategorias(){const out={};rppCatIds().forEach(id=>out[id]=false);return out;}
@@ -5046,6 +5066,7 @@ function rppRenderTabelaResumo(atletas){
 }
 function rppTituloView(){
  const tipo=relatorioPsrPseState.tipo.toUpperCase();
+ if(relatorioPsrPseState.view==='medias')return `${tipo} - médias`;
  if(relatorioPsrPseState.view==='notas')return `${tipo} - notas do dia ${rppBR(relatorioPsrPseState.data,true)}`;
  if(relatorioPsrPseState.view==='diario')return `${tipo} - relatório diário ${rppBR(relatorioPsrPseState.data,true)}`;
  if(relatorioPsrPseState.view==='semanal'){const dias=rppDiasUteisSemana(relatorioPsrPseState.data);return `${tipo} - relatório semanal ${rppBR(dias[0])} a ${rppBR(dias[4],true)}`;}
@@ -5059,12 +5080,127 @@ function rppRenderExtrasChips(){
  });
  return chips.length?chips.join(''):'<span class="rpp-extra-empty">Nenhum atleta extra nas categorias selecionadas.</span>';
 }
+
+function rppNotaPseNum(row){
+ const obj=rppObjResposta(row,'pse');
+ if(obj.valor===undefined||obj.valor===null||obj.valor==='') return null;
+ const n=Number(String(obj.valor).replace(',','.'));
+ if(!Number.isFinite(n) || n===0) return null;
+ return n;
+}
+function rppMediaBR(n){ return (n==null||!Number.isFinite(n))?'—':n.toFixed(1).replace('.',','); }
+function rppNomeDia(iso){
+ const d=rppParseData(iso); const n=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+ return n[d.getDay()]||'';
+}
+function rppChaveExtraAtleta(extra,item){
+ if(item&&item.id) return rppKeyAtletaId(item.id)||rppKeyExtra(extra);
+ return rppKeyExtra(extra);
+}
+function rppAtletasCategoriaTodas(catId){
+ const mapa=new Map();
+ const cat=rppCats()[catId];
+ const extrasAqui=new Set();
+ const extrasOutros=new Set();
+ rppCatIds().forEach(id=>{
+  (typeof rppExtraList==='function'?rppExtraList(id):[]).forEach(extra=>{
+   const item=typeof rppLocalizarExtra==='function'?rppLocalizarExtra(extra):null;
+   const key=rppChaveExtraAtleta(extra,item);
+   if(!key) return;
+   if(id===catId) extrasAqui.add(key);
+   else extrasOutros.add(key);
+  });
+ });
+ if(typeof trabalhoAtletasPorAnos==='function'){
+  trabalhoAtletasPorAnos(cat?.anos||[]).forEach(a=>{
+   const k=rppKeyAtletaId(a.id);
+   if(k && !extrasOutros.has(k)) mapa.set(k,a);
+  });
+ }
+ (typeof rppExtraList==='function'?rppExtraList(catId):[]).forEach(extra=>{
+  const item=typeof rppLocalizarExtra==='function'?rppLocalizarExtra(extra):null;
+  const key=rppChaveExtraAtleta(extra,item);
+  if(!key) return;
+  if(item) mapa.set(key,item);
+  else mapa.set(key,{ id:{ nomeCompleto:extra.nomeCompleto||extra.nome||'', nascimento:extra.nascimento||'', ano:extra.ano||'', apelido:extra.apelido||extra.nome||'' } });
+ });
+ return Array.from(mapa.values());
+}
+function rppMediaCatDia(catId, iso){
+ const atletas=rppAtletasCategoriaTodas(catId);
+ const vals=[];
+ atletas.forEach(a=>{
+  const row=rppRespostaAtletaData(a, iso);
+  const n=rppNotaPseNum(row);
+  if(n!==null) vals.push(n);
+ });
+ if(!vals.length) return null;
+ return vals.reduce((s,v)=>s+v,0)/vals.length;
+}
+function rppMediaCatPeriodo(catId, dias){
+ const vals=[];
+ const atletas=rppAtletasCategoriaTodas(catId);
+ dias.forEach(iso=>{
+  atletas.forEach(a=>{
+   const n=rppNotaPseNum(rppRespostaAtletaData(a, iso));
+   if(n!==null) vals.push(n);
+  });
+ });
+ if(!vals.length) return null;
+ return vals.reduce((s,v)=>s+v,0)/vals.length;
+}
+function rppLinhaCats(mediasMap){
+ return rppCatIds().map(id=>{
+  const lab=(rppCats()[id]&&rppCats()[id].label)||id;
+  return `<span class="rpp-med-cat"><b>${rppEscape(lab)}</b> ${rppMediaBR(mediasMap[id])}</span>`;
+ }).join('');
+}
+function rppMediasTabela(rows){
+ const cats=rppCatIds();
+ const head='<th>Dia</th>'+cats.map(id=>'<th>'+rppEscape((rppCats()[id]&&rppCats()[id].label)||id)+'</th>').join('');
+ const body=rows.map(r=>{
+  const tds=cats.map(id=>'<td>'+rppMediaBR(r.map[id])+'</td>').join('');
+  return `<tr class="${r.geral?'rpp-med-geral-row':''}"><td class="rpp-nome">${rppEscape(r.label)}</td>${tds}</tr>`;
+ }).join('');
+ return `<table class="rpp-table rpp-med-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+function setRppMediasModo(modo){
+ relatorioPsrPseState.mediasModo=modo;
+ carregarRespostasRelatorioPsrPse();
+}
+function setRppMediasDe(v){ relatorioPsrPseState.mediasDe=v; if(relatorioPsrPseState.mediasModo==='periodo') carregarRespostasRelatorioPsrPse(); }
+function setRppMediasAte(v){ relatorioPsrPseState.mediasAte=v; if(relatorioPsrPseState.mediasModo==='periodo') carregarRespostasRelatorioPsrPse(); }
+function rppRenderMedias(){
+ const modo=relatorioPsrPseState.mediasModo||'diaria';
+ const periodo=rppPeriodoAtual();
+ const cats=rppCatIds();
+ const filtros=`<div class="rpp-med-filtros rpp-no-print">
+  <button type="button" class="${modo==='diaria'?'active':''}" onclick="setRppMediasModo('diaria')">Diária</button>
+  <button type="button" class="${modo==='semanal'?'active':''}" onclick="setRppMediasModo('semanal')">Semanal</button>
+  <button type="button" class="${modo==='mensal'?'active':''}" onclick="setRppMediasModo('mensal')">Mensal</button>
+  <button type="button" class="${modo==='periodo'?'active':''}" onclick="setRppMediasModo('periodo')">Período</button>
+  ${modo==='periodo'?`<label>De <input type="date" value="${relatorioPsrPseState.mediasDe||relatorioPsrPseState.data}" onchange="setRppMediasDe(this.value)"></label><label>Até <input type="date" value="${relatorioPsrPseState.mediasAte||relatorioPsrPseState.data}" onchange="setRppMediasAte(this.value)"></label>`:''}
+ </div><p class="rpp-med-nota rpp-no-print">Quem não respondeu não entra na média. Todas as categorias, independente do filtro acima.</p>`;
+ if(modo==='diaria'){
+  const dia=relatorioPsrPseState.data;
+  const map={}; cats.forEach(id=>map[id]=rppMediaCatDia(id,dia));
+  return filtros+rppMediasTabela([{label:'Data '+rppBR(dia,true), map}]);
+ }
+ const mapG={}; cats.forEach(id=>mapG[id]=rppMediaCatPeriodo(id,periodo.dias));
+ const tit=modo==='semanal'?'Média geral da semana':modo==='mensal'?'Média geral do mês':'Média geral do período';
+ const rows=[{label:tit, map:mapG, geral:true}].concat(periodo.dias.map(iso=>{
+  const map={}; cats.forEach(id=>map[id]=rppMediaCatDia(id,iso));
+  return {label:rppNomeDia(iso)+' '+rppBR(iso,true), map};
+ }));
+ return filtros+rppMediasTabela(rows);
+}
+
 function renderRelatorioPsrPse(){
  const modal=document.getElementById('relatorio-psrpse-modal');if(!modal)return;
  const cats=rppCats();const atletas=rppAtletasRelatorio();
- const tabela=relatorioPsrPseState.carregando?'<div class="rpp-loading">Carregando respostas...</div>':(relatorioPsrPseState.view==='notas'?rppRenderTabelaNotas(atletas):rppRenderTabelaResumo(atletas));
+ const tabela=relatorioPsrPseState.carregando?'<div class="rpp-loading">Carregando respostas...</div>':(relatorioPsrPseState.view==='medias'?rppRenderMedias():(relatorioPsrPseState.view==='notas'?rppRenderTabelaNotas(atletas):rppRenderTabelaResumo(atletas)));
  const dataBR=rppBR(relatorioPsrPseState.data,true);
- modal.innerHTML=`<div class="rpp-card"><button class="rpp-close" onclick="closeRelatorioPsrPse()">×</button><div class="rpp-head"><div class="rpp-extra-box"><button type="button" class="rpp-extra-btn" onclick="abrirSelecionarExtraRelatorioPsrPse()"><i class="fa-solid fa-user-plus"></i> Atleta extra</button><div class="rpp-extra-chips">${rppRenderExtrasChips()}</div></div><div class="rpp-title"><h2>${relatorioPsrPseState.tipo.toUpperCase()}</h2><strong>${dataBR}</strong><small>${rppTituloView()}</small></div><div class="rpp-cat-box">${Object.keys(cats).map(id=>`<label><input type="checkbox" ${relatorioPsrPseState.categorias[id]?'checked':''} onchange="toggleRelatorioPsrPseCategoria('${id}',this.checked)"> ${rppEscape(cats[id].label)}</label>`).join('')}</div></div><div class="rpp-toolbar"><label>Dia <input type="date" value="${relatorioPsrPseState.data}" onchange="setRelatorioPsrPseData(this.value)"></label><button type="button" class="${relatorioPsrPseState.view==='notas'?'active':''}" onclick="setRelatorioPsrPseView('notas')">Notas do dia</button><button type="button" class="${relatorioPsrPseState.view==='diario'?'active':''}" onclick="setRelatorioPsrPseView('diario')">Relatório diário</button><button type="button" class="${relatorioPsrPseState.view==='semanal'?'active':''}" onclick="setRelatorioPsrPseView('semanal')">Relatório semanal</button><button type="button" class="${relatorioPsrPseState.view==='mensal'?'active':''}" onclick="setRelatorioPsrPseView('mensal')">Relatório mensal</button><button type="button" class="print" onclick="imprimirRelatorioPsrPse()"><i class="fa-solid fa-print"></i> Imprimir/Exportar</button></div><div class="rpp-meta"><span>${rppEscape(rppCategoriasTitulo())}</span><span>${atletas.length} atleta(s)</span></div><div id="rpp-print-area" class="rpp-print-area"><div class="rpp-print-title"><img src="logo.png"><div><h2>${rppEscape(rppTituloView())}</h2><p>${rppEscape(rppCategoriasTitulo())}</p></div><img src="logo.png"></div><div class="rpp-table-wrap">${tabela}</div></div></div>`;
+ modal.innerHTML=`<div class="rpp-card"><button class="rpp-close" onclick="closeRelatorioPsrPse()">×</button><div class="rpp-head"><div class="rpp-extra-box"><button type="button" class="rpp-extra-btn" onclick="abrirSelecionarExtraRelatorioPsrPse()"><i class="fa-solid fa-user-plus"></i> Atleta extra</button><div class="rpp-extra-chips">${rppRenderExtrasChips()}</div></div><div class="rpp-title"><h2>${relatorioPsrPseState.tipo.toUpperCase()}</h2><strong>${dataBR}</strong><small>${rppTituloView()}</small></div><div class="rpp-cat-box">${Object.keys(cats).map(id=>`<label><input type="checkbox" ${relatorioPsrPseState.categorias[id]?'checked':''} onchange="toggleRelatorioPsrPseCategoria('${id}',this.checked)"> ${rppEscape(cats[id].label)}</label>`).join('')}</div></div><div class="rpp-toolbar"><label>Dia <input type="date" value="${relatorioPsrPseState.data}" onchange="setRelatorioPsrPseData(this.value)"></label><button type="button" class="${relatorioPsrPseState.view==='notas'?'active':''}" onclick="setRelatorioPsrPseView('notas')">Notas do dia</button><button type="button" class="${relatorioPsrPseState.view==='diario'?'active':''}" onclick="setRelatorioPsrPseView('diario')">Relatório diário</button><button type="button" class="${relatorioPsrPseState.view==='semanal'?'active':''}" onclick="setRelatorioPsrPseView('semanal')">Relatório semanal</button><button type="button" class="${relatorioPsrPseState.view==='mensal'?'active':''}" onclick="setRelatorioPsrPseView('mensal')">Relatório mensal</button><button type="button" class="${relatorioPsrPseState.view==='medias'?'active':''}" onclick="setRelatorioPsrPseView('medias')">Médias</button><button type="button" class="print" onclick="imprimirRelatorioPsrPse()"><i class="fa-solid fa-print"></i> Imprimir/Exportar</button></div><div class="rpp-meta${relatorioPsrPseState.view==='medias'?' rpp-no-print':''}"><span>${relatorioPsrPseState.view==='medias'?'Todas as categorias':rppEscape(rppCategoriasTitulo())}</span><span>${relatorioPsrPseState.view==='medias'?'':atletas.length+' atleta(s)'}</span></div><div id="rpp-print-area" class="rpp-print-area"><div class="rpp-print-title"><img src="logo.png"><div><h2>${rppEscape(rppTituloView())}</h2><p>${relatorioPsrPseState.view==='medias'?'Todas as categorias':rppEscape(rppCategoriasTitulo())}</p></div><img src="logo.png"></div>${relatorioPsrPseState.tipo==='pse'?`<div class="rpp-legenda-pse"><span><b>1–2</b> leve</span><span><b>3–4</b> médio</span><span><b>5–6</b> pesado</span><span><b>7</b> esforço máximo</span></div>`:''}<div class="rpp-table-wrap">${tabela}</div></div></div>`;
  modal.style.display='flex';
 }
 async function carregarRespostasRelatorioPsrPse(){
@@ -5128,9 +5264,9 @@ function removerExtraRelatorioPsrPse(catId,key){
 }
 function imprimirRelatorioPsrPse(){
  const area=document.getElementById('rpp-print-area');if(!area)return;
- const titulo=rppTituloView();const paisagem=relatorioPsrPseState.view==='mensal'||relatorioPsrPseState.view==='semanal';
+ const titulo=rppTituloView();const paisagem=relatorioPsrPseState.view==='mensal'||relatorioPsrPseState.view==='semanal'||relatorioPsrPseState.view==='medias';
  const w=window.open('','_blank','width=1200,height=850');
- w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${rppEscape(titulo)}</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:12px;color:#111}.rpp-print-title{display:flex!important;align-items:center;justify-content:center;gap:18px;margin-bottom:12px}.rpp-print-title img{width:58px;height:58px;object-fit:contain}.rpp-print-title h2{margin:0;text-align:center;color:#58111a;font-size:22px}.rpp-print-title p{margin:3px 0 0;text-align:center;font-weight:bold}.rpp-table{width:100%;border-collapse:collapse;font-size:11px}.rpp-table th{background:#58111a;color:#f9c614}.rpp-table th,.rpp-table td{border:1px solid #999;padding:5px;text-align:center}.rpp-table th button{border:0;background:transparent;color:inherit;font:inherit;font-weight:bold}.rpp-table td.rpp-nome{text-align:left;font-weight:bold}.rpp-desc{text-align:left!important}.rpp-v{color:#009b49;font-weight:900;font-size:15px}.rpp-x{color:#d63031;font-weight:900;font-size:15px}.rpp-muted{color:#999}.rpp-table-wrap{overflow:visible}.rpp-list-report{border:1px solid #d8e8c4;background:#fbfff7;padding:10px}.rpp-list-date{font-size:17px;color:#5c8a2a;font-weight:bold;border-bottom:1px solid #e5eadf;padding:6px}.rpp-list-obs{font-size:13px;margin:8px 0}.rpp-list-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}.rpp-list-col h3{font-size:14px;margin:6px 0}.rpp-list-col.ok h3,.rpp-list-col.ok li{color:#078c49}.rpp-list-col.no h3,.rpp-list-col.no li{color:#c00000}.rpp-list-col ul{list-style:none;padding:0;margin:0}.rpp-list-col li{font-size:12px;line-height:1.35;margin:2px 0}.rpp-list-col li.empty{color:#777}@page{size:${paisagem?'landscape':'portrait'};margin:8mm}</style></head><body>${area.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${rppEscape(titulo)}</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:12px;color:#111}.rpp-print-title{display:flex!important;align-items:center;justify-content:center;gap:18px;margin-bottom:12px}.rpp-print-title img{width:58px;height:58px;object-fit:contain}.rpp-print-title h2{margin:0;text-align:center;color:#58111a;font-size:22px}.rpp-print-title p{margin:3px 0 0;text-align:center;font-weight:bold}.rpp-table{width:100%;border-collapse:collapse;font-size:11px}.rpp-table th{background:#58111a;color:#f9c614}.rpp-table th,.rpp-table td{border:1px solid #999;padding:5px;text-align:center}.rpp-table th button{border:0;background:transparent;color:inherit;font:inherit;font-weight:bold}.rpp-table td.rpp-nome{text-align:left;font-weight:bold}.rpp-desc{text-align:left!important}.rpp-v{color:#009b49;font-weight:900;font-size:15px}.rpp-x{color:#d63031;font-weight:900;font-size:15px}.rpp-muted{color:#999}.rpp-table-wrap{overflow:visible}.rpp-no-print,.rpp-med-filtros,.rpp-med-nota{display:none!important}.rpp-med-table{min-width:0!important;font-size:14px!important}.rpp-med-table th,.rpp-med-table td{padding:10px 12px!important}.rpp-med-geral-row td{background:#58111a!important;color:#fff!important;font-weight:900}.rpp-med-geral-row td:first-child{color:#f9c614!important}.rpp-list-report{border:1px solid #d8e8c4;background:#fbfff7;padding:10px}.rpp-list-date{font-size:17px;color:#5c8a2a;font-weight:bold;border-bottom:1px solid #e5eadf;padding:6px}.rpp-list-obs{font-size:13px;margin:8px 0}.rpp-list-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}.rpp-list-col h3{font-size:14px;margin:6px 0}.rpp-list-col.ok h3,.rpp-list-col.ok li{color:#078c49}.rpp-list-col.no h3,.rpp-list-col.no li{color:#c00000}.rpp-list-col ul{list-style:none;padding:0;margin:0}.rpp-list-col li{font-size:12px;line-height:1.35;margin:2px 0}.rpp-list-col li.empty{color:#777}.rpp-legenda-pse{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 18px;margin:0 0 12px;padding:8px 12px;background:#f6f3ea;border:1px solid #ead9a8;border-radius:8px;font-size:13px}.rpp-legenda-pse b{color:#58111a}@page{size:${paisagem?'landscape':'portrait'};margin:8mm}</style></head><body>${area.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);
  w.document.close();
 }
 
