@@ -4795,3 +4795,41 @@ html body .jogos-salvos-card .jogo-salvo-acoes button em{display:none!important;
   .peso-ideal-input{width:58px!important;padding:4px 2px!important;font-size:12px;}
   .controle-peso-table th,.controle-peso-table td{padding:4px 5px!important;}
 }
+
+.avd-overlay{position:fixed;inset:0;background:rgba(0,0,0,.68);display:none;align-items:center;justify-content:center;z-index:17050;padding:12px;}
+.avd-card{width:min(920px,96vw);max-height:94vh;overflow:auto;background:#fff;border-radius:16px;padding:18px 18px 16px;position:relative;border:3px solid #f9c614;}
+.avd-close{position:absolute;right:10px;top:8px;border:0;background:transparent;font-size:28px;cursor:pointer;color:#58111a;}
+.avd-card h2{margin:0 40px 12px 0;color:#58111a;}
+.avd-cats{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;font-weight:800;}
+.avd-extra-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.avd-chip{display:inline-flex;align-items:center;gap:4px;background:#f6f3ea;border:1px solid #ead9a8;border-radius:999px;padding:4px 8px;font-size:12px;font-weight:800;color:#58111a;}
+.avd-chip button{border:0;background:#c0392b;color:#fff;width:20px;height:20px;border-radius:50%;font-weight:900;cursor:pointer;line-height:20px;padding:0;}
+.avd-extra:disabled{opacity:.45;cursor:not-allowed;}
+.avd-extra{border:0;background:#58111a;color:#f9c614;border-radius:8px;padding:8px 10px;font-weight:800;cursor:pointer;}
+.avd-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0;}
+.avd-toolbar label{font-weight:800;font-size:13px;}
+.avd-toolbar input,.avd-toolbar select{margin-left:6px;padding:7px;border-radius:8px;border:1px solid #ccc;}
+.avd-save{background:#27ae60;color:#fff;border:0;border-radius:8px;padding:9px 12px;font-weight:900;cursor:pointer;}
+.avd-del{background:#c0392b;color:#fff;border:0;border-radius:8px;padding:9px 12px;font-weight:900;cursor:pointer;}
+.avd-print{background:#0984e3;color:#fff;border:0;border-radius:8px;padding:9px 12px;font-weight:900;cursor:pointer;}
+.avd-legenda{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;font-weight:700;color:#444;margin:6px 0 10px;}
+.avd-legenda b{color:#58111a;}
+.avd-list{border:1px solid #eee;border-radius:10px;max-height:46vh;overflow:auto;}
+.avd-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #f0f0f0;}
+.avd-nome{font-weight:800;}
+.avd-nome small{color:#888;font-weight:700;}
+.avd-notas{display:flex;gap:4px;}
+.avd-notas button{width:34px;height:34px;border:1px solid #ccc;background:#fff;border-radius:8px;font-weight:900;cursor:pointer;}
+.avd-notas button.on{background:#58111a;color:#f9c614;border-color:#58111a;}
+.avd-anot-lab{display:block;font-weight:900;margin:12px 0 6px;color:#58111a;}
+.avd-anot{width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:10px;padding:10px;font:inherit;min-height:90px;}
+.avd-empty{padding:16px;color:#777;}
+.avd-extra-modal{position:fixed;inset:0;background:#0007;display:flex;align-items:center;justify-content:center;z-index:17080;}
+.avd-extra-card{background:#fff;padding:16px;border-radius:12px;width:min(420px,92vw);border:2px solid #f9c614;}
+.avd-extra-card select{width:100%;min-height:180px;margin:8px 0;}
+.avd-extra-actions{display:flex;gap:8px;}
+.avd-extra-actions button{flex:1;padding:10px;border:0;border-radius:8px;font-weight:900;cursor:pointer;background:#58111a;color:#fff;}
+@media(max-width:900px){
+ .avd-row{flex-direction:column;align-items:flex-start;}
+ .avd-notas button{width:40px;height:40px;}
+}

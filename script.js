@@ -3939,7 +3939,7 @@ function openRelatoriosMenuModal(){
  document.getElementById('home-screen')?.classList.add('active-screen');
  let m=document.getElementById('relatorios-menu-modal');
  if(!m){m=document.createElement('div');m.id='relatorios-menu-modal';m.className='relatorios-menu-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeRelatoriosMenuModal();});}
- m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button><button onclick="closeRelatoriosMenuModal();openGoleirosTecnicoModal();"><i class="fa-solid fa-shield-halved"></i><span>Goleiros</span><small>Informações técnicas</small></button><button data-prep-alert="1" onclick="closeRelatoriosMenuModal();openPreparacaoFisicaQueixasModal();"><i class="fa-solid fa-notes-medical"></i><span>Preparação Física</span><small>Queixas dos atletas</small></button><button onclick="closeRelatoriosMenuModal();openMonitoramentoCargaModal();"><i class="fa-solid fa-gauge-high"></i><span>Monitoramento de Carga</span><small>PSR/PSE automático</small></button></div></div>`;
+ m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button><button onclick="closeRelatoriosMenuModal();openAvaliacaoDiaria();"><i class="fa-solid fa-clipboard-check"></i><span>Avaliação Diária</span><small>Notas 1 a 5 por treino</small></button><button onclick="closeRelatoriosMenuModal();openGoleirosTecnicoModal();"><i class="fa-solid fa-shield-halved"></i><span>Goleiros</span><small>Informações técnicas</small></button><button data-prep-alert="1" onclick="closeRelatoriosMenuModal();openPreparacaoFisicaQueixasModal();"><i class="fa-solid fa-notes-medical"></i><span>Preparação Física</span><small>Queixas dos atletas</small></button><button onclick="closeRelatoriosMenuModal();openMonitoramentoCargaModal();"><i class="fa-solid fa-gauge-high"></i><span>Monitoramento de Carga</span><small>PSR/PSE automático</small></button></div></div>`;
  m.style.display='flex';
  renderIndicadorPreparacaoFisica();
  atualizarIndicadorPreparacaoFisica();
@@ -8823,6 +8823,216 @@ async function tpApagarProjeto(nome){
  tpListarProjetos();
 }
 
+
+let avdState={cat:'',data:'',notas:{},anotacao:'',dias:[],extras:null,carregando:false};
+function avdHoje(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function avdCats(){return typeof categoriasTrabalhoDiarioConfig==='function'?categoriasTrabalhoDiarioConfig():{sub11:{label:'Sub 11',anos:['2015','2016','2017','2018']},sub12:{label:'Sub 12',anos:['2014']},sub13:{label:'Sub 13',anos:['2013']},sub16:{label:'Sub 16',anos:['2012','2011','2010','2009']}};}
+function avdCatIds(){return Object.keys(avdCats());}
+function avdExtrasVazio(){ const v={}; avdCatIds().forEach(id=>v[id]=[]); return v; }
+async function avdLoadExtras(){
+ const vazio=avdExtrasVazio();
+ try{
+  const {data,error}=await _supabase.from('avaliacao_diaria_extras').select('categoria,atleta_key,nome_completo,nascimento,ano,apelido');
+  if(error) throw error;
+  (data||[]).forEach(r=>{
+   const cat=r.categoria; if(!vazio[cat]) vazio[cat]=[];
+   vazio[cat].push({nomeCompleto:r.nome_completo||'',nascimento:r.nascimento||'',ano:r.ano||'',apelido:r.apelido||'',atleta_key:r.atleta_key});
+  });
+ }catch(e){ console.warn(e); }
+ avdState.extras=vazio; return vazio;
+}
+function avdChaveId(id){return (typeof trabalhoChaveAtleta==='function'?trabalhoChaveAtleta(id):((id?.nomeCompleto||'')+'||'+(id?.nascimento||'')));}
+function avdAtletas(){
+ const catId=avdState.cat; if(!catId) return [];
+ const cats=avdCats(); const cat=cats[catId]||{};
+ if(!avdState.extras) avdState.extras=avdExtrasVazio();
+ const extrasAqui=new Set(); const extrasOutros=new Set();
+ avdCatIds().forEach(id=>{
+  (avdState.extras[id]||[]).forEach(ex=>{
+   const k=avdChaveId({nomeCompleto:ex.nomeCompleto||ex.nome,nascimento:ex.nascimento});
+   if(!k||k==='||') return;
+   if(id===catId) extrasAqui.add(k); else extrasOutros.add(k);
+  });
+ });
+ const mapa=new Map();
+ (typeof trabalhoAtletasPorAnos==='function'?trabalhoAtletasPorAnos(cat.anos||[]):[]).forEach(a=>{
+  const k=avdChaveId(a.id); if(k && !extrasOutros.has(k)) mapa.set(k,a);
+ });
+ (avdState.extras[catId]||[]).forEach(ex=>{
+  const item=(typeof rppLocalizarExtra==='function'?rppLocalizarExtra(ex):null)||{id:{nomeCompleto:ex.nomeCompleto||ex.nome||'',nascimento:ex.nascimento||'',ano:ex.ano||'',apelido:ex.apelido||ex.nome||''}};
+  const k=avdChaveId(item.id); if(k) mapa.set(k,item);
+ });
+ return Array.from(mapa.values());
+}
+function avdNota(k){ const n=avdState.notas[k]; return (n===0||n)?n:3; }
+async function openAvaliacaoDiaria(){
+ avdState.cat='';
+ avdState.anotacao='';
+ avdState.notas={};
+ avdState.dias=[];
+ if(!avdState.data) avdState.data=avdHoje();
+ let m=document.getElementById('avd-modal');
+ if(!m){ m=document.createElement('div'); m.id='avd-modal'; m.className='avd-overlay'; document.body.appendChild(m); m.addEventListener('click',e=>{ if(e.target===m) closeAvaliacaoDiaria(); }); }
+ m.style.display='flex';
+ avdRender();
+ await avdLoadExtras();
+ avdRender();
+}
+function closeAvaliacaoDiaria(){ const m=document.getElementById('avd-modal'); if(m) m.style.display='none'; }
+function avdSetCat(id){ avdState.cat=id; avdListarDias().then(avdCarregarDia); }
+function avdSetData(v){ avdState.data=v; avdCarregarDia(); }
+function avdSetNota(k,n){ avdState.notas[k]=n; document.querySelectorAll('.avd-notas').forEach(el=>{ if(el.getAttribute('data-k')===k){ el.querySelectorAll('button').forEach(b=>b.classList.toggle('on', Number(b.dataset.n)===n)); } }); }
+function avdRender(){
+ const m=document.getElementById('avd-modal'); if(!m) return;
+ const cats=avdCats();
+ const atletas=avdAtletas();
+ const diasOpts=(avdState.dias||[]).map(d=>'<option value="'+d+'">'+avdBR(d)+'</option>').join('');
+ const rows=atletas.map(a=>{
+  const k=avdChaveId(a.id);
+  const n=avdNota(k);
+  const nome=a.id.apelido||a.id.nomeCompleto||'';
+  const btns=[0,1,2,3,4,5].map(v=>'<button type="button" data-n="'+v+'" class="'+(n===v?'on':'')+'" onclick="avdSetNota(\''+k.replace(/'/g,"\\'")+'\','+v+')">'+(v===0?'F':v)+'</button>').join('');
+  return '<div class="avd-row"><span class="avd-nome">'+avdEsc(nome)+' <small>'+avdEsc(a.id.ano||'')+'</small></span><div class="avd-notas" data-k="'+avdEsc(k)+'">'+btns+'</div></div>';
+ }).join('')||('<p class="avd-empty">'+(avdState.cat?'Nenhum atleta nesta categoria.':'Selecione uma categoria.')+'</p>');
+ m.innerHTML=`<div class="avd-card">
+  <button class="avd-close" onclick="closeAvaliacaoDiaria()">×</button>
+  <h2>Avaliação Diária</h2>
+  <div class="avd-cats">${avdCatIds().map(id=>`<label><input type="radio" name="avd-cat" ${avdState.cat===id?'checked':''} onchange="avdSetCat('${id}')"> ${avdEsc(cats[id].label)}</label>`).join('')}
+   <button type="button" class="avd-extra" ${avdState.cat?'':'disabled'} onclick="avdAbrirExtra()">+ Atleta extra</button>
+   <div class="avd-extra-chips">${(avdState.cat?(avdState.extras&&avdState.extras[avdState.cat]||[]):[]).map(ex=>{
+     const k=ex.atleta_key||avdChaveId({nomeCompleto:ex.nomeCompleto||ex.nome,nascimento:ex.nascimento});
+     const nm=ex.apelido||ex.nomeCompleto||ex.nome||'Extra';
+     return '<span class="avd-chip">'+avdEsc(nm)+' <button type="button" title="Retirar extra" onclick="avdRemoverExtra(\''+String(k).replace(/'/g,"\\'")+'\')">×</button></span>';
+   }).join('')}</div>
+  </div>
+  <div class="avd-toolbar">
+   <label>Data <input type="date" value="${avdState.data}" onchange="avdSetData(this.value)"></label>
+   <label>Dias salvos <select onchange="if(this.value)avdSetData(this.value)"><option value="">—</option>${diasOpts}</select></label>
+   <button type="button" class="avd-save" onclick="avdSalvar()">Salvar</button>
+   <button type="button" class="avd-del" onclick="avdExcluirDia()">Excluir dia</button>
+   <button type="button" class="avd-print" onclick="avdRelatorio()">Imprimir/Exportar</button>
+  </div>
+  <div class="avd-legenda"><span><b>F</b> falta (0)</span><span><b>1–2</b> fraco</span><span><b>3</b> médio</span><span><b>4–5</b> bom</span></div>
+  <div class="avd-list">${avdState.carregando?'<p class="avd-empty">Carregando...</p>':rows}</div>
+  <label class="avd-anot-lab">Objetivos e informações do dia</label>
+  <textarea id="avd-anotacao" class="avd-anot" rows="4" placeholder="Objetivo do treino e anotações...">${avdEsc(avdState.anotacao||'')}</textarea>
+ </div>`;
+}
+function avdEsc(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function avdBR(iso){const p=String(iso||'').slice(0,10).split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso;}
+async function avdListarDias(){
+ if(!avdState.cat){ avdState.dias=[]; return; }
+ try{
+  const {data,error}=await _supabase.from('avaliacao_diaria_dias').select('data').eq('categoria',avdState.cat).order('data',{ascending:false}).limit(180);
+  if(error) throw error;
+  avdState.dias=(data||[]).map(r=>String(r.data).slice(0,10));
+ }catch(e){ avdState.dias=[]; console.warn(e); }
+}
+async function avdCarregarDia(){
+ if(!avdState.cat){ avdState.carregando=false; avdRender(); return; }
+ avdState.carregando=true; avdRender();
+ const atletas=avdAtletas();
+ const notas={};
+ atletas.forEach(a=>{ notas[avdChaveId(a.id)]=3; });
+ avdState.anotacao='';
+ try{
+  const [{data:dia},{data:rows}]=await Promise.all([
+   _supabase.from('avaliacao_diaria_dias').select('anotacao').eq('data',avdState.data).eq('categoria',avdState.cat).maybeSingle(),
+   _supabase.from('avaliacao_diaria_notas').select('atleta_key,nota').eq('data',avdState.data).eq('categoria',avdState.cat)
+  ]);
+  if(dia && dia.anotacao!=null) avdState.anotacao=dia.anotacao;
+  (rows||[]).forEach(r=>{ if(r.atleta_key!=null) notas[r.atleta_key]=Number(r.nota); });
+ }catch(e){ console.warn(e); }
+ avdState.notas=notas;
+ avdState.carregando=false;
+ avdRender();
+}
+async function avdSalvar(){
+ if(!avdState.cat){ alert('Selecione uma categoria.'); return; }
+ const ta=document.getElementById('avd-anotacao');
+ if(ta) avdState.anotacao=ta.value||'';
+ const atletas=avdAtletas();
+ const payload=atletas.map(a=>{
+  const id=a.id||{}; const k=avdChaveId(id);
+  return { data:avdState.data, categoria:avdState.cat, atleta_key:k, nome_completo:id.nomeCompleto||'', nascimento:id.nascimento||'', ano:id.ano||'', nota:avdNota(k), atualizado:new Date().toISOString() };
+ }).filter(x=>x.atleta_key && x.atleta_key!=='||');
+ const {error:e1}=await _supabase.from('avaliacao_diaria_dias').upsert({ data:avdState.data, categoria:avdState.cat, anotacao:avdState.anotacao||'', atualizado:new Date().toISOString() },{ onConflict:'data,categoria' });
+ if(e1){ alert('Não salvou o dia.\n'+e1.message); return; }
+ if(payload.length){
+  const {error:e2}=await _supabase.from('avaliacao_diaria_notas').upsert(payload,{ onConflict:'data,categoria,atleta_key' });
+  if(e2){ alert('Não salvou as notas.\n'+e2.message); return; }
+ }
+ await avdListarDias();
+ avdRender();
+ alert('Avaliação salva.');
+}
+async function avdExcluirDia(){
+ if(!avdState.cat){ alert('Selecione uma categoria.'); return; }
+ if(!confirm('Excluir a avaliação de '+avdBR(avdState.data)+'?')) return;
+ const q1=await _supabase.from('avaliacao_diaria_notas').delete().eq('data',avdState.data).eq('categoria',avdState.cat);
+ if(q1.error){ alert('Não excluiu as notas.\n'+q1.error.message); return; }
+ const q2=await _supabase.from('avaliacao_diaria_dias').delete().eq('data',avdState.data).eq('categoria',avdState.cat);
+ if(q2.error){ alert('Não excluiu o dia.\n'+q2.error.message); return; }
+ avdState.anotacao='';
+ const notas={}; avdAtletas().forEach(a=>notas[avdChaveId(a.id)]=3); avdState.notas=notas;
+ await avdListarDias(); avdRender();
+ alert('Dia excluído.');
+}
+function avdAbrirExtra(){
+ if(!avdState.cat){ alert('Selecione uma categoria.'); return; }
+ const todos=(typeof trabalhoTodosAtletas==='function'?trabalhoTodosAtletas():[]);
+ const ja=new Set(avdAtletas().map(a=>avdChaveId(a.id)));
+ const opts=todos.filter(a=>!ja.has(avdChaveId(a.id))).slice(0,400).map(a=>{
+  const n=avdEsc(a.id.apelido||a.id.nomeCompleto); const k=avdEsc(avdChaveId(a.id));
+  return '<option value="'+k+'">'+n+' ('+avdEsc(a.id.ano)+')</option>';
+ }).join('');
+ let box=document.getElementById('avd-extra-box');
+ if(!box){ box=document.createElement('div'); box.id='avd-extra-box'; box.className='avd-extra-modal'; document.body.appendChild(box); }
+ box.innerHTML='<div class="avd-extra-card"><h3>Atleta extra</h3><p>Entra só nesta categoria.</p><select id="avd-extra-sel" size="10">'+opts+'</select><div class="avd-extra-actions"><button type="button" onclick="avdConfirmarExtra()">Adicionar</button><button type="button" onclick="document.getElementById(\'avd-extra-box\').remove()">Fechar</button></div></div>';
+ box.style.display='flex';
+}
+function avdConfirmarExtra(){
+ if(!avdState.cat) return;
+ const sel=document.getElementById('avd-extra-sel'); if(!sel||!sel.value) return;
+ const todos=trabalhoTodosAtletas();
+ const item=todos.find(a=>avdChaveId(a.id)===sel.value);
+ if(!item) return;
+ const k=avdChaveId(item.id);
+ const row={ categoria:avdState.cat, atleta_key:k, nome_completo:item.id.nomeCompleto||'', nascimento:item.id.nascimento||'', ano:item.id.ano||'', apelido:item.id.apelido||'' };
+ _supabase.from('avaliacao_diaria_extras').upsert(row,{ onConflict:'categoria,atleta_key' }).then(({error})=>{
+  if(error){ alert('Não salvou o extra. Crie a tabela no Supabase.\n'+error.message); return; }
+  if(!avdState.extras[avdState.cat]) avdState.extras[avdState.cat]=[];
+  avdState.extras[avdState.cat].push({nomeCompleto:item.id.nomeCompleto,nascimento:item.id.nascimento,ano:item.id.ano,apelido:item.id.apelido,atleta_key:k});
+  if(avdState.notas[k]===undefined) avdState.notas[k]=3;
+  document.getElementById('avd-extra-box')?.remove();
+  avdRender();
+ });
+}
+async function avdRemoverExtra(k){
+ if(!avdState.cat||!k) return;
+ const {error}=await _supabase.from('avaliacao_diaria_extras').delete().eq('categoria',avdState.cat).eq('atleta_key',k);
+ if(error){ alert('Não retirou o extra.\n'+error.message); return; }
+ avdState.extras[avdState.cat]=(avdState.extras[avdState.cat]||[]).filter(ex=>{
+  const kk=ex.atleta_key||avdChaveId({nomeCompleto:ex.nomeCompleto||ex.nome,nascimento:ex.nascimento});
+  return kk!==k;
+ });
+ avdRender();
+}
+function avdRelatorio(){
+ if(!avdState.cat){ alert('Selecione uma categoria.'); return; }
+ const ta=document.getElementById('avd-anotacao'); if(ta) avdState.anotacao=ta.value||'';
+ const cat=avdCats()[avdState.cat];
+ const atletas=avdAtletas();
+ const rows=atletas.map(a=>{
+  const n=avdNota(avdChaveId(a.id));
+  const lab=n===0?'Falta':String(n);
+  return '<tr><td>'+avdEsc(a.id.apelido||a.id.nomeCompleto)+'</td><td>'+avdEsc(a.id.ano||'')+'</td><td>'+lab+'</td></tr>';
+ }).join('');
+ const w=window.open('','avdprint','width=900,height=700');
+ w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Avaliação Diária</title><style>body{font-family:Arial,sans-serif;margin:16px;color:#111}h2{color:#58111a;text-align:center}table{width:100%;border-collapse:collapse}th{background:#58111a;color:#f9c614}th,td{border:1px solid #999;padding:8px;text-align:center}td:first-child{text-align:left}pre{white-space:pre-wrap;border:1px solid #ddd;padding:10px;background:#faf7f0}</style></head><body><h2>Avaliação Diária — '+avdEsc(cat?.label||'')+' — '+avdBR(avdState.data)+'</h2><p><b>F</b> falta · <b>1–2</b> fraco · <b>3</b> médio · <b>4–5</b> bom</p><table><thead><tr><th>Atleta</th><th>Ano</th><th>Nota</th></tr></thead><tbody>'+rows+'</tbody></table><h3>Objetivos e informações</h3><pre>'+avdEsc(avdState.anotacao||'—')+'</pre><script>window.onload=()=>setTimeout(()=>window.print(),300)<\\/script></body></html>');
+ w.document.close();
+}
+
 /* === CAMADA MOBILE: exportação e ajustes de interface sem alterar desktop === */
 function prosolIsMobile(){
  return (window.matchMedia&&window.matchMedia('(max-width: 900px)').matches)||/Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent||'');
@@ -9756,6 +9966,7 @@ function modernV3EnsureMenu(){
    <button class="nav-btn" onclick="modernV3Action('planejamento',event)"><span class="mv3-ico">🗓️</span><span>Planejamento Semanal</span></button>
    <button class="nav-btn" onclick="modernV3Action('psr',event)"><span class="mv3-ico">💚</span><span>PSR</span></button>
    <button class="nav-btn" onclick="modernV3Action('pse',event)"><span class="mv3-ico">🔥</span><span>PSE</span></button>
+   <button class="nav-btn" onclick="modernV3Action('avaliacao-diaria',event)"><span class="mv3-ico">✅</span><span>Avaliação Diária</span></button>
    <button class="nav-btn" onclick="modernV3Action('goleiros',event)"><span class="mv3-ico">🧤</span><span>Goleiros</span></button>
    <button class="nav-btn" data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><span class="mv3-ico">🩺</span><span>Preparação Física</span></button>
    <button class="nav-btn" onclick="modernV3Action('monitoramento-carga',event)"><span class="mv3-ico">📈</span><span>Monitoramento de Carga</span></button>
@@ -9833,6 +10044,7 @@ function modernV3Action(action,event){
   if(action==='planejamento'){openPlanejamentoSemanalModal();return;}
   if(action==='psr'){openRelatorioPsrPse('psr');return;}
   if(action==='pse'){openRelatorioPsrPse('pse');return;}
+  if(action==='avaliacao-diaria'){openAvaliacaoDiaria();return;}
   if(action==='goleiros'){openGoleirosTecnicoModal();return;}
   if(action==='preparacao-fisica'){openPreparacaoFisicaQueixasModal();return;}
   if(action==='monitoramento-carga'){openMonitoramentoCargaModal();return;}
@@ -9844,7 +10056,7 @@ function modernV3BuildHome(){
  home.dataset.modernV3Home='1';
  home.innerHTML=`<div class="modern-v3-dashboard">
   <section class="modern-v3-hero">
-   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button><button onclick="modernV3Action('goleiros',event)"><i>🧤</i><strong>Goleiros</strong></button><button data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><i>🩺</i><strong>Preparação Física</strong></button><button onclick="modernV3Action('monitoramento-carga',event)"><i>📈</i><strong>Monitoramento</strong></button></div></div>
+   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button><button onclick="modernV3Action('avaliacao-diaria',event)"><i>✅</i><strong>Avaliação Diária</strong></button><button onclick="modernV3Action('goleiros',event)"><i>🧤</i><strong>Goleiros</strong></button><button data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><i>🩺</i><strong>Preparação Física</strong></button><button onclick="modernV3Action('monitoramento-carga',event)"><i>📈</i><strong>Monitoramento</strong></button></div></div>
    <img src="logo.png" alt="CFA Prosol">
   </section>
   <h3 class="modern-v3-block-title">Módulos principais</h3>
