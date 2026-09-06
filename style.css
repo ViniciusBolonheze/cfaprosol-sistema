@@ -2588,6 +2588,27 @@ body {
  .tp-ctx.tp-ctx-mob button{padding:14px 12px;font-size:16px;}
 }
 
+
+.tp-head .tp-proj{background:#6c3483;color:#fff;}
+.tp-proj-box{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,92vw);background:#1c2128;color:#fff;border:2px solid #f9c614;border-radius:14px;padding:16px;z-index:100011;box-shadow:0 16px 40px #000a;}
+.tp-proj-box b{display:block;color:#f9c614;margin-bottom:12px;font-size:16px;}
+.tp-proj-box>button{display:block;width:100%;margin:0 0 8px;border:0;border-radius:8px;padding:12px;font-weight:900;cursor:pointer;font-size:14px;}
+.tp-proj-save{background:#27ae60;color:#fff;}
+.tp-proj-load{background:#0984e3;color:#fff;}
+.tp-proj-cancel{background:#6c757d;color:#fff;}
+.tp-proj-help{font-size:12px;color:#ccc;margin:0 0 10px;line-height:1.35;}
+#tp-proj-nome{width:100%;box-sizing:border-box;margin:8px 0;padding:10px;border-radius:8px;border:1px solid #f9c614;background:#111;color:#fff;font-weight:800;}
+.tp-proj-item{cursor:pointer;}
+.tp-proj-item:hover{outline:1px solid #f9c614;}
+.tp-proj-item{display:flex;gap:6px;align-items:center;background:#2a323c;border-radius:8px;padding:8px;margin-bottom:8px;}
+.tp-proj-item span{flex:1;font-weight:800;font-size:13px;}
+.tp-proj-item small{display:block;font-weight:600;color:#9aa;font-size:10px;}
+.tp-proj-item button{border:0;border-radius:6px;padding:8px 10px;font-weight:800;cursor:pointer;background:#f9c614;color:#111;}
+.tp-proj-item button.del{background:#c0392b;color:#fff;}
+@media(max-width:900px){
+ .tp-head .tp-proj{display:inline-block!important;min-height:42px;}
+}
+
 /* =========================================================
    CAMADA RESPONSIVA MOBILE/TABLET
    Desktop preservado: regras aplicadas apenas até 900px.

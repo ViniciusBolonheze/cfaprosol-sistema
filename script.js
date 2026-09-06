@@ -5498,6 +5498,7 @@ function renderPranchetaVirtual(){
    <button type="button" onclick="clearPrancheta()">Limpar campo</button>
    <button type="button" class="tp-save" onclick="tpSalvarTela()">Salvar tela</button>
    <button type="button" class="tp-export" onclick="tpExportarVideo()">Exportar vídeo</button>
+   <button type="button" class="tp-proj" onclick="tpAbrirProjetos()">Projetos</button>
    <button type="button" class="mini-close" onclick="closePranchetaModal()">Fechar</button>
   </header>
   <div class="tp-mob-actions">
@@ -8601,6 +8602,89 @@ async function tpExportarVideo(){
   return;
  }
  await tpEntregarVideo(blob);
+}
+
+
+function tpFecharProjUI(){
+ ['tp-proj-menu','tp-proj-lista','tp-proj-bg'].forEach(id=>{ const n=document.getElementById(id); if(n)n.remove(); });
+}
+function tpAbrirProjetos(){
+ tpFecharProjUI();
+ const bg=document.createElement('div'); bg.id='tp-proj-bg'; bg.className='tp-add-bg'; bg.onclick=tpFecharProjUI;
+ const box=document.createElement('div'); box.id='tp-proj-menu'; box.className='tp-proj-box';
+ box.innerHTML='<b>Projetos da prancheta</b><button type="button" class="tp-proj-save" onclick="tpSalvarProjeto()">Salvar</button><button type="button" class="tp-proj-load" onclick="tpListarProjetos()">Carregar</button><button type="button" class="tp-proj-cancel" onclick="tpFecharProjUI()">Fechar</button>';
+ document.body.appendChild(bg); document.body.appendChild(box);
+ bg.style.zIndex='100010'; box.style.zIndex='100011';
+}
+function tpDadosProjeto(){
+ const sel=document.getElementById('mini-tactical-system');
+ return { sistema: sel?sel.value:'4-3-3', pieces: tpState.pieces, frames: tpState.frames };
+}
+function tpEscNome(n){ return String(n||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+async function tpGravarProjetoNome(nome, substituir){
+ nome=String(nome||'').trim();
+ if(!nome){ alert('Digite um nome para o projeto.'); return; }
+ if(!tpState.frames.length){
+  if(!confirm('Não há telas salvas. Salvar só o campo atual?')) return;
+ }
+ if(substituir && !confirm('Substituir o projeto "'+nome+'"?')) return;
+ const payload={ nome, dados: tpDadosProjeto(), atualizado: new Date().toISOString() };
+ const {error}=await _supabase.from('prancheta_projetos').upsert(payload,{ onConflict:'nome' });
+ if(error){ alert('Não salvou.\n'+error.message); return; }
+ tpFecharProjUI();
+ alert(substituir ? ('Projeto "'+nome+'" substituído.') : ('Projeto "'+nome+'" salvo.'));
+}
+async function tpSalvarProjeto(){
+ const {data,error}=await _supabase.from('prancheta_projetos').select('nome,atualizado').order('atualizado',{ascending:false});
+ if(error){ alert('Não abriu a lista. Confira a tabela no Supabase.\n'+error.message); return; }
+ const menu=document.getElementById('tp-proj-menu'); if(menu) menu.remove();
+ let box=document.getElementById('tp-proj-lista');
+ if(!box){ box=document.createElement('div'); box.id='tp-proj-lista'; box.className='tp-proj-box tp-proj-lista'; document.body.appendChild(box); }
+ box.style.zIndex='100011';
+ const lista=(data&&data.length)?data.map(p=>{
+  const n=tpEscNome(p.nome);
+  const d=p.atualizado?new Date(p.atualizado).toLocaleString('pt-BR'):'';
+  return '<div class="tp-proj-item" data-nome="'+n+'"><span>'+n+'<small>'+d+' · toque para substituir</small></span></div>';
+ }).join(''):'<p class="tp-hint" style="display:block;color:#9aa">Nenhum projeto ainda. Digite um nome abaixo.</p>';
+ box.innerHTML='<b>Salvar projeto</b><p class="tp-proj-help">Clique em um nome para substituir, ou digite um nome novo.</p>'+lista+'<input id="tp-proj-nome" type="text" maxlength="80" placeholder="Nome do projeto novo">'+'<button type="button" class="tp-proj-save" id="tp-proj-salvar-novo">Salvar como novo</button><button type="button" class="tp-proj-cancel" onclick="tpFecharProjUI()">Fechar</button>';
+ box.querySelectorAll('.tp-proj-item').forEach(el=>{
+  el.onclick=function(){ tpGravarProjetoNome(el.getAttribute('data-nome'), true); };
+ });
+ const inp=document.getElementById('tp-proj-nome');
+ document.getElementById('tp-proj-salvar-novo').onclick=function(){ tpGravarProjetoNome(inp&&inp.value, false); };
+ if(inp) inp.focus();
+}
+async function tpListarProjetos(){
+ const {data,error}=await _supabase.from('prancheta_projetos').select('nome,atualizado').order('atualizado',{ascending:false});
+ if(error){ alert('Erro ao listar. Confira a tabela no Supabase.\n'+error.message); return; }
+ if(!data||!data.length){ alert('Nenhum projeto salvo.'); return; }
+ let box=document.getElementById('tp-proj-lista');
+ if(!box){ box=document.createElement('div'); box.id='tp-proj-lista'; box.className='tp-proj-box tp-proj-lista'; document.body.appendChild(box); }
+ const menu=document.getElementById('tp-proj-menu'); if(menu) menu.remove();
+ box.style.zIndex='100011';
+ box.innerHTML='<b>Carregar projeto</b>'+data.map(p=>{
+  const n=String(p.nome).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const d=p.atualizado?new Date(p.atualizado).toLocaleString('pt-BR'):'';
+  return '<div class="tp-proj-item"><span>'+n+'<small>'+d+'</small></span><button type="button" onclick="tpCarregarProjeto(\''+n.replace(/'/g,"\\'")+'\')">Abrir</button><button type="button" class="del" onclick="tpApagarProjeto(\''+n.replace(/'/g,"\\'")+'\')">×</button></div>';
+ }).join('')+'<button type="button" class="tp-proj-cancel" onclick="tpFecharProjUI()">Fechar</button>';
+}
+async function tpCarregarProjeto(nome){
+ const {data,error}=await _supabase.from('prancheta_projetos').select('dados').eq('nome',nome).single();
+ if(error||!data){ alert('Não carregou o projeto.'); return; }
+ const d=data.dados||{};
+ tpState.pieces=Array.isArray(d.pieces)?d.pieces:[];
+ tpState.frames=Array.isArray(d.frames)?d.frames:[];
+ tpState.sel=null;
+ const sel=document.getElementById('mini-tactical-system');
+ if(sel && d.sistema) sel.value=d.sistema;
+ tpRenderPieces(); tpRenderFrames();
+ tpFecharProjUI();
+}
+async function tpApagarProjeto(nome){
+ if(!confirm('Apagar o projeto "'+nome+'"?')) return;
+ const {error}=await _supabase.from('prancheta_projetos').delete().eq('nome',nome);
+ if(error){ alert('Não apagou.\n'+error.message); return; }
+ tpListarProjetos();
 }
 
 /* === CAMADA MOBILE: exportação e ajustes de interface sem alterar desktop === */
