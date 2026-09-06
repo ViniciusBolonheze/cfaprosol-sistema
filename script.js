@@ -1,5 +1,6 @@
 const SUPABASE_URL = 'https://jrudgjopfxfyyhnvgidz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_VScGEvhYLgQSDGll2IQIsw_bsTQXRCO';
+const PROSOL_ACADEMY_URL = 'https://viniciusbolonheze.github.io/prosol-acadedmy/';
 
 function criarSupabaseIndisponivel() {
     const erro = { message: 'Biblioteca Supabase não carregada. Verifique a conexão com a internet.' };
@@ -9953,6 +9954,7 @@ function modernV3EnsureMenu(){
    <button class="nav-btn" onclick="modernV3Navigate('convocacao',event)"><span class="mv3-ico">📋</span><span>Convocação</span></button>
    <button class="nav-btn" onclick="modernV3Navigate('jogos',event)"><span class="mv3-ico">⚽</span><span>Jogos</span></button>
    <button class="nav-btn" onclick="modernV3Navigate('prancheta',event)"><span class="mv3-ico">📐</span><span>Prancheta Virtual</span></button>
+   <button class="nav-btn" onclick="modernV3Action('prosol-academy',event)"><img class="mv3-academy-logo" src="logo_academy.png" alt=""> <span>Prosol Academy</span></button>
   </div>
   <button class="modern-v3-group-title" onclick="modernV3ToggleGroup('mv3-performance')"><span>Performance</span><b>▾</b></button>
   <div class="modern-v3-group" id="mv3-performance">
@@ -10032,11 +10034,15 @@ function modernV3VoltarInicio(){
  document.querySelector('#main-nav .modern-v3-home')?.classList.add('active');
  const main=document.querySelector('.main-content');if(main)main.scrollTo(0,0);
 }
+function abrirProsolAcademy(){
+ window.open(PROSOL_ACADEMY_URL,'_blank','noopener');
+}
 function modernV3Action(action,event){
  if(typeof limparSelecaoAtletaCadastro==='function') limparSelecaoAtletaCadastro(false); else esconderTooltipAtletaCadastro();
  document.body.classList.add('app-v3-mode');modernV3EnsureMenu();modernV3SetActive(event&&event.currentTarget);
  try{
   if(action==='fotos'){modernV3AutoSidebar('fotos');openFotosModal();return;}
+  if(action==='prosol-academy'){abrirProsolAcademy();return;}
   modernV3PrepareHome();
   modernV3AutoSidebar(action);
   if(action==='relatorio-fisico'){openRelatoriosModal();return;}
@@ -10067,6 +10073,7 @@ function modernV3BuildHome(){
    <button onclick="modernV3Navigate('testes',event)"><i>🏃</i><strong>Testes físicos</strong><small>Avaliações físicas, dados e grupos.</small></button>
    <button onclick="modernV3Action('fotos',event)"><i>📸</i><strong>Fotos</strong><small>Galeria e fotos dos atletas.</small></button>
    <button onclick="modernV3Navigate('prancheta',event)"><i>📐</i><strong>Prancheta</strong><small>Organização tática virtual.</small></button>
+   <button class="mv3-academy-card" onclick="modernV3Action('prosol-academy',event)"><i class="mv3-academy-ico"><img src="logo_academy.png" alt=""></i><strong>Prosol Academy</strong><small>Academy - Atletas e chamadas</small></button>
   </div>
  </div>`;
  renderIndicadorPreparacaoFisica();

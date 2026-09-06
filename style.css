@@ -4833,3 +4833,7 @@ html body .jogos-salvos-card .jogo-salvo-acoes button em{display:none!important;
  .avd-row{flex-direction:column;align-items:flex-start;}
  .avd-notas button{width:40px;height:40px;}
 }
+
+img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px;flex-shrink:0;}
+.modern-v3-grid i.mv3-academy-ico{padding:0;overflow:hidden;}
+.modern-v3-grid i.mv3-academy-ico img{width:44px;height:44px;object-fit:contain;display:block;}
