@@ -5500,10 +5500,15 @@ function renderPranchetaVirtual(){
    <button type="button" class="tp-export" onclick="tpExportarVideo()">Exportar vídeo</button>
    <button type="button" class="mini-close" onclick="closePranchetaModal()">Fechar</button>
   </header>
+  <div class="tp-mob-actions">
+    <button type="button" class="tp-add-els" onclick="tpToggleAddPop(event)">＋ Elementos</button>
+    <button type="button" class="tp-save" onclick="tpSalvarTela()">Salvar tela</button>
+    <button type="button" class="tp-export" onclick="tpExportarVideo()">Vídeo</button>
+    <button type="button" onclick="tpToggleTelasMob()">Telas</button>
+  </div>
   <div class="tp-body">
    <aside class="tp-tools">
     <b>Peças</b>
-    <button type="button" class="tp-add-els" onclick="tpToggleAddPop(event)">+ Adicionar elementos</button>
     <div id="tp-add-pop" class="tp-add-pop">
     <button type="button" class="tp-tool home" onclick="tpAdd('home')">+ Jogador casa</button>
     <button type="button" class="tp-tool away" onclick="tpAdd('away')">+ Jogador fora</button>
@@ -5516,15 +5521,13 @@ function renderPranchetaVirtual(){
     <button type="button" class="tp-tool square" onclick="tpAdd('square')">+ Quadrado</button>
     <button type="button" class="tp-tool circle" onclick="tpAdd('circle')">+ Círculo</button>
     </div>
-    <button type="button" class="tp-tool trashmove" id="tp-trash-mover-btn" onclick="tpTrashModoMover()">↔ Mover lixeira</button>
-    <p class="tp-hint">Duplo clique no jogador para número. Arraste para a lixeira para tirar. Cone e trave: arraste as bolinhas para girar e redimensionar.</p>
+    <p class="tp-hint">Duplo clique no jogador para número. Botão direito: frente, trás, girar ou excluir. Bolinhas: girar e redimensionar.</p>
    </aside>
    <div class="tp-field-col">
     <div class="mini-board-area tp-field-wrap">
      <div id="mini-football-board">
       <img id="tp-field-bg" class="tp-field-bg" src="base_prancheta.png" alt="" draggable="false">
       <div id="mini-board-players"></div>
-      <div id="tp-trash" class="tp-trash">🗑 Lixeira<br><small>solte aqui para tirar</small></div>
      </div>
     </div>
    </div>
@@ -5540,7 +5543,6 @@ function renderPranchetaVirtual(){
  if(!tpState.pieces.length) resetPrancheta();
  else tpRenderPieces();
  tpRenderFrames();
- tpTrashAplicarPosicao();
  const board=document.getElementById('mini-football-board');
  if(board && !board.__tpClickInit){
   board.__tpClickInit=true;
@@ -5695,15 +5697,24 @@ function tpPointerDown(e,p,el){
  el.setPointerCapture?.(e.pointerId);
  const br=tpBoardRect(); if(!br)return;
  const start={x:e.clientX,y:e.clientY,px:p.x,py:p.y,pw:p.w,ph:p.h,pr:p.rot};
- const trash=document.getElementById('tp-trash');
+ let dragging=false;
+ let hold=null;
+ if(mode==='move'){
+  hold=setTimeout(function(){
+   if(dragging)return;
+   tpShowCtx({clientX:start.x,clientY:start.y},p);
+  },550);
+ }
  function move(ev){
+  const adx=ev.clientX-start.x, ady=ev.clientY-start.y;
+  if(!dragging && (adx*adx+ady*ady)>64){ dragging=true; if(hold){clearTimeout(hold);hold=null;} }
+  if(!dragging && mode==='move') return;
   const dx=((ev.clientX-start.x)/br.width)*100;
   const dy=((ev.clientY-start.y)/br.height)*100;
   if(mode==='move'){
    p.x=Math.max(-2,Math.min(102,start.px+dx));
    p.y=Math.max(-2,Math.min(102,start.py+dy));
    el.style.left=p.x+'%'; el.style.top=p.y+'%';
-   if(trash) trash.classList.toggle('hot', tpOverTrash(ev,trash));
   } else if(mode==='len'){
    p.w=Math.max(6,Math.min(50,start.pw+dx));
    el.style.width=p.w+'%';
@@ -5721,14 +5732,10 @@ function tpPointerDown(e,p,el){
   }
  }
  function up(ev){
+  if(hold){clearTimeout(hold);hold=null;}
   el.releasePointerCapture?.(ev.pointerId);
   el.removeEventListener('pointermove',move);
   el.removeEventListener('pointerup',up);
-  if(mode==='move'&&trash){
-   const over=tpOverTrash(ev,trash);
-   trash.classList.remove('hot');
-   if(over){ tpState.pieces=tpState.pieces.filter(x=>x.id!==p.id); tpState.sel=null; tpRenderPieces(); }
-  }
  }
  el.addEventListener('pointermove',move);
  el.addEventListener('pointerup',up);
@@ -5773,7 +5780,6 @@ function tpTrashAplicarPosicao(){
 }
 function tpTrashModoMover(){
  tpTrashMoveMode=!tpTrashMoveMode;
- tpTrashAplicarPosicao();
  const t=document.getElementById('tp-trash');
  if(!t||t.__dragInit)return;
  t.__dragInit=true;
@@ -5790,8 +5796,7 @@ function tpTrashModoMover(){
    const nx=cx+((ev.clientX-start.x)/br.width)*100;
    const ny=cy+((ev.clientY-start.y)/br.height)*100;
    tpTrashPos={x:Math.max(0,Math.min(100,nx)),y:Math.max(0,Math.min(100,ny))};
-   tpTrashAplicarPosicao();
-  }
+    }
   function up(ev){
    try{t.releasePointerCapture&&t.releasePointerCapture(ev.pointerId);}catch(e2){}
    t.removeEventListener('pointermove',mv);
@@ -5815,11 +5820,28 @@ function tpShowCtx(e,p){
    tpHideCtx();
   });
  }
- m.innerHTML='<button type="button" onclick="tpCamada(1)">Enviar para frente</button><button type="button" onclick="tpCamada(-1)">Enviar para trás</button><button type="button" onclick="tpGirar45()">Rotacionar 45°</button>';
+ m.innerHTML='<button type="button" onclick="tpCamada(1)">Enviar para frente</button><button type="button" onclick="tpCamada(-1)">Enviar para trás</button><button type="button" onclick="tpGirar45()">Rotacionar 45°</button><button type="button" class="tp-ctx-del" onclick="tpExcluirPeca()">Excluir</button>';
  m.style.display='block';
- m.style.left=Math.min(e.clientX, window.innerWidth-200)+'px';
- m.style.top=Math.min(e.clientY, window.innerHeight-140)+'px';
+ m.classList.toggle('tp-ctx-mob', !!(window.matchMedia&&window.matchMedia('(max-width:900px)').matches));
+ if(m.classList.contains('tp-ctx-mob')){
+  m.style.left=''; m.style.top='';
+ }else{
+  m.style.left=Math.min(e.clientX, window.innerWidth-200)+'px';
+  m.style.top=Math.min(e.clientY, window.innerHeight-180)+'px';
+ }
  m.dataset.id=p.id;
+}
+function tpExcluirPeca(){
+ const item=tpPecaDoMenu();
+ if(!item)return;
+ tpState.pieces=tpState.pieces.filter(x=>x.id!==item.id);
+ tpState.sel=null;
+ tpHideCtx();
+ tpRenderPieces();
+}
+function tpToggleTelasMob(){
+ const f=document.querySelector('.tp-frames');
+ if(f) f.classList.toggle('open');
 }
 function tpPecaDoMenu(){
  const m=document.getElementById('tp-ctx');
