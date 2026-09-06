@@ -5502,9 +5502,9 @@ function renderPranchetaVirtual(){
   </header>
   <div class="tp-mob-actions">
     <button type="button" class="tp-add-els" onclick="tpToggleAddPop(event)">＋ Elementos</button>
+    <button type="button" id="tp-telas-btn" onclick="tpToggleTelasMob()">Telas (0)</button>
     <button type="button" class="tp-save" onclick="tpSalvarTela()">Salvar tela</button>
     <button type="button" class="tp-export" onclick="tpExportarVideo()">Vídeo</button>
-    <button type="button" onclick="tpToggleTelasMob()">Telas</button>
   </div>
   <div class="tp-body">
    <aside class="tp-tools">
@@ -5556,18 +5556,27 @@ function tpToggleAddPop(e){
  if(e){ e.preventDefault(); e.stopPropagation(); }
  const p=document.getElementById('tp-add-pop');
  if(!p)return;
- const on=p.classList.toggle('open');
- if(on){
-  const bg=document.getElementById('tp-add-bg')||document.createElement('div');
+ if(p.classList.contains('open')){ tpFecharAddPop(); return; }
+ p.classList.add('open');
+ document.body.appendChild(p);
+ p.style.zIndex='100002';
+ p.style.pointerEvents='auto';
+ let bg=document.getElementById('tp-add-bg');
+ if(!bg){
+  bg=document.createElement('div');
   bg.id='tp-add-bg'; bg.className='tp-add-bg';
   bg.onclick=tpFecharAddPop;
-  if(!bg.parentNode) document.body.appendChild(bg);
  }
- else tpFecharAddPop();
+ document.body.appendChild(bg);
+ bg.style.zIndex='100001';
 }
 function tpFecharAddPop(){
  const p=document.getElementById('tp-add-pop');
- if(p) p.classList.remove('open');
+ if(p){
+  p.classList.remove('open');
+  const tools=document.querySelector('.tp-tools');
+  if(tools) tools.appendChild(p);
+ }
  const bg=document.getElementById('tp-add-bg');
  if(bg) bg.remove();
 }
@@ -5757,6 +5766,8 @@ function tpRenderFrames(){
  const list=document.getElementById('tp-frame-list');
  const cnt=document.getElementById('tp-frame-count');
  if(cnt)cnt.textContent=String(tpState.frames.length);
+ const tb=document.getElementById('tp-telas-btn');
+ if(tb) tb.textContent='Telas ('+tpState.frames.length+')';
  if(!list)return;
  list.innerHTML=tpState.frames.map((f,i)=>`<div class="tp-thumb"><span>Tela ${i+1}</span><button type="button" onclick="tpCarregarFrame(${i})">Abrir</button><button type="button" class="del" onclick="tpApagarFrame(${i})">×</button></div>`).join('')||'<em>Nenhuma tela salva</em>';
 }
@@ -5841,7 +5852,30 @@ function tpExcluirPeca(){
 }
 function tpToggleTelasMob(){
  const f=document.querySelector('.tp-frames');
- if(f) f.classList.toggle('open');
+ if(!f)return;
+ if(f.classList.contains('open')){
+  f.classList.remove('open');
+  const bg=document.getElementById('tp-telas-bg');
+  if(bg) bg.remove();
+  return;
+ }
+ f.classList.add('open');
+ document.body.appendChild(f);
+ f.style.zIndex='100002';
+ f.style.pointerEvents='auto';
+ let bg=document.getElementById('tp-telas-bg');
+ if(!bg){
+  bg=document.createElement('div');
+  bg.id='tp-telas-bg'; bg.className='tp-add-bg';
+  bg.onclick=function(){
+   f.classList.remove('open');
+   const body=document.querySelector('.tp-body');
+   if(body) body.appendChild(f);
+   bg.remove();
+  };
+ }
+ document.body.appendChild(bg);
+ bg.style.zIndex='100001';
 }
 function tpPecaDoMenu(){
  const m=document.getElementById('tp-ctx');
