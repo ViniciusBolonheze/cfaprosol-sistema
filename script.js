@@ -3940,7 +3940,7 @@ function openRelatoriosMenuModal(){
  document.getElementById('home-screen')?.classList.add('active-screen');
  let m=document.getElementById('relatorios-menu-modal');
  if(!m){m=document.createElement('div');m.id='relatorios-menu-modal';m.className='relatorios-menu-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeRelatoriosMenuModal();});}
- m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button><button onclick="closeRelatoriosMenuModal();openAvaliacaoDiaria();"><i class="fa-solid fa-clipboard-check"></i><span>Avaliação Diária</span><small>Notas 1 a 5 por treino</small></button><button onclick="closeRelatoriosMenuModal();openGoleirosTecnicoModal();"><i class="fa-solid fa-shield-halved"></i><span>Goleiros</span><small>Informações técnicas</small></button><button data-prep-alert="1" onclick="closeRelatoriosMenuModal();openPreparacaoFisicaQueixasModal();"><i class="fa-solid fa-notes-medical"></i><span>Preparação Física</span><small>Queixas dos atletas</small></button><button onclick="closeRelatoriosMenuModal();openMonitoramentoCargaModal();"><i class="fa-solid fa-gauge-high"></i><span>Monitoramento de Carga</span><small>PSR/PSE automático</small></button></div></div>`;
+ m.innerHTML=`<div class="relatorios-menu-card"><button class="relatorios-menu-close" onclick="closeRelatoriosMenuModal()">×</button><h2>Relatórios</h2><p>Escolha o tipo de relatório que deseja abrir.</p><div class="relatorios-menu-options"><button onclick="closeRelatoriosMenuModal();openRelatoriosModal();"><i class="fa-solid fa-chart-line"></i><span>Relatório Físico</span><small>Abrir relatório físico atual</small></button><button onclick="closeRelatoriosMenuModal();openTrabalhoDiarioModal();"><i class="fa-solid fa-file-pdf"></i><span>Trabalho Diário</span><small>Enviar PDF diário por categoria</small></button><button onclick="closeRelatoriosMenuModal();openPlanejamentoSemanalModal();"><i class="fa-solid fa-calendar-week"></i><span>Planejamento Semanal</span><small>Enviar PDF semanal por categoria</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('psr');"><i class="fa-solid fa-heart-pulse"></i><span>PSR</span><small>Relatório de recuperação</small></button><button onclick="closeRelatoriosMenuModal();openRelatorioPsrPse('pse');"><i class="fa-solid fa-person-running"></i><span>PSE</span><small>Relatório de esforço</small></button><button onclick="closeRelatoriosMenuModal();openAvaliacaoDiaria();"><i class="fa-solid fa-clipboard-check"></i><span>Avaliação Diária</span><small>Notas 1 a 5 por treino</small></button><button onclick="closeRelatoriosMenuModal();openGoleirosTecnicoModal();"><i class="fa-solid fa-shield-halved"></i><span>Goleiros</span><small>Informações técnicas</small></button><button data-prep-alert="1" onclick="closeRelatoriosMenuModal();openPreparacaoFisicaQueixasModal();"><i class="fa-solid fa-notes-medical"></i><span>Preparação Física</span><small>Queixas dos atletas</small></button><button onclick="closeRelatoriosMenuModal();openMonitoramentoCargaModal();"><i class="fa-solid fa-gauge-high"></i><span>Monitoramento de Carga</span><small>PSR/PSE automático</small></button><button onclick="closeRelatoriosMenuModal();openCalendarioTreino();"><i class="fa-solid fa-calendar-days"></i><span>Calendário de treinos</span><small>Dias sem PSR/PSE</small></button></div></div>`;
  m.style.display='flex';
  renderIndicadorPreparacaoFisica();
  atualizarIndicadorPreparacaoFisica();
@@ -4803,6 +4803,118 @@ async function limparRespostaPreparacaoFisica(){
 
 
 /* === MONITORAMENTO DE CARGA - PSR/PSE === */
+
+/* === CALENDÁRIO DE TREINOS (exceções; padrão no código) === */
+const CAL_TREINO_CATS=[{id:'sub11',label:'Sub 11'},{id:'sub12',label:'Sub 12'},{id:'sub13',label:'Sub 13'},{id:'sub16',label:'Sub 16'}];
+let calTreinoState={ano:0,mes:0,sel:'',lista:[],carregando:false};
+
+function calTreinoISO(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function calTreinoParse(iso){const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3]):new Date();}
+function calTreinoPadrao(cat,d){
+ const dia=d.getDay();
+ if(dia===0||dia===6) return false;
+ if(cat==='sub11') return dia===1||dia===3||dia===5;
+ return true;
+}
+function calTreinoExcecao(iso,cat){return (calTreinoState.lista||[]).find(r=>String(r.data).slice(0,10)===iso && r.categoria===cat);}
+function calTreinoTem(iso,cat){
+ const d=calTreinoParse(iso);
+ const ex=calTreinoExcecao(iso,cat);
+ if(ex) return !!ex.tem_treino;
+ return calTreinoPadrao(cat,d);
+}
+function openCalendarioTreino(){
+ const hoje=new Date();
+ calTreinoState.ano=hoje.getFullYear();
+ calTreinoState.mes=hoje.getMonth();
+ calTreinoState.sel=calTreinoISO(hoje);
+ let m=document.getElementById('calendario-treino-modal');
+ if(!m){
+  m=document.createElement('div');
+  m.id='calendario-treino-modal';
+  m.className='cal-treino-overlay';
+  document.body.appendChild(m);
+  m.addEventListener('click',e=>{if(e.target===m)closeCalendarioTreino();});
+ }
+ m.style.display='flex';
+ carregarCalendarioTreino();
+}
+function closeCalendarioTreino(){const m=document.getElementById('calendario-treino-modal'); if(m) m.style.display='none';}
+function calTreinoMes(delta){
+ const d=new Date(calTreinoState.ano, calTreinoState.mes+delta, 1);
+ calTreinoState.ano=d.getFullYear();
+ calTreinoState.mes=d.getMonth();
+ carregarCalendarioTreino();
+}
+function calTreinoSel(iso){ calTreinoState.sel=iso; renderCalendarioTreino(); }
+async function carregarCalendarioTreino(){
+ calTreinoState.carregando=true; renderCalendarioTreino();
+ const ini=new Date(calTreinoState.ano, calTreinoState.mes, 1);
+ const fim=new Date(calTreinoState.ano, calTreinoState.mes+1, 0);
+ try{
+  const {data,error}=await _supabase.from('dias_treino_excecao').select('data,categoria,tem_treino')
+   .gte('data', calTreinoISO(ini)).lte('data', calTreinoISO(fim));
+  if(error) throw error;
+  calTreinoState.lista=data||[];
+ }catch(e){ console.warn(e); calTreinoState.lista=[]; alert('Erro ao carregar o calendário. Rode o SQL da tabela dias_treino_excecao.'); }
+ calTreinoState.carregando=false; renderCalendarioTreino();
+}
+async function calTreinoToggle(cat, on){
+ const iso=calTreinoState.sel;
+ const d=calTreinoParse(iso);
+ const padrao=calTreinoPadrao(cat,d);
+ try{
+  if(!!on===padrao){
+   await _supabase.from('dias_treino_excecao').delete().eq('data',iso).eq('categoria',cat);
+   calTreinoState.lista=(calTreinoState.lista||[]).filter(r=>!(String(r.data).slice(0,10)===iso && r.categoria===cat));
+  }else{
+   const {error}=await _supabase.from('dias_treino_excecao').upsert({data:iso,categoria:cat,tem_treino:!!on,atualizado_em:new Date().toISOString()},{onConflict:'data,categoria'});
+   if(error) throw error;
+   const rest=(calTreinoState.lista||[]).filter(r=>!(String(r.data).slice(0,10)===iso && r.categoria===cat));
+   rest.push({data:iso,categoria:cat,tem_treino:!!on});
+   calTreinoState.lista=rest;
+  }
+ }catch(e){ console.warn(e); alert('Não foi possível salvar. Verifique a tabela dias_treino_excecao.'); }
+ renderCalendarioTreino();
+}
+function renderCalendarioTreino(){
+ const m=document.getElementById('calendario-treino-modal'); if(!m) return;
+ const ano=calTreinoState.ano, mes=calTreinoState.mes;
+ const titulo=new Date(ano,mes,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+ const first=new Date(ano,mes,1);
+ let start=first.getDay(); start=start===0?6:start-1;
+ const days=new Date(ano,mes+1,0).getDate();
+ const hoje=calTreinoISO(new Date());
+ const cells=[];
+ for(let i=0;i<start;i++) cells.push('<div class="cal-treino-empty"></div>');
+ for(let day=1;day<=days;day++){
+  const iso=calTreinoISO(new Date(ano,mes,day));
+  const d=new Date(ano,mes,day);
+  const weekend=d.getDay()===0||d.getDay()===6;
+  const nTreino=CAL_TREINO_CATS.filter(c=>calTreinoTem(iso,c.id)).length;
+  const sel=iso===calTreinoState.sel?' sel':'';
+  const isHoje=iso===hoje?' hoje':'';
+  cells.push(`<button type="button" class="cal-treino-day${sel}${isHoje}${weekend?' wk':''}${nTreino?' ok':''}" onclick="calTreinoSel('${iso}')"><b>${day}</b><i>${weekend?'':nTreino+'/4'}</i></button>`);
+ }
+ const selD=calTreinoParse(calTreinoState.sel);
+ const selLabel=selD.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+ const checks=CAL_TREINO_CATS.map(c=>{
+  const on=calTreinoTem(calTreinoState.sel,c.id);
+  const pad=calTreinoPadrao(c.id,selD);
+  const extra=on!==pad?' <em>alterado</em>':'';
+  return `<label class="${on?'on':''}"><input type="checkbox" ${on?'checked':''} onchange="calTreinoToggle('${c.id}',this.checked)"> ${c.label}${extra}</label>`;
+ }).join('');
+ m.innerHTML=`<div class="cal-treino-card">
+  <button class="cal-treino-close" onclick="closeCalendarioTreino()">×</button>
+  <h2>Calendário de treinos</h2>
+  <div class="cal-treino-nav"><button type="button" onclick="calTreinoMes(-1)">‹</button><strong>${titulo}</strong><button type="button" onclick="calTreinoMes(1)">›</button></div>
+  <div class="cal-treino-week"><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span><span>Dom</span></div>
+  <div class="cal-treino-grid">${cells.join('')}</div>
+  ${calTreinoState.carregando?'<p class="cal-treino-load">Carregando...</p>':''}
+  <div class="cal-treino-dia"><h3>${selLabel}</h3><div class="cal-treino-cats">${checks}</div></div>
+ </div>`;
+}
+
 const MONITORAMENTO_CARGA_VIEW = 'vw_monitoramento_carga_psr_pse';
 let monitorCargaState = { lista: [], carregando: false, data: '', ano: 'todos', zona: 'todas', busca: '', somenteAlertas: false, regraOuro: false };
 
@@ -4993,6 +5105,7 @@ function rppValorCampo(atleta,key,dataISO=relatorioPsrPseState.data){
  if(key==='estresse_mental')return obj.estresse_mental;
  if(key==='motivacao')return obj.motivacao;
  if(key.startsWith('dia:')){const dia=key.slice(4);return rppRespondido(rppRespostaAtletaData(atleta,dia))?1:0;}
+ if(key==='nota_psr'){return rppNotaPsrNum(rppRespostaAtletaData(atleta,dataISO));}
  if(key==='total'){return rppPeriodoAtual().dias.reduce((acc,d)=>acc+(rppRespondido(rppRespostaAtletaData(atleta,d))?1:0),0);}
  return '';
 }
@@ -5003,7 +5116,7 @@ function rppSortHeader(key,label){
 function rppCompareNome(a,b){return String(a.id.apelido||a.id.nomeCompleto||'').localeCompare(String(b.id.apelido||b.id.nomeCompleto||''),'pt-BR');}
 function rppOrdenarAtletas(atletas){
  const sort=relatorioPsrPseState.sort||{key:'nome',dir:'asc'};const key=sort.key;const dir=sort.dir==='desc'?-1:1;
- const numericKeys=['sono','fadiga','dor_muscular','estresse_mental','motivacao','pse_valor','respondeu','total'];
+ const numericKeys=['nota_psr','sono','fadiga','dor_muscular','estresse_mental','motivacao','pse_valor','respondeu','total'];
  return [...atletas].sort((a,b)=>{
   if(key==='nome')return dir*rppCompareNome(a,b);
   if(key==='ano'){const r=String(a.id.ano||'').localeCompare(String(b.id.ano||''),'pt-BR',{numeric:true});return r?dir*r:rppCompareNome(a,b);}
@@ -5029,12 +5142,21 @@ function rppValorHTML(valor){return (valor===undefined||valor===null||valor===''
 function rppVX(respondeu){return respondeu?'<span class="rpp-v">V</span>':'<span class="rpp-x">X</span>';}
 function rppRenderTabelaNotas(atletas){
  const tipo=relatorioPsrPseState.tipo;
+ let notaMedia=null;
+ if(tipo==='psr'){
+  const vals=[];
+  (atletas||[]).forEach(a=>{ const n=rppNotaPsrNum(rppRespostaAtletaData(a,relatorioPsrPseState.data)); if(n!==null) vals.push(n); });
+  if(vals.length) notaMedia=vals.reduce((s,v)=>s+v,0)/vals.length;
+ }
  const cols=tipo==='psr'
-  ? [{k:'nome',l:'Nome'},{k:'ano',l:'Ano'},{k:'sono',l:'Qualidade do sono'},{k:'fadiga',l:'Fadiga'},{k:'estresse_mental',l:'Estresse'},{k:'motivacao',l:'Motivação'},{k:'dor_muscular',l:'Dor Muscular'},{k:'descricao',l:'Descrição'}]
+  ? [{k:'nome',l:'Nome'},{k:'ano',l:'Ano'},{k:'nota_psr',l:'Nota ('+rppMediaBR(notaMedia)+')'},{k:'sono',l:'Qualidade do sono'},{k:'fadiga',l:'Fadiga'},{k:'estresse_mental',l:'Estresse'},{k:'motivacao',l:'Motivação'},{k:'dor_muscular',l:'Dor Muscular'},{k:'descricao',l:'Descrição'}]
   : [{k:'nome',l:'Nome'},{k:'ano',l:'Ano'},{k:'pse_valor',l:'PSE'},{k:'descricao',l:'Descrição'}];
  const rows=rppOrdenarAtletas(atletas).map(a=>{
   const row=rppRespostaAtletaData(a,relatorioPsrPseState.data);const obj=rppObjResposta(row,tipo);
-  if(tipo==='psr')return `<tr><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td><td>${rppValorHTML(obj.sono)}</td><td>${rppValorHTML(obj.fadiga)}</td><td>${rppValorHTML(obj.estresse_mental)}</td><td>${rppValorHTML(obj.motivacao)}</td><td>${rppValorHTML(obj.dor_muscular)}</td><td class="rpp-desc">${rppValorHTML(obj.dor_descricao)}</td></tr>`;
+  if(tipo==='psr'){
+   const nota=rppNotaPsrNum(row);
+   return `<tr><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td><td><strong>${nota==null?'—':rppMediaBR(nota)}</strong></td><td>${rppValorHTML(obj.sono)}</td><td>${rppValorHTML(obj.fadiga)}</td><td>${rppValorHTML(obj.estresse_mental)}</td><td>${rppValorHTML(obj.motivacao)}</td><td>${rppValorHTML(obj.dor_muscular)}</td><td class="rpp-desc">${rppValorHTML(obj.dor_descricao)}</td></tr>`;
+  }
   return `<tr><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td><td>${rppValorHTML(obj.valor)}</td><td class="rpp-desc">${rppValorHTML(obj.descricao)}</td></tr>`;
  }).join('')||`<tr><td colspan="${cols.length}" class="rpp-empty">Nenhum atleta nas categorias selecionadas.</td></tr>`;
  return `<table class="rpp-table"><thead><tr>${cols.map(c=>rppSortHeader(c.k,c.l)).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
@@ -5085,9 +5207,29 @@ function rppRenderExtrasChips(){
 function rppNotaPseNum(row){
  const obj=rppObjResposta(row,'pse');
  if(obj.valor===undefined||obj.valor===null||obj.valor==='') return null;
- const n=Number(String(obj.valor).replace(',','.'));
+ const raw=String(obj.valor).trim().toLowerCase();
+ if(raw===''||raw==='0'||raw.indexOf('repouso')>=0) return null;
+ const n=Number(raw.replace(',','.'));
  if(!Number.isFinite(n) || n===0) return null;
  return n;
+}
+function rppPsrCampo(v){
+ if(v===undefined||v===null||v==='') return null;
+ const n=Number(String(v).replace(',','.'));
+ return Number.isFinite(n)?n:null;
+}
+function rppNotaPsrNum(row){
+ const obj=rppObjResposta(row,'psr');
+ const sono=rppPsrCampo(obj.sono);
+ const fadiga=rppPsrCampo(obj.fadiga);
+ const dor=rppPsrCampo(obj.dor_muscular);
+ const estresse=rppPsrCampo(obj.estresse_mental);
+ const motiv=rppPsrCampo(obj.motivacao);
+ if([sono,fadiga,dor,estresse,motiv].some(v=>v===null)) return null;
+ return sono + (5-fadiga) + (5-dor) + (5-estresse) + motiv;
+}
+function rppNotaParaMedia(row){
+ return relatorioPsrPseState.tipo==='psr' ? rppNotaPsrNum(row) : rppNotaPseNum(row);
 }
 function rppMediaBR(n){ return (n==null||!Number.isFinite(n))?'—':n.toFixed(1).replace('.',','); }
 function rppNomeDia(iso){
@@ -5132,7 +5274,7 @@ function rppMediaCatDia(catId, iso){
  const vals=[];
  atletas.forEach(a=>{
   const row=rppRespostaAtletaData(a, iso);
-  const n=rppNotaPseNum(row);
+  const n=rppNotaParaMedia(row);
   if(n!==null) vals.push(n);
  });
  if(!vals.length) return null;
@@ -5143,7 +5285,7 @@ function rppMediaCatPeriodo(catId, dias){
  const atletas=rppAtletasCategoriaTodas(catId);
  dias.forEach(iso=>{
   atletas.forEach(a=>{
-   const n=rppNotaPseNum(rppRespostaAtletaData(a, iso));
+   const n=rppNotaParaMedia(rppRespostaAtletaData(a, iso));
    if(n!==null) vals.push(n);
   });
  });
@@ -8871,6 +9013,7 @@ async function openAvaliacaoDiaria(){
  avdState.anotacao='';
  avdState.notas={};
  avdState.dias=[];
+ avdState.respostasDia=[];
  if(!avdState.data) avdState.data=avdHoje();
  let m=document.getElementById('avd-modal');
  if(!m){ m=document.createElement('div'); m.id='avd-modal'; m.className='avd-overlay'; document.body.appendChild(m); m.addEventListener('click',e=>{ if(e.target===m) closeAvaliacaoDiaria(); }); }
@@ -8883,17 +9026,74 @@ function closeAvaliacaoDiaria(){ const m=document.getElementById('avd-modal'); i
 function avdSetCat(id){ avdState.cat=id; avdListarDias().then(avdCarregarDia); }
 function avdSetData(v){ avdState.data=v; avdCarregarDia(); }
 function avdSetNota(k,n){ avdState.notas[k]=n; document.querySelectorAll('.avd-notas').forEach(el=>{ if(el.getAttribute('data-k')===k){ el.querySelectorAll('button').forEach(b=>b.classList.toggle('on', Number(b.dataset.n)===n)); } }); }
+function avdPsrNumCampo(v){
+ if(v===undefined||v===null||v==='') return null;
+ const n=Number(String(v).replace(',','.'));
+ return Number.isFinite(n)?n:null;
+}
+function avdPsrNotaMonitoramento(row){
+ const o=row&&row.psr;
+ if(!o||typeof o!=='object') return null;
+ const sono=avdPsrNumCampo(o.sono);
+ const fadiga=avdPsrNumCampo(o.fadiga);
+ const dor=avdPsrNumCampo(o.dor_muscular);
+ const estresse=avdPsrNumCampo(o.estresse_mental);
+ const motiv=avdPsrNumCampo(o.motivacao);
+ if([sono,fadiga,dor,estresse,motiv].some(v=>v===null)) return null;
+ return sono + (5-fadiga) + (5-dor) + (5-estresse) + motiv;
+}
+function avdPseNum(row){
+ const o=row&&row.pse;
+ if(!o||typeof o!=='object') return null;
+ const n=Number(String(o.valor).replace(',','.'));
+ if(!Number.isFinite(n)||n===0) return null;
+ return n;
+}
+function avdMediaBR(n){
+ if(n==null||!Number.isFinite(n)) return '—';
+ const r=Math.round(n*10)/10;
+ return (Number.isInteger(r)?String(r):r.toFixed(1)).replace('.',',');
+}
+function avdRespDoAtleta(a){
+ const nome=(typeof normalizarTextoTrabalho==='function'?normalizarTextoTrabalho(a.id.nomeCompleto||''):(a.id.nomeCompleto||'').trim().toLowerCase());
+ const nasc=(typeof normalizarTextoTrabalho==='function'?normalizarTextoTrabalho(a.id.nascimento||''):(a.id.nascimento||'').trim());
+ return (avdState.respostasDia||[]).find(r=>{
+  const rn=(typeof normalizarTextoTrabalho==='function'?normalizarTextoTrabalho(r.nome_completo||r.nomeCompleto||''):String(r.nome_completo||'').trim().toLowerCase());
+  const rnas=(typeof normalizarTextoTrabalho==='function'?normalizarTextoTrabalho(r.nascimento||''):String(r.nascimento||'').trim());
+  return rn===nome && (!nasc || rnas===nasc);
+ })||null;
+}
+function avdTextoPsrPse(a, medPsr, medPse){
+ const row=avdRespDoAtleta(a);
+ const psr=avdPsrNotaMonitoramento(row);
+ const pse=avdPseNum(row);
+ return 'PSR '+avdMediaBR(psr)+' ('+avdMediaBR(medPsr)+') - PSE '+avdMediaBR(pse)+' ('+avdMediaBR(medPse)+')';
+}
+function avdMediasDia(){
+ const atletas=avdAtletas();
+ const psrs=[], pses=[];
+ atletas.forEach(a=>{
+  const row=avdRespDoAtleta(a);
+  const psr=avdPsrNotaMonitoramento(row); if(psr!=null) psrs.push(psr);
+  const pse=avdPseNum(row); if(pse!=null) pses.push(pse);
+ });
+ return {
+  psr: psrs.length?psrs.reduce((s,v)=>s+v,0)/psrs.length:null,
+  pse: pses.length?pses.reduce((s,v)=>s+v,0)/pses.length:null
+ };
+}
 function avdRender(){
  const m=document.getElementById('avd-modal'); if(!m) return;
  const cats=avdCats();
  const atletas=avdAtletas();
  const diasOpts=(avdState.dias||[]).map(d=>'<option value="'+d+'">'+avdBR(d)+'</option>').join('');
+ const med=avdMediasDia();
  const rows=atletas.map(a=>{
   const k=avdChaveId(a.id);
   const n=avdNota(k);
   const nome=a.id.apelido||a.id.nomeCompleto||'';
-  const btns=[0,1,2,3,4,5].map(v=>'<button type="button" data-n="'+v+'" class="'+(n===v?'on':'')+'" onclick="avdSetNota(\''+k.replace(/'/g,"\\'")+'\','+v+')">'+(v===0?'F':v)+'</button>').join('');
-  return '<div class="avd-row"><span class="avd-nome">'+avdEsc(nome)+' <small>'+avdEsc(a.id.ano||'')+'</small></span><div class="avd-notas" data-k="'+avdEsc(k)+'">'+btns+'</div></div>';
+  const btns=[0,1,2,3,4,5,9].map(v=>'<button type="button" data-n="'+v+'" class="'+(n===v?'on':'')+(v===9?' avd-dm':'')+'" onclick="avdSetNota(\''+k.replace(/'/g,"\\'")+'\','+v+')">'+(v===0?'F':v===9?'DM':v)+'</button>').join('');
+  return '<div class="avd-row"><span class="avd-nome">'+avdEsc(nome)+' <small>'+avdEsc(a.id.ano||'')+'</small> <small class="avd-psrpse">'+avdEsc(avdTextoPsrPse(a,med.psr,med.pse))+'</small></span><div class="avd-notas" data-k="'+avdEsc(k)+'">'+btns+'</div></div>';
  }).join('')||('<p class="avd-empty">'+(avdState.cat?'Nenhum atleta nesta categoria.':'Selecione uma categoria.')+'</p>');
  m.innerHTML=`<div class="avd-card">
   <button class="avd-close" onclick="closeAvaliacaoDiaria()">×</button>
@@ -8913,7 +9113,7 @@ function avdRender(){
    <button type="button" class="avd-del" onclick="avdExcluirDia()">Excluir dia</button>
    <button type="button" class="avd-print" onclick="avdRelatorio()">Imprimir/Exportar</button>
   </div>
-  <div class="avd-legenda"><span><b>F</b> falta (0)</span><span><b>1–2</b> fraco</span><span><b>3</b> médio</span><span><b>4–5</b> bom</span></div>
+  <div class="avd-legenda"><span><b>F</b> falta</span><span><b>DM</b> lesionado (só fortalecimento)</span><span><b>1–2</b> fraco</span><span><b>3</b> médio</span><span><b>4–5</b> bom</span></div>
   <div class="avd-list">${avdState.carregando?'<p class="avd-empty">Carregando...</p>':rows}</div>
   <label class="avd-anot-lab">Objetivos e informações do dia</label>
   <textarea id="avd-anotacao" class="avd-anot" rows="4" placeholder="Objetivo do treino e anotações...">${avdEsc(avdState.anotacao||'')}</textarea>
@@ -8937,12 +9137,14 @@ async function avdCarregarDia(){
  atletas.forEach(a=>{ notas[avdChaveId(a.id)]=3; });
  avdState.anotacao='';
  try{
-  const [{data:dia},{data:rows}]=await Promise.all([
+  const [{data:dia},{data:rows},{data:resp}]=await Promise.all([
    _supabase.from('avaliacao_diaria_dias').select('anotacao').eq('data',avdState.data).eq('categoria',avdState.cat).maybeSingle(),
-   _supabase.from('avaliacao_diaria_notas').select('atleta_key,nota').eq('data',avdState.data).eq('categoria',avdState.cat)
+   _supabase.from('avaliacao_diaria_notas').select('atleta_key,nota').eq('data',avdState.data).eq('categoria',avdState.cat),
+   _supabase.from('portal_respostas_diarias').select('nome_completo,nascimento,psr,pse').eq('data',avdState.data)
   ]);
   if(dia && dia.anotacao!=null) avdState.anotacao=dia.anotacao;
   (rows||[]).forEach(r=>{ if(r.atleta_key!=null) notas[r.atleta_key]=Number(r.nota); });
+  avdState.respostasDia=resp||[];
  }catch(e){ console.warn(e); }
  avdState.notas=notas;
  avdState.carregando=false;
@@ -9026,11 +9228,11 @@ function avdRelatorio(){
  const atletas=avdAtletas();
  const rows=atletas.map(a=>{
   const n=avdNota(avdChaveId(a.id));
-  const lab=n===0?'Falta':String(n);
+  const lab=n===0?'Falta':n===9?'DM':String(n);
   return '<tr><td>'+avdEsc(a.id.apelido||a.id.nomeCompleto)+'</td><td>'+avdEsc(a.id.ano||'')+'</td><td>'+lab+'</td></tr>';
  }).join('');
  const w=window.open('','avdprint','width=900,height=700');
- w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Avaliação Diária</title><style>body{font-family:Arial,sans-serif;margin:16px;color:#111}h2{color:#58111a;text-align:center}table{width:100%;border-collapse:collapse}th{background:#58111a;color:#f9c614}th,td{border:1px solid #999;padding:8px;text-align:center}td:first-child{text-align:left}pre{white-space:pre-wrap;border:1px solid #ddd;padding:10px;background:#faf7f0}</style></head><body><h2>Avaliação Diária — '+avdEsc(cat?.label||'')+' — '+avdBR(avdState.data)+'</h2><p><b>F</b> falta · <b>1–2</b> fraco · <b>3</b> médio · <b>4–5</b> bom</p><table><thead><tr><th>Atleta</th><th>Ano</th><th>Nota</th></tr></thead><tbody>'+rows+'</tbody></table><h3>Objetivos e informações</h3><pre>'+avdEsc(avdState.anotacao||'—')+'</pre><script>window.onload=()=>setTimeout(()=>window.print(),300)<\\/script></body></html>');
+ w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Avaliação Diária</title><style>body{font-family:Arial,sans-serif;margin:16px;color:#111}h2{color:#58111a;text-align:center}table{width:100%;border-collapse:collapse}th{background:#58111a;color:#f9c614}th,td{border:1px solid #999;padding:8px;text-align:center}td:first-child{text-align:left}pre{white-space:pre-wrap;border:1px solid #ddd;padding:10px;background:#faf7f0}</style></head><body><h2>Avaliação Diária — '+avdEsc(cat?.label||'')+' — '+avdBR(avdState.data)+'</h2><p><b>F</b> falta · <b>DM</b> lesionado (fortalecimento) · <b>1–2</b> fraco · <b>3</b> médio · <b>4–5</b> bom</p><table><thead><tr><th>Atleta</th><th>Ano</th><th>Nota</th></tr></thead><tbody>'+rows+'</tbody></table><h3>Objetivos e informações</h3><pre>'+avdEsc(avdState.anotacao||'—')+'</pre><script>window.onload=()=>setTimeout(()=>window.print(),300)<\\/script></body></html>');
  w.document.close();
 }
 
@@ -9972,6 +10174,7 @@ function modernV3EnsureMenu(){
    <button class="nav-btn" onclick="modernV3Action('goleiros',event)"><span class="mv3-ico">🧤</span><span>Goleiros</span></button>
    <button class="nav-btn" data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><span class="mv3-ico">🩺</span><span>Preparação Física</span></button>
    <button class="nav-btn" onclick="modernV3Action('monitoramento-carga',event)"><span class="mv3-ico">📈</span><span>Monitoramento de Carga</span></button>
+    <button class="nav-btn" onclick="modernV3Action('calendario-treino',event)"><span class="mv3-ico">📅</span><span>Calendário de treinos</span></button>
   </div>`;
  renderIndicadorPreparacaoFisica();
  atualizarIndicadorPreparacaoFisica();
@@ -10054,6 +10257,7 @@ function modernV3Action(action,event){
   if(action==='goleiros'){openGoleirosTecnicoModal();return;}
   if(action==='preparacao-fisica'){openPreparacaoFisicaQueixasModal();return;}
   if(action==='monitoramento-carga'){openMonitoramentoCargaModal();return;}
+  if(action==='calendario-treino'){openCalendarioTreino();return;}
  }catch(e){console.error(e);alert('Não foi possível abrir este módulo.');}
 }
 function modernV3BuildHome(){
@@ -10062,7 +10266,7 @@ function modernV3BuildHome(){
  home.dataset.modernV3Home='1';
  home.innerHTML=`<div class="modern-v3-dashboard">
   <section class="modern-v3-hero">
-   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button><button onclick="modernV3Action('avaliacao-diaria',event)"><i>✅</i><strong>Avaliação Diária</strong></button><button onclick="modernV3Action('goleiros',event)"><i>🧤</i><strong>Goleiros</strong></button><button data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><i>🩺</i><strong>Preparação Física</strong></button><button onclick="modernV3Action('monitoramento-carga',event)"><i>📈</i><strong>Monitoramento</strong></button></div></div>
+   <div><h1>CFA Prosol</h1><p>Gestão completa de atletas, performance, jogos, convocações e relatórios</p><div class="modern-v3-hero-reports"><button onclick="modernV3Action('relatorio-fisico',event)"><i>📊</i><strong>Relatório Físico</strong></button><button onclick="modernV3Action('trabalho-diario',event)"><i>📄</i><strong>Trabalho Diário</strong></button><button onclick="modernV3Action('planejamento',event)"><i>🗓️</i><strong>Planejamento</strong></button><button onclick="modernV3Action('psr',event)"><i>💚</i><strong>PSR</strong></button><button onclick="modernV3Action('pse',event)"><i>🔥</i><strong>PSE</strong></button><button onclick="modernV3Action('avaliacao-diaria',event)"><i>✅</i><strong>Avaliação Diária</strong></button><button onclick="modernV3Action('goleiros',event)"><i>🧤</i><strong>Goleiros</strong></button><button data-prep-alert="1" onclick="modernV3Action('preparacao-fisica',event)"><i>🩺</i><strong>Preparação Física</strong></button><button onclick="modernV3Action('monitoramento-carga',event)"><i>📈</i><strong>Monitoramento</strong></button><button onclick="modernV3Action('calendario-treino',event)"><i>📅</i><strong>Calendário</strong></button></div></div>
    <img src="logo.png" alt="CFA Prosol">
   </section>
   <h3 class="modern-v3-block-title">Módulos principais</h3>
