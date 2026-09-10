@@ -8985,8 +8985,8 @@ async function avdLoadExtras(){
  avdState.extras=vazio; return vazio;
 }
 function avdChaveId(id){return (typeof trabalhoChaveAtleta==='function'?trabalhoChaveAtleta(id):((id?.nomeCompleto||'')+'||'+(id?.nascimento||'')));}
-function avdAtletas(){
- const catId=avdState.cat; if(!catId) return [];
+function avdAtletasCat(catId){
+ if(!catId) return [];
  const cats=avdCats(); const cat=cats[catId]||{};
  if(!avdState.extras) avdState.extras=avdExtrasVazio();
  const extrasAqui=new Set(); const extrasOutros=new Set();
@@ -9007,6 +9007,7 @@ function avdAtletas(){
  });
  return Array.from(mapa.values());
 }
+function avdAtletas(){ return avdAtletasCat(avdState.cat); }
 function avdNota(k){ const n=avdState.notas[k]; return (n===0||n)?n:3; }
 async function openAvaliacaoDiaria(){
  avdState.cat='';
@@ -9082,6 +9083,157 @@ function avdMediasDia(){
   pse: pses.length?pses.reduce((s,v)=>s+v,0)/pses.length:null
  };
 }
+
+let avdRelState={cat:'',modo:'sempre',de:'',ate:'',linhas:[],carregando:false,sort:{key:'nome',dir:'asc'}};
+function avdRelISO(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function avdRelParse(iso){const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3]):new Date();}
+function avdRelPeriodo(){
+ const ref=avdRelParse(avdState.data||avdRelISO(new Date()));
+ const modo=avdRelState.modo||'sempre';
+ if(modo==='sempre') return {de:'',ate:''};
+ if(modo==='semana'){
+  const d=new Date(ref); const dia=d.getDay(); const diff=dia===0?-6:1-dia;
+  d.setDate(d.getDate()+diff);
+  const fim=new Date(d); fim.setDate(d.getDate()+6);
+  return {de:avdRelISO(d),ate:avdRelISO(fim)};
+ }
+ if(modo==='mes'){
+  const de=new Date(ref.getFullYear(),ref.getMonth(),1);
+  const ate=new Date(ref.getFullYear(),ref.getMonth()+1,0);
+  return {de:avdRelISO(de),ate:avdRelISO(ate)};
+ }
+ return {de:avdRelState.de||'',ate:avdRelState.ate||''};
+}
+function openAvdRelatorio(){
+ avdRelState={cat:'',modo:'sempre',de:'',ate:'',linhas:[],carregando:false,sort:{key:'nome',dir:'asc'}};
+ let m=document.getElementById('avd-rel-modal');
+ if(!m){
+  m=document.createElement('div'); m.id='avd-rel-modal'; m.className='avd-rel-overlay';
+  document.body.appendChild(m);
+  m.addEventListener('click',e=>{ if(e.target===m) closeAvdRelatorio(); });
+ }
+ m.style.display='flex';
+ renderAvdRelatorio();
+}
+function closeAvdRelatorio(){ const m=document.getElementById('avd-rel-modal'); if(m) m.style.display='none'; }
+function avdRelSetModo(modo){
+ avdRelState.modo=modo;
+ if(modo==='periodo' && !avdRelState.de){
+  const p=avdRelPeriodo();
+  const ref=avdRelParse(avdState.data||avdRelISO(new Date()));
+  avdRelState.de=avdRelISO(new Date(ref.getFullYear(),ref.getMonth(),1));
+  avdRelState.ate=avdRelISO(ref);
+ }
+ if(avdRelState.cat) carregarAvdRelatorio(); else renderAvdRelatorio();
+}
+function avdRelSetDe(v){ avdRelState.de=v; if(avdRelState.cat) carregarAvdRelatorio(); }
+function avdRelSetAte(v){ avdRelState.ate=v; if(avdRelState.cat) carregarAvdRelatorio(); }
+function avdRelEscolherCat(id){ avdRelState.cat=id; carregarAvdRelatorio(); }
+async function carregarAvdRelatorio(){
+ const cat=avdRelState.cat; if(!cat){ renderAvdRelatorio(); return; }
+ avdRelState.carregando=true; renderAvdRelatorio();
+ const per=avdRelPeriodo();
+ try{
+  let q=_supabase.from('avaliacao_diaria_notas').select('atleta_key,nota,data').eq('categoria',cat);
+  if(per.de) q=q.gte('data',per.de);
+  if(per.ate) q=q.lte('data',per.ate);
+  const {data,error}=await q;
+  if(error) throw error;
+  const mapa={};
+  (data||[]).forEach(r=>{
+   const k=r.atleta_key; if(!k) return;
+   if(!mapa[k]) mapa[k]={faltas:0,dm:0,notas:[]};
+   const n=Number(r.nota);
+   if(n===0) mapa[k].faltas++;
+   else if(n===9) mapa[k].dm++;
+   else if(Number.isFinite(n) && n>=1 && n<=5) mapa[k].notas.push(n);
+  });
+  const atletas=avdAtletasCat(cat).slice().sort((a,b)=>String(a.id.apelido||a.id.nomeCompleto||'').localeCompare(String(b.id.apelido||b.id.nomeCompleto||''),'pt-BR'));
+  avdRelState.linhas=atletas.map(a=>{
+   const k=avdChaveId(a.id);
+   const t=mapa[k]||{faltas:0,dm:0,notas:[]};
+   const media=t.notas.length? t.notas.reduce((s,v)=>s+v,0)/t.notas.length : null;
+   return {nome:a.id.apelido||a.id.nomeCompleto||'', ano:a.id.ano||'', faltas:t.faltas, dm:t.dm, media};
+  });
+ }catch(e){ console.warn(e); avdRelState.linhas=[]; alert('Erro ao carregar o relatório.'); }
+ avdRelState.carregando=false; renderAvdRelatorio();
+}
+function avdRelOrdenar(key){
+ const cur=avdRelState.sort||{key:'nome',dir:'asc'};
+ if(cur.key===key) avdRelState.sort={key, dir: cur.dir==='asc'?'desc':'asc'};
+ else avdRelState.sort={key, dir: key==='nome'?'asc':'desc'};
+ renderAvdRelatorio();
+}
+function avdRelLinhasOrd(){
+ const sort=avdRelState.sort||{key:'nome',dir:'asc'};
+ const dir=sort.dir==='desc'?-1:1;
+ const key=sort.key;
+ return (avdRelState.linhas||[]).slice().sort((a,b)=>{
+  if(key==='nome') return dir*String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR');
+  if(key==='ano') return dir*String(a.ano||'').localeCompare(String(b.ano||''),'pt-BR',{numeric:true});
+  const va=a[key], vb=b[key];
+  const na=va==null?-Infinity:Number(va);
+  const nb=vb==null?-Infinity:Number(vb);
+  if(na===nb) return String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR');
+  return dir*(na-nb);
+ });
+}
+function imprimirAvdRelatorio(){
+ if(!avdRelState.cat){ alert('Selecione uma categoria.'); return; }
+ const cats=avdCats();
+ const lab=(cats[avdRelState.cat]&&cats[avdRelState.cat].label)||avdRelState.cat;
+ const modo=avdRelState.modo||'sempre';
+ const per=avdRelPeriodo();
+ let periodo='Sempre';
+ if(modo==='semana') periodo='Semana '+avdBR(per.de)+' a '+avdBR(per.ate);
+ else if(modo==='mes') periodo='Mês '+avdBR(per.de)+' a '+avdBR(per.ate);
+ else if(modo==='periodo') periodo=(per.de||per.ate)?(avdBR(per.de)+' a '+avdBR(per.ate)):'Período';
+ const rows=avdRelLinhasOrd().map(l=>'<tr><td>'+avdEsc(l.nome)+'</td><td>'+avdEsc(l.ano)+'</td><td>'+l.faltas+'</td><td>'+l.dm+'</td><td>'+avdRelMediaBR(l.media)+'</td></tr>').join('');
+ const w=window.open('','avdrelprint','width=900,height=700');
+ if(!w){ alert('Permita pop-up para imprimir.'); return; }
+ w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Relatório Avaliação Diária</title><style>body{font-family:Arial,sans-serif;margin:16px}h2,h3{color:#58111a;text-align:center;margin:6px 0}table{width:100%;border-collapse:collapse}th{background:#58111a;color:#f9c614}th,td{border:1px solid #999;padding:8px;text-align:center}td:first-child{text-align:left}@page{margin:10mm}</style></head><body><h2>CFA Prosol — Avaliação Diária</h2><h3>'+avdEsc(lab)+' · '+avdEsc(periodo)+'</h3><table><thead><tr><th>Nome</th><th>Ano</th><th>Faltas</th><th>DM</th><th>Média</th></tr></thead><tbody>'+(rows||'<tr><td colspan="5">Nenhum atleta.</td></tr>')+'</tbody></table><script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>');
+ w.document.close();
+}
+function avdRelMediaBR(n){ return n==null?'—':(Math.round(n*10)/10).toFixed(1).replace('.',','); }
+function renderAvdRelatorio(){
+ const m=document.getElementById('avd-rel-modal'); if(!m) return;
+ const cats=avdCats();
+ const modo=avdRelState.modo||'sempre';
+ const catBtns=avdCatIds().map(id=>`<button type="button" class="avd-rel-cat${avdRelState.cat===id?' on':''}" onclick="avdRelEscolherCat('${id}')">${avdEsc((cats[id]&&cats[id].label)||id)}</button>`).join('');
+ const per=avdRelPeriodo();
+ let periodoTxt='Sempre';
+ if(modo==='semana') periodoTxt='Semana '+avdBR(per.de)+' a '+avdBR(per.ate);
+ else if(modo==='mes') periodoTxt='Mês '+avdBR(per.de)+' a '+avdBR(per.ate);
+ else if(modo==='periodo') periodoTxt=(per.de||per.ate)? (avdBR(per.de)+' a '+avdBR(per.ate)) : 'Período';
+ const filtros=`<div class="avd-rel-filtros">
+  <button type="button" class="${modo==='sempre'?'on':''}" onclick="avdRelSetModo('sempre')">Sempre</button>
+  <button type="button" class="${modo==='semana'?'on':''}" onclick="avdRelSetModo('semana')">Semana</button>
+  <button type="button" class="${modo==='mes'?'on':''}" onclick="avdRelSetModo('mes')">Mês</button>
+  <button type="button" class="${modo==='periodo'?'on':''}" onclick="avdRelSetModo('periodo')">Período</button>
+  ${modo==='periodo'?`<label>De <input type="date" value="${avdEsc(avdRelState.de||'')}" onchange="avdRelSetDe(this.value)"></label><label>Até <input type="date" value="${avdEsc(avdRelState.ate||'')}" onchange="avdRelSetAte(this.value)"></label>`:''}
+ </div>`;
+ let corpo='<p class="avd-rel-hint">Escolha a categoria.</p>';
+ if(avdRelState.cat){
+  if(avdRelState.carregando) corpo='<p class="avd-rel-hint">Carregando...</p>';
+  else{
+   const sort=avdRelState.sort||{key:'nome',dir:'asc'};
+   const seta=k=>sort.key===k?(sort.dir==='asc'?' ▲':' ▼'):'';
+   const th=(k,l)=>`<th><button type="button" class="avd-rel-th${sort.key===k?' on':''}" onclick="avdRelOrdenar('${k}')">${l}${seta(k)}</button></th>`;
+   const rows=avdRelLinhasOrd().map(l=>`<tr><td>${avdEsc(l.nome)}</td><td>${avdEsc(l.ano)}</td><td>${l.faltas}</td><td>${l.dm}</td><td>${avdRelMediaBR(l.media)}</td></tr>`).join('')||'<tr><td colspan="5">Nenhum atleta.</td></tr>';
+   corpo=`<p class="avd-rel-tit">${avdEsc((cats[avdRelState.cat]&&cats[avdRelState.cat].label)||avdRelState.cat)} · ${avdEsc(periodoTxt)}</p>
+   <div class="avd-rel-table-wrap"><table class="avd-rel-table"><thead><tr>${th('nome','Nome')}${th('ano','Ano')}${th('faltas','Faltas')}${th('dm','DM')}${th('media','Média')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+ }
+ m.innerHTML=`<div class="avd-rel-card">
+  <button type="button" class="avd-rel-close" onclick="closeAvdRelatorio()">×</button>
+  <h2>Relatório — Avaliação Diária</h2>
+  <div class="avd-rel-cats">${catBtns}</div>
+  ${filtros}
+  ${avdRelState.cat?`<div class="avd-rel-actions"><button type="button" class="avd-rel-print" onclick="imprimirAvdRelatorio()">Imprimir/Exportar</button></div>`:''}
+  ${corpo}
+ </div>`;
+}
+
 function avdRender(){
  const m=document.getElementById('avd-modal'); if(!m) return;
  const cats=avdCats();
@@ -9112,6 +9264,7 @@ function avdRender(){
    <button type="button" class="avd-save" onclick="avdSalvar()">Salvar</button>
    <button type="button" class="avd-del" onclick="avdExcluirDia()">Excluir dia</button>
    <button type="button" class="avd-print" onclick="avdRelatorio()">Imprimir/Exportar</button>
+   <button type="button" class="avd-rel" onclick="openAvdRelatorio()">Relatório</button>
   </div>
   <div class="avd-legenda"><span><b>F</b> falta</span><span><b>DM</b> lesionado (só fortalecimento)</span><span><b>1–2</b> fraco</span><span><b>3</b> médio</span><span><b>4–5</b> bom</span></div>
   <div class="avd-list">${avdState.carregando?'<p class="avd-empty">Carregando...</p>':rows}</div>
