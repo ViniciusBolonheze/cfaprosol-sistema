@@ -10894,7 +10894,7 @@ function abrirProsolAcademy(){
 const TREINO_LS='prosol_criacao_treino_rascunho_v3';
 let treinoState=null;
 function treinoHoje(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function treinoModPadrao(i){return {titulo: i===0?'ATIVIDADE 1 - Analítico/Técnico':i===1?'ATIVIDADE 2 - Comportamentos DF':i===2?'ATIVIDADE 3 - Comportamentos OF/DF':'ATIVIDADE '+(i+1), goleiro:'sem', duracao:'', dimensao:'', series:'', relacao:'', descricao:'', conteudo:''};}
+function treinoModPadrao(i){return {titulo:'ATIVIDADE '+(i+1)+' - ', goleiro:'sem', duracao:'', dimensao:'', series:'', relacao:'', descricao:'', conteudo:''};}
 function treinoPadrao(){
  return {
   professor:'', categoria:'Sub 13', data:treinoHoje(), metodologia:'',
@@ -11056,7 +11056,7 @@ function treinoBlocoAtividade(i,m){
  const g=m.goleiro||'sem';
  const n='tr-m'+i+'-g';
  return `<table class="tr-tab tr-ativ">
-  <tr><th colspan="4" class="tr-sec"><input class="tr-tit" id="tr-m${i}-tit" value="${treinoEsc(m.titulo||('ATIVIDADE '+(i+1)))}" oninput="treinoLerTela()"></th></tr>
+  <tr><th colspan="4" class="tr-sec"><input class="tr-tit" id="tr-m${i}-tit" value="${treinoEsc(m.titulo||('ATIVIDADE '+(i+1)+' - '))}" oninput="treinoLerTela()"></th></tr>
   <tr>
    <td class="tr-pitch-td" rowspan="8">${treinoCampoBox('m'+i, m.img)}</td>
    <th class="tr-kh">GOLEIROS</th><th class="tr-kh">DURAÇÃO</th><th class="tr-kh">DIMENSÕES</th>
@@ -11192,7 +11192,7 @@ function imprimirCriacaoTreino(){
  for(let i=0;i<(st.nModulos||0);i++){
   const m=st.modulos[i]||{}; const g=m.goleiro||'sem';
   html+=`<table class="blk">
-   <tr><th colspan="4" class="sec">${treinoEsc(m.titulo||('ATIVIDADE '+(i+1)))}</th></tr>
+   <tr><th colspan="4" class="sec">${treinoEsc(m.titulo||('ATIVIDADE '+(i+1)+' - '))}</th></tr>
    <tr>${pitch(m.img)}<th class="kh">GOLEIROS</th><th class="kh">DURAÇÃO</th><th class="kh">DIMENSÕES</th></tr>
    <tr><td class="it">${treinoXprint(g,'sem')} SEM GOLEIRO</td><td class="ctr">${treinoTxt(m.duracao)}</td><td class="ctr">${treinoTxt(m.dimensao)}</td></tr>
    <tr><td class="it">${treinoXprint(g,'1')} 1 GOLEIRO</td><th class="kh">SÉRIES x TEMPO</th><th class="kh">RELAÇÃO NUMÉRICA</th></tr>
