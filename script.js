@@ -5772,7 +5772,16 @@ function tpToggleSelecionar(){
   window.addEventListener('pointerup', tpCropUp);
  }
  layer.style.display=tpCrop.on?'block':'none';
- layer.className='tp-crop-layer'+(tpCrop.on?' on':'');
+ layer.className='tp-crop-layer'+(tpCrop.on?' on':'')+(tpIsCoarse()?' tp-crop-pass':'');
+ if(tpCrop.on && tpIsCoarse()){
+  const lr=layer.getBoundingClientRect();
+  const side=Math.min(130, Math.max(64, Math.min(lr.width, lr.height)*0.34));
+  tpCrop.x0=(lr.width-side)/2; tpCrop.y0=(lr.height-side)/2;
+  tpCrop.x1=tpCrop.x0+side; tpCrop.y1=tpCrop.y0+side;
+  tpCrop.ready=true;
+  if(copy) copy.disabled=false;
+  tpCropPaint();
+ }
 }
 function tpCropRect(e, layer){
  const r=layer.getBoundingClientRect();
@@ -5805,28 +5814,15 @@ function tpCropDown(e){
  const p=tpCropRect(e, layer);
  if(tpIsCoarse()){
   if(e.target.closest && e.target.closest('.tp-crop-copy')) return;
-  e.preventDefault(); e.stopPropagation();
   const h=e.target.closest && e.target.closest('.tp-crop-h');
   const onBox=e.target.closest && e.target.closest('#tp-crop-box');
+  if(!h && !onBox) return;
+  e.preventDefault(); e.stopPropagation();
   tpCropNorm();
-  if(h || onBox){
-   tpCrop.dragging=true;
-   tpCrop.mode=h?h.getAttribute('data-h'):'move';
-   tpCrop.start={x:p.x,y:p.y,x0:tpCrop.x0,y0:tpCrop.y0,x1:tpCrop.x1,y1:tpCrop.y1};
-   try{ layer.setPointerCapture(e.pointerId); }catch(err){}
-   return;
-  }
-  const lr=layer.getBoundingClientRect();
-  const side=Math.min(150, Math.max(72, Math.min(lr.width, lr.height)*0.36));
-  tpCrop.x0=Math.max(0, p.x-side/2);
-  tpCrop.y0=Math.max(0, p.y-side/2);
-  tpCrop.x1=Math.min(lr.width, tpCrop.x0+side);
-  tpCrop.y1=Math.min(lr.height, tpCrop.y0+side);
-  tpCropClamp(layer);
-  tpCrop.ready=true; tpCrop.dragging=false; tpCrop.mode=null;
-  const copy=document.getElementById('tp-btn-copy');
-  if(copy) copy.disabled=false;
-  tpCropPaint();
+  tpCrop.dragging=true;
+  tpCrop.mode=h?h.getAttribute('data-h'):'move';
+  tpCrop.start={x:p.x,y:p.y,x0:tpCrop.x0,y0:tpCrop.y0,x1:tpCrop.x1,y1:tpCrop.y1};
+  try{ (h||onBox).setPointerCapture(e.pointerId); }catch(err){}
   return;
  }
  e.preventDefault(); e.stopPropagation();
