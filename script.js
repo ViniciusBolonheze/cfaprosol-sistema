@@ -5751,7 +5751,35 @@ const TP_GOAL_SVG = '<svg class="tp-ico" viewBox="0 0 100 40" preserveAspectRati
 
 let tpCrop={on:false, dragging:false, ready:false, tap1:false, x0:0,y0:0,x1:0,y1:0};
 function tpIsCoarse(){
- return (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (window.innerWidth<=900 && 'ontouchstart' in window);
+ try{
+  if(navigator.maxTouchPoints>0) return true;
+  if('ontouchstart' in window) return true;
+  if(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+  if(window.matchMedia && window.matchMedia('(hover: none)').matches) return true;
+ }catch(e){}
+ return window.innerWidth<=900;
+}
+function tpEnsureCropCss(){
+ if(document.getElementById('tp-crop-css')) return;
+ const st=document.createElement('style');
+ st.id='tp-crop-css';
+ st.textContent=`
+ #tp-crop-box{box-sizing:border-box;border:1px dashed #f9c614;background:rgba(249,198,20,.10);}
+ #tp-crop-box.tp-crop-mob{pointer-events:auto;touch-action:none;border-width:1px;}
+ .tp-crop-layer.tp-crop-pass{pointer-events:none !important;touch-action:auto;background:transparent;}
+ .tp-crop-h{position:absolute;z-index:6;background:transparent;touch-action:none;}
+ .tp-crop-h-n,.tp-crop-h-s{left:12px;right:12px;height:10px;}
+ .tp-crop-h-n{top:-5px;} .tp-crop-h-s{bottom:-5px;}
+ .tp-crop-h-e,.tp-crop-h-w{top:12px;bottom:12px;width:10px;}
+ .tp-crop-h-w{left:-5px;} .tp-crop-h-e{right:-5px;}
+ .tp-crop-h-nw,.tp-crop-h-ne,.tp-crop-h-sw,.tp-crop-h-se{
+   width:12px;height:12px;border-radius:2px;background:#f9c614;border:1px solid #111;
+ }
+ .tp-crop-h-nw{left:-6px;top:-6px;} .tp-crop-h-ne{right:-6px;top:-6px;}
+ .tp-crop-h-sw{left:-6px;bottom:-6px;} .tp-crop-h-se{right:-6px;bottom:-6px;}
+ .tp-crop-copy{pointer-events:auto;}
+ `;
+ document.head.appendChild(st);
 }
 function tpToggleSelecionar(){
  tpCrop.on=!tpCrop.on; tpCrop.dragging=false; tpCrop.ready=false; tpCrop.tap1=false;
@@ -5762,6 +5790,7 @@ function tpToggleSelecionar(){
  let layer=document.getElementById('tp-crop-layer');
  const board=document.getElementById('mini-football-board');
  if(!board){ tpCrop.on=false; return; }
+ tpEnsureCropCss();
  if(!layer){
   layer=document.createElement('div'); layer.id='tp-crop-layer';
   board.style.position=board.style.position||'relative';
