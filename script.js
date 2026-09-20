@@ -5748,6 +5748,379 @@ function tpClonePieces(){ return JSON.parse(JSON.stringify(tpState.pieces)); }
 const TP_CONE_SVG = '<svg class="tp-ico" viewBox="0 0 64 72" preserveAspectRatio="none" aria-hidden="true"><ellipse cx="32" cy="64" rx="22" ry="5" fill="#7a3a10" opacity=".45"/><path d="M18 60 L26 14 Q32 8 38 14 L46 60 Z" fill="#f39c12" stroke="#c0392b" stroke-width="1.5"/><path d="M20 52 L44 52 L42.2 42 L21.8 42 Z" fill="#fff"/><path d="M23.2 28 L40.8 28 L39.4 20 L24.6 20 Z" fill="#fff"/><rect x="12" y="58" width="40" height="7" rx="2" fill="#e67e22" stroke="#c0392b" stroke-width="1.2"/></svg>';
 const TP_GOAL_SVG = '<svg class="tp-ico" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><ellipse cx="50" cy="37.5" rx="45" ry="2" fill="#000" opacity=".28"/><rect x="4" y="4" width="6" height="32" rx="1.5" fill="#fff" stroke="#444" stroke-width="1.2"/><rect x="90" y="4" width="6" height="32" rx="1.5" fill="#fff" stroke="#444" stroke-width="1.2"/><rect x="4" y="3" width="92" height="6" rx="1.5" fill="#fff" stroke="#444" stroke-width="1.2"/><g stroke="#cdd7dd" stroke-width="0.9" opacity=".9"><path d="M9 18 L91 18 M9 27 L91 27 M9 34 L91 34"/><path d="M22 9 L22 35 M36 9 L36 35 M50 9 L50 35 M64 9 L64 35 M78 9 L78 35"/></g></svg>';
 
+
+let tpCrop={on:false, dragging:false, ready:false, x0:0,y0:0,x1:0,y1:0};
+function tpToggleSelecionar(){
+ tpCrop.on=!tpCrop.on; tpCrop.dragging=false; tpCrop.ready=false;
+ const btn=document.getElementById('tp-btn-sel');
+ const copy=document.getElementById('tp-btn-copy');
+ if(btn) btn.classList.toggle('on', tpCrop.on);
+ if(copy) copy.disabled=true;
+ let layer=document.getElementById('tp-crop-layer');
+ const board=document.getElementById('mini-football-board');
+ if(!board){ tpCrop.on=false; return; }
+ if(!layer){
+  layer=document.createElement('div'); layer.id='tp-crop-layer';
+  board.style.position=board.style.position||'relative';
+  board.appendChild(layer);
+  const box=document.createElement('div'); box.id='tp-crop-box'; layer.appendChild(box);
+  layer.addEventListener('pointerdown', tpCropDown);
+  window.addEventListener('pointermove', tpCropMove);
+  window.addEventListener('pointerup', tpCropUp);
+ }
+ layer.style.display=tpCrop.on?'block':'none';
+ layer.className='tp-crop-layer'+(tpCrop.on?' on':'');
+}
+function tpCropRect(e, layer){
+ const r=layer.getBoundingClientRect();
+ return {x:Math.max(0,Math.min(r.width, e.clientX-r.left)), y:Math.max(0,Math.min(r.height, e.clientY-r.top))};
+}
+function tpCropDown(e){
+ if(!tpCrop.on) return;
+ e.preventDefault(); e.stopPropagation();
+ const layer=document.getElementById('tp-crop-layer');
+ const p=tpCropRect(e, layer);
+ tpCrop.dragging=true; tpCrop.ready=false; tpCrop.x0=p.x; tpCrop.y0=p.y; tpCrop.x1=p.x; tpCrop.y1=p.y;
+ tpCropPaint();
+}
+function tpCropMove(e){
+ if(!tpCrop.dragging) return;
+ const layer=document.getElementById('tp-crop-layer'); if(!layer) return;
+ const p=tpCropRect(e, layer);
+ tpCrop.x1=p.x; tpCrop.y1=p.y; tpCropPaint();
+}
+function tpCropUp(){
+ if(!tpCrop.dragging) return;
+ tpCrop.dragging=false;
+ const w=Math.abs(tpCrop.x1-tpCrop.x0), h=Math.abs(tpCrop.y1-tpCrop.y0);
+ tpCrop.ready=w>8 && h>8;
+ const copy=document.getElementById('tp-btn-copy');
+ if(copy) copy.disabled=!tpCrop.ready;
+}
+function tpCropPaint(){
+ const box=document.getElementById('tp-crop-box'); if(!box) return;
+ const x=Math.min(tpCrop.x0,tpCrop.x1), y=Math.min(tpCrop.y0,tpCrop.y1);
+ const w=Math.abs(tpCrop.x1-tpCrop.x0), h=Math.abs(tpCrop.y1-tpCrop.y0);
+ box.style.left=x+'px'; box.style.top=y+'px';
+ box.style.width=w+'px';
+ box.style.height=h+'px';
+ if(!box.querySelector('.tp-crop-copy')){
+  const b=document.createElement('button');
+  b.type='button'; b.className='tp-crop-copy'; b.textContent='Copiar';
+  b.addEventListener('pointerdown',function(e){ e.stopPropagation(); });
+  b.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); tpCopiarSelecao(); });
+  box.appendChild(b);
+ }
+}
+function tpLoadHtml2Canvas(){
+ return new Promise(function(res,rej){
+  if(window.html2canvas) return res(window.html2canvas);
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+  s.onload=function(){ res(window.html2canvas); };
+  s.onerror=function(){ rej(new Error('html2canvas')); };
+  document.head.appendChild(s);
+ });
+}
+async function tpTryFieldBitmap(W,H){
+ const bg=document.getElementById('tp-field-bg');
+ if(!bg||!bg.naturalWidth) return null;
+ const tryDraw=function(src){
+  const t=document.createElement('canvas');
+  t.width=W; t.height=H;
+  const c=t.getContext('2d');
+  c.drawImage(src,0,0,W,H);
+  c.getImageData(0,0,1,1);
+  return t;
+ };
+ try{ return tryDraw(bg); }catch(e){}
+ try{
+  if(typeof createImageBitmap==='function'){
+   const bmp=await createImageBitmap(bg);
+   const t=tryDraw(bmp);
+   bmp.close&&bmp.close();
+   return t;
+  }
+ }catch(e){}
+ try{
+  const res=await fetch(bg.currentSrc||bg.src,{mode:'same-origin'});
+  const blob=await res.blob();
+  const url=URL.createObjectURL(blob);
+  const im=await new Promise(function(ok,bad){
+   const i=new Image();
+   i.onload=function(){ ok(i); }; i.onerror=bad;
+   i.src=url;
+  });
+  const t=tryDraw(im);
+  URL.revokeObjectURL(url);
+  return t;
+ }catch(e){}
+ return null;
+}
+function tpDrawGoal(ctx,pw,ph){
+ const x=-pw/2, y=-ph/2, w=pw, h=ph;
+ ctx.save();
+ ctx.fillStyle='rgba(0,0,0,.25)';
+ ctx.beginPath(); ctx.ellipse(0,y+h*0.92,w*0.45,h*0.06,0,0,Math.PI*2); ctx.fill();
+ const post=Math.max(3,w*0.06), bar=Math.max(3,h*0.12);
+ ctx.fillStyle='#f4f6f8';
+ ctx.strokeStyle='#555'; ctx.lineWidth=1;
+ ctx.fillRect(x,y,post,h); ctx.strokeRect(x,y,post,h);
+ ctx.fillRect(x+w-post,y,post,h); ctx.strokeRect(x+w-post,y,post,h);
+ ctx.fillRect(x,y,w,bar); ctx.strokeRect(x,y,w,bar);
+ ctx.strokeStyle='rgba(220,230,235,.9)'; ctx.lineWidth=Math.max(1,w/50);
+ const innerX=x+post, innerW=w-2*post, innerY=y+bar, innerH=h-bar-2;
+ for(let i=1;i<=3;i++){
+  const yy=innerY+innerH*(i/4);
+  ctx.beginPath(); ctx.moveTo(innerX,yy); ctx.lineTo(innerX+innerW,yy); ctx.stroke();
+ }
+ for(let i=1;i<=4;i++){
+  const xx=innerX+innerW*(i/5);
+  ctx.beginPath(); ctx.moveTo(xx,innerY); ctx.lineTo(xx,innerY+innerH); ctx.stroke();
+ }
+ ctx.restore();
+}
+function tpDrawPiecesOn(ctx,W,H){
+ const pieces=(typeof tpState!=='undefined' && tpState.pieces)||[];
+ pieces.forEach(function(p){
+  const cx=p.x/100*W, cy=p.y/100*H;
+  const pw=(p.w||6)/100*W, ph=(p.h||6)/100*H;
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.rotate((p.rot||0)*Math.PI/180);
+  const t=p.type;
+  if(t==='home'||t==='away'||t==='gk-home'||t==='gk-away'){
+   const r=Math.max(9, Math.min(W,H)*0.017);
+   ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+   ctx.fillStyle=t==='home'?'#d63031':t==='away'?'#0984e3':t==='gk-home'?'#f9c614':'#111';
+   ctx.fill();
+   ctx.lineWidth=Math.max(2,r*0.18); ctx.strokeStyle='#fff'; ctx.stroke();
+  }else if(t==='ball'){
+   const r=Math.max(6,Math.min(W,H)*0.012);
+   ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+   ctx.fillStyle='#f4f4f4'; ctx.fill();
+   ctx.strokeStyle='#222'; ctx.lineWidth=1.2; ctx.stroke();
+   ctx.strokeStyle='#222'; ctx.lineWidth=1;
+   ctx.beginPath(); ctx.arc(0,0,r*0.45,0,Math.PI*2); ctx.stroke();
+  }else if(t==='cone'){
+   ctx.fillStyle='rgba(120,50,10,.35)';
+   ctx.beginPath(); ctx.ellipse(0,ph*0.42,pw*0.55,ph*0.12,0,0,Math.PI*2); ctx.fill();
+   ctx.fillStyle='#f39c12'; ctx.strokeStyle='#c0392b'; ctx.lineWidth=1.4;
+   ctx.beginPath(); ctx.moveTo(0,-ph/2); ctx.lineTo(pw*0.42,ph*0.38); ctx.lineTo(-pw*0.42,ph*0.38); ctx.closePath();
+   ctx.fill(); ctx.stroke();
+   ctx.fillStyle='#fff';
+   ctx.fillRect(-pw*0.28, ph*0.08, pw*0.56, ph*0.12);
+   ctx.fillRect(-pw*0.18, -ph*0.18, pw*0.36, ph*0.1);
+  }else if(t==='goal'){
+   tpDrawGoal(ctx,pw,ph);
+  }else if(t==='arrow'){
+   ctx.strokeStyle='#111'; ctx.fillStyle='#111'; ctx.lineWidth=Math.max(2,H/140);
+   ctx.beginPath(); ctx.moveTo(-pw/2,0); ctx.lineTo(pw/2-10,0); ctx.stroke();
+   ctx.beginPath(); ctx.moveTo(pw/2,0); ctx.lineTo(pw/2-14,-7); ctx.lineTo(pw/2-14,7); ctx.closePath(); ctx.fill();
+  }else if(t==='square'){
+   ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(-pw/2,-ph/2,pw,ph);
+  }else if(t==='circle'){
+   ctx.strokeStyle='#fff'; ctx.lineWidth=2;
+   ctx.beginPath(); ctx.ellipse(0,0,pw/2,ph/2,0,0,Math.PI*2); ctx.stroke();
+  }
+  ctx.restore();
+ });
+}
+function tpPlaceMarks(board){
+ function mk(id, st){
+  let e=document.getElementById(id);
+  if(!e){ e=document.createElement('div'); e.id=id; board.appendChild(e); }
+  e.style.cssText='position:absolute;width:8px;height:8px;z-index:80;pointer-events:none;'+st;
+ }
+ mk('tp-mk-tl','left:0;top:0;background:#ff00aa');
+ mk('tp-mk-br','right:0;bottom:0;background:#00fff0');
+}
+function tpRemoveMarks(){
+ ['tp-mk-tl','tp-mk-br'].forEach(function(id){ const e=document.getElementById(id); if(e) e.remove(); });
+}
+function tpScanMarker(data,w,h,r,g,b,corner){
+ const tol=60;
+ const limx=Math.min(w, Math.max(48, (w*0.35)|0));
+ const limy=Math.min(h, Math.max(48, (h*0.35)|0));
+ function hit(x,y){
+  const i=(y*w+x)*4;
+  return Math.abs(data[i]-r)<tol && Math.abs(data[i+1]-g)<tol && Math.abs(data[i+2]-b)<tol;
+ }
+ if(corner==='tl'){
+  for(let y=0;y<limy;y++) for(let x=0;x<limx;x++) if(hit(x,y)) return {x:x,y:y};
+ }else{
+  for(let y=h-1;y>=h-limy;y--) for(let x=w-1;x>=w-limx;x--) if(hit(x,y)) return {x:x,y:y};
+ }
+ return null;
+}
+function tpScrollSnap(){
+ const modal=document.querySelector('.mini-prancheta-box')||document.querySelector('.tp-box');
+ return {
+  x:window.scrollX, y:window.scrollY,
+  mx: modal?modal.scrollLeft:0, my: modal?modal.scrollTop:0,
+  modal: modal
+ };
+}
+function tpScrollRestore(st){
+ if(!st) return;
+ window.scrollTo(st.x, st.y);
+ if(st.modal){ st.modal.scrollLeft=st.mx; st.modal.scrollTop=st.my; }
+}
+async function tpCaptureTabCrop(board, frac){
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia) throw new Error('sem captura');
+ const snap=tpScrollSnap();
+ let spacer=document.getElementById('tp-share-spacer');
+ if(!spacer){
+  spacer=document.createElement('div');
+  spacer.id='tp-share-spacer';
+  spacer.style.cssText='height:140px;flex-shrink:0;width:100%;pointer-events:none';
+  const col=board.closest('.tp-field-col')||board.parentElement;
+  if(col&&col.parentElement) col.parentElement.appendChild(spacer);
+  else board.parentElement.appendChild(spacer);
+ }
+ try{ board.scrollIntoView({block:'center', inline:'nearest'}); }catch(e){}
+ const stream=await navigator.mediaDevices.getDisplayMedia({
+  video:{displaySurface:'browser', frameRate:5, cursor:'never'},
+  preferCurrentTab:true,
+  audio:false
+ });
+ try{
+  tpScrollRestore(snap);
+  try{ board.scrollIntoView({block:'center', inline:'nearest'}); }catch(e){}
+  const track=stream.getVideoTracks()[0];
+  let cropped=false;
+  if(window.CropTarget && track.cropTo){
+   try{
+    const tgt=await CropTarget.fromElement(board);
+    await track.cropTo(tgt);
+    cropped=true;
+   }catch(err){ console.warn(err); }
+  }
+  const vid=document.createElement('video');
+  vid.srcObject=stream; vid.muted=true; vid.playsInline=true;
+  await vid.play();
+  if(!cropped) tpPlaceMarks(board);
+  await new Promise(function(r){ setTimeout(r,450); });
+  try{ board.scrollIntoView({block:'center', inline:'nearest'}); }catch(e){}
+  const vw=vid.videoWidth, vh=vid.videoHeight;
+  if(!vw||!vh) throw new Error('vídeo vazio');
+  const full=document.createElement('canvas');
+  full.width=vw; full.height=vh;
+  const fctx=full.getContext('2d');
+  fctx.drawImage(vid,0,0);
+  const br=board.getBoundingClientRect();
+  let x,y,w,h;
+  if(cropped){
+   const scale=vw/Math.max(1,br.width);
+   x=frac.x*br.width*scale;
+   y=frac.y*br.height*scale;
+   w=frac.w*br.width*scale;
+   h=frac.h*br.height*scale;
+   const pad=12*scale;
+   y-=pad; h+=pad;
+  }else{
+   try{
+    const img=fctx.getImageData(0,0,vw,vh);
+    const tl=tpScanMarker(img.data,vw,vh,255,0,170,'tl');
+    const brk=tpScanMarker(img.data,vw,vh,0,255,240,'br');
+    if(tl && brk && brk.x>tl.x+20 && brk.y>tl.y+20){
+     const bw=brk.x-tl.x, bh=brk.y-tl.y;
+     x=tl.x+frac.x*bw; y=tl.y+frac.y*bh; w=frac.w*bw; h=frac.h*bh;
+     const pad=bh*0.012; y-=pad; h+=pad;
+    }else throw new Error('marcadores');
+   }catch(e){
+    const vv=window.visualViewport;
+    const pw=vv?vv.width:window.innerWidth;
+    const ph=vv?vv.height:window.innerHeight;
+    const ox=vv?vv.offsetLeft:0;
+    const oy=vv?vv.offsetTop:0;
+    x=(br.left-ox+frac.x*br.width)/pw*vw;
+    y=(br.top-oy+frac.y*br.height)/ph*vh;
+    w=frac.w*br.width/pw*vw;
+    h=frac.h*br.height/ph*vh;
+   }
+  }
+  x=Math.max(0,x); y=Math.max(0,y);
+  w=Math.max(1,Math.min(w,vw-x)); h=Math.max(1,Math.min(h,vh-y));
+  const c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round(w)); c.height=Math.max(1,Math.round(h));
+  c.getContext('2d').drawImage(full,x,y,w,h,0,0,c.width,c.height);
+  return c;
+ }finally{
+  tpRemoveMarks();
+  const sp=document.getElementById('tp-share-spacer');
+  if(sp) sp.remove();
+  tpScrollRestore(snap);
+  stream.getTracks().forEach(function(t){ t.stop(); });
+ }
+}
+async function tpCopiarSelecao(){
+ if(!tpCrop.ready){ alert('Arraste no campo para selecionar a área.'); return; }
+ const board=document.getElementById('mini-football-board');
+ if(!board){ alert('Campo da prancheta não encontrado.'); return; }
+ const layer=document.getElementById('tp-crop-layer');
+ const box=document.getElementById('tp-crop-box');
+ const br0=board.getBoundingClientRect();
+ let frac;
+ if(box){
+  const r=box.getBoundingClientRect();
+  frac={x:(r.left-br0.left)/br0.width, y:(r.top-br0.top)/br0.height, w:r.width/br0.width, h:r.height/br0.height};
+ }else{
+  const x=Math.min(tpCrop.x0,tpCrop.x1), y=Math.min(tpCrop.y0,tpCrop.y1);
+  frac={x:x/br0.width, y:y/br0.height, w:Math.abs(tpCrop.x1-tpCrop.x0)/br0.width, h:Math.abs(tpCrop.y1-tpCrop.y0)/br0.height};
+ }
+ const prev=layer?layer.style.display:'';
+ if(layer) layer.style.display='none';
+ let c=null;
+ try{
+  c=await tpCaptureTabCrop(board, frac);
+ }catch(e){
+  try{
+   const br=board.getBoundingClientRect();
+   const scale=2;
+   const W=Math.max(2,Math.round(br.width*scale));
+   const H=Math.max(2,Math.round(br.height*scale));
+   const full=document.createElement('canvas');
+   full.width=W; full.height=H;
+   const ctx=full.getContext('2d');
+   const field=await tpTryFieldBitmap(W,H);
+   if(field) ctx.drawImage(field,0,0);
+   else {
+    ctx.fillStyle='#3a8c3a'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=Math.max(2,W/180);
+    ctx.strokeRect(W*0.03,H*0.03,W*0.94,H*0.94);
+    ctx.beginPath(); ctx.moveTo(W/2,H*0.03); ctx.lineTo(W/2,H*0.97); ctx.stroke();
+    ctx.beginPath(); ctx.arc(W/2,H/2,Math.min(W,H)*0.12,0,Math.PI*2); ctx.stroke();
+   }
+   tpDrawPiecesOn(ctx,W,H);
+   c=document.createElement('canvas');
+   c.width=Math.max(1,Math.round(frac.w*W));
+   c.height=Math.max(1,Math.round(frac.h*H));
+   c.getContext('2d').drawImage(full, frac.x*W, frac.y*H, frac.w*W, frac.h*H, 0,0,c.width,c.height);
+  }catch(e2){
+   if(layer) layer.style.display=prev||'block';
+   alert('Não foi possível copiar: '+(e2&&e2.message?e2.message:e2));
+   return;
+  }
+ }
+ if(layer) layer.style.display=prev||'block';
+ try{
+  window.__prosolClipImg=c.toDataURL('image/jpeg',0.9);
+ }catch(e){
+  alert('O navegador bloqueou a imagem do campo. Use Colar do PowerPoint no verde.');
+  return;
+ }
+ try{
+  c.toBlob(function(blob){
+   if(blob && navigator.clipboard && window.ClipboardItem){
+    navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).catch(function(){});
+   }
+  },'image/png');
+ }catch(e){}
+ alert('Área copiada. No treino: clique no verde e Cole.');
+}
+
+
 function openPranchetaModal() {
  let modal=document.getElementById('prancheta-modal');
  if(!modal){
@@ -5777,6 +6150,8 @@ function renderPranchetaVirtual(){
    <button type="button" onclick="clearPrancheta()">Limpar campo</button>
    <button type="button" class="tp-save" onclick="tpSalvarTela()">Salvar tela</button>
    <button type="button" class="tp-export" onclick="tpExportarVideo()">Exportar vídeo</button>
+   <button type="button" id="tp-btn-sel" class="tp-sel" onclick="tpToggleSelecionar()">Selecionar</button>
+   <button type="button" id="tp-btn-copy" class="tp-copy" onclick="tpCopiarSelecao()" disabled>Copiar</button>
    <button type="button" class="tp-proj" onclick="tpAbrirProjetos()">Projetos</button>
    <button type="button" class="mini-close" onclick="closePranchetaModal()">Fechar</button>
   </header>
@@ -5879,7 +6254,12 @@ function resetPrancheta(){
  );
  tpRenderPieces();
 }
-function clearPrancheta(){ tpState.pieces=[]; tpState.sel=null; tpRenderPieces(); }
+function clearPrancheta(){
+ tpState.pieces=[]; tpState.frames=[]; tpState.sel=null;
+ tpState.homeN=1; tpState.awayN=1;
+ tpRenderPieces();
+ if(typeof tpRenderFrames==='function') tpRenderFrames();
+}
 function adicionarBotaoPrancheta(){ tpAdd('home'); }
 function adicionarBolaPrancheta(){ tpAdd('ball'); }
 function criarBotaoPrancheta(x,y,texto,tipo){
@@ -10393,6 +10773,383 @@ function modernV3VoltarInicio(){
 function abrirProsolAcademy(){
  window.open(PROSOL_ACADEMY_URL,'_blank','noopener');
 }
+
+
+
+/* === CRIAÇÃO DE TREINOS — layout idêntico à planilha === */
+const TREINO_LS='prosol_criacao_treino_rascunho_v3';
+let treinoState=null;
+function treinoHoje(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function treinoModPadrao(i){return {titulo: i===0?'ATIVIDADE 1 - Analítico/Técnico':i===1?'ATIVIDADE 2 - Comportamentos DF':i===2?'ATIVIDADE 3 - Comportamentos OF/DF':'ATIVIDADE '+(i+1), goleiro:'sem', duracao:'', dimensao:'', series:'', relacao:'', descricao:'', conteudo:''};}
+function treinoPadrao(){
+ return {
+  professor:'', categoria:'Sub 13', data:treinoHoje(), metodologia:'',
+  atletas:'', testes:'', transicao:'', dmFaltas:'', objetivos:'', materiais:'', campo:'',
+  prepFisica:true, nModulos:3, pdeOn:true,
+  prep:{titulo:'Prep. Física - Neno', goleiro:'sem', duracao:'', descricao:''},
+  modulos:[treinoModPadrao(0),treinoModPadrao(1),treinoModPadrao(2),treinoModPadrao(3)],
+  pde:{horario:'',treinador:'',tempo:'',tecnica:'',atividade:'',atletas:''}
+ };
+}
+function treinoLoad(){
+ try{ const j=JSON.parse(localStorage.getItem(TREINO_LS)||''); if(j&&typeof j==='object'){
+  const p=treinoPadrao();
+  treinoState=Object.assign(p,j);
+  treinoState.prep=Object.assign(p.prep, j.prep||{});
+  treinoState.pde=Object.assign(p.pde, j.pde||{});
+  const mods=p.modulos;
+  (j.modulos||[]).forEach((m,i)=>{ if(i<4) mods[i]=Object.assign(treinoModPadrao(i),m); });
+  treinoState.modulos=mods;
+  return;
+ }}catch(e){}
+ treinoState=treinoPadrao();
+}
+function treinoSaveLS(){ try{ localStorage.setItem(TREINO_LS, JSON.stringify(treinoState)); }catch(e){} }
+
+function treinoCompactarImg(src, cb){
+ const im=new Image();
+ im.onload=function(){
+  let w=im.width, h=im.height, max=1000;
+  if(w>max){ h=Math.round(h*max/w); w=max; }
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  c.getContext('2d').drawImage(im,0,0,w,h);
+  cb(c.toDataURL('image/jpeg',0.74));
+ };
+ im.src=src;
+}
+function treinoSetSlotImg(slot, data){
+ if(!treinoState) treinoLoad();
+ if(slot==='prep'){ treinoState.prep.img=data; }
+ else if(String(slot).indexOf('m')===0){ const i=+String(slot).slice(1); if(treinoState.modulos[i]) treinoState.modulos[i].img=data; }
+ treinoSaveLS();
+ const el=document.querySelector('.tr-pitch[data-slot="'+slot+'"]');
+ if(el){
+  let img=el.querySelector('img.tr-shot');
+  if(!img){ img=document.createElement('img'); img.className='tr-shot'; el.appendChild(img); }
+  img.src=data;
+ }
+}
+function treinoLerImgClipboard(e, cb){
+ const dt=(e && e.clipboardData) || (window.clipboardData);
+ if(dt && dt.files && dt.files[0] && String(dt.files[0].type).indexOf('image')===0){
+  const rd=new FileReader(); rd.onload=function(){ cb(rd.result); }; rd.readAsDataURL(dt.files[0]); return true;
+ }
+ if(dt && dt.items){
+  for(let i=0;i<dt.items.length;i++){
+   if(dt.items[i].type.indexOf('image')===0){
+    const f=dt.items[i].getAsFile(); if(!f) continue;
+    const rd=new FileReader(); rd.onload=function(){ cb(rd.result); }; rd.readAsDataURL(f); return true;
+   }
+  }
+ }
+ if(window.__prosolClipImg){ cb(window.__prosolClipImg); return true; }
+ return false;
+}
+function treinoPasteCampo(ev){
+ ev.preventDefault();
+ const slot=(ev.currentTarget && ev.currentTarget.getAttribute('data-slot'))||'';
+ const ok=treinoLerImgClipboard(ev, function(src){ treinoCompactarImg(src, function(d){ treinoSetSlotImg(slot,d); }); });
+ if(!ok && navigator.clipboard && navigator.clipboard.read){
+  navigator.clipboard.read().then(function(items){
+   items.forEach(function(it){
+    const t=(it.types||[]).find(x=>String(x).indexOf('image')===0);
+    if(!t) return;
+    it.getType(t).then(function(blob){
+     const rd=new FileReader(); rd.onload=function(){ treinoCompactarImg(rd.result, function(d){ treinoSetSlotImg(slot,d); }); }; rd.readAsDataURL(blob);
+    });
+   });
+  }).catch(function(){ if(window.__prosolClipImg) treinoCompactarImg(window.__prosolClipImg, function(d){ treinoSetSlotImg(slot,d); }); else alert('Clique no verde e use Ctrl+V.'); });
+ }
+}
+function treinoColarSlot(slot,ev){
+ if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+ const box=document.querySelector('.tr-pitch[data-slot="'+slot+'"]');
+ if(box) box.focus();
+ if(window.__prosolClipImg){ treinoCompactarImg(window.__prosolClipImg, function(d){ treinoSetSlotImg(slot,d); }); return; }
+ if(navigator.clipboard && navigator.clipboard.read){
+  navigator.clipboard.read().then(function(items){
+   let found=false;
+   items.forEach(function(it){
+    const t=(it.types||[]).find(x=>String(x).indexOf('image')===0);
+    if(!t) return; found=true;
+    it.getType(t).then(function(blob){
+     const rd=new FileReader(); rd.onload=function(){ treinoCompactarImg(rd.result, function(d){ treinoSetSlotImg(slot,d); }); }; rd.readAsDataURL(blob);
+    });
+   });
+   if(!found) alert('Copie a imagem (PowerPoint ou prancheta) e cole de novo.');
+  }).catch(function(){ alert('Use Ctrl+V com o verde selecionado.'); });
+ } else alert('Clique no verde e pressione Ctrl+V.');
+}
+
+function treinoEsc(v){return String(v??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));}
+function treinoVal(id){const el=document.getElementById(id); return el?el.value:'';}
+function treinoLerTela(){
+ if(!treinoState) treinoState=treinoPadrao();
+ const st=treinoState;
+ st.professor=treinoVal('tr-prof'); st.categoria=treinoVal('tr-cat'); st.data=treinoVal('tr-data'); st.metodologia=treinoVal('tr-met');
+ st.atletas=treinoVal('tr-atl'); st.testes=treinoVal('tr-tes'); st.transicao=treinoVal('tr-tra'); st.dmFaltas=treinoVal('tr-dm');
+ st.objetivos=treinoVal('tr-obj'); st.materiais=treinoVal('tr-mat'); st.campo=treinoVal('tr-campo');
+ const prepEl=document.getElementById('tr-prep'); const pdeEl=document.getElementById('tr-pde'); const nEl=document.getElementById('tr-nmod');
+ if(prepEl) st.prepFisica=prepEl.checked;
+ if(pdeEl) st.pdeOn=pdeEl.checked;
+ if(nEl) st.nModulos=Math.max(0,Math.min(4,Number(nEl.value||0)));
+ const pg=(document.querySelector('input[name="tr-pf-g"]:checked')||{}).value||'sem';
+ st.prep={titulo:treinoVal('tr-pf-tit')||'Prep. Física - Neno', goleiro:pg, duracao:treinoVal('tr-pf-dur'), descricao:treinoVal('tr-pf-desc'), img:(st.prep&&st.prep.img)||''};
+ for(let i=0;i<4;i++){
+  const g=(document.querySelector('input[name="tr-m'+i+'-g"]:checked')||{}).value||'sem';
+  st.modulos[i]={
+   titulo:treinoVal('tr-m'+i+'-tit'), goleiro:g, duracao:treinoVal('tr-m'+i+'-dur'), dimensao:treinoVal('tr-m'+i+'-dim'),
+   series:treinoVal('tr-m'+i+'-ser'), relacao:treinoVal('tr-m'+i+'-rel'), descricao:treinoVal('tr-m'+i+'-desc'), conteudo:treinoVal('tr-m'+i+'-con'),
+   img:(st.modulos[i]&&st.modulos[i].img)||''
+  };
+ }
+ st.pde={horario:treinoVal('tr-pde-h'), treinador:treinoVal('tr-pde-tr'), tempo:treinoVal('tr-pde-te'), tecnica:treinoVal('tr-pde-tec'), atividade:treinoVal('tr-pde-at'), atletas:treinoVal('tr-pde-atl')};
+ treinoSaveLS();
+}
+function treinoOnChange(){ treinoLerTela(); renderCriacaoTreino(); }
+function openCriacaoTreino(){
+ treinoLoad();
+ let m=document.getElementById('criacao-treino-modal');
+ if(!m){ m=document.createElement('div'); m.id='criacao-treino-modal'; m.className='tr-overlay'; document.body.appendChild(m); m.addEventListener('click',e=>{ if(e.target===m) closeCriacaoTreino(); }); }
+ m.style.display='flex';
+ renderCriacaoTreino();
+}
+function closeCriacaoTreino(){ treinoLerTela(); const m=document.getElementById('criacao-treino-modal'); if(m) m.style.display='none'; }
+function treinoLimpar(){ if(!confirm('Limpar a ficha deste aparelho?')) return; treinoState=treinoPadrao(); treinoSaveLS(); renderCriacaoTreino(); }
+function treinoX(name,val,v){ return `<td class="tr-x">${val===v?'<b>X</b>':''}<input type="radio" name="${name}" value="${v}" ${val===v?'checked':''} onchange="treinoOnChange()"></td>`; }
+function treinoGolCel(name,cur,v,lab){
+ return `<td class="tr-gol">${cur===v?'<b class="tr-xv">X</b>':'<b class="tr-xv"></b>'}<i>${lab}</i><input type="radio" name="${name}" value="${v}" ${cur===v?'checked':''} onchange="treinoOnChange()"></td>`;
+}
+function treinoCampoSVG(){
+ return `<svg viewBox="0 0 120 160" preserveAspectRatio="none">
+  <defs><pattern id="trstr" width="12" height="160" patternUnits="userSpaceOnUse"><rect width="6" height="160" fill="#4a9a3a"/><rect x="6" width="6" height="160" fill="#3d8a32"/></pattern></defs>
+  <rect width="120" height="160" fill="url(#trstr)"/>
+  <rect x="2" y="2" width="116" height="156" fill="none" stroke="#d4efc8" stroke-width="1.4"/>
+  <line x1="2" y1="80" x2="118" y2="80" stroke="#d4efc8" stroke-width="1.2"/>
+  <circle cx="60" cy="80" r="16" fill="none" stroke="#d4efc8" stroke-width="1.2"/>
+  <rect x="35" y="2" width="50" height="22" fill="none" stroke="#d4efc8" stroke-width="1.2"/>
+  <rect x="35" y="136" width="50" height="22" fill="none" stroke="#d4efc8" stroke-width="1.2"/>
+ </svg>`;
+}
+function treinoCampoBox(slot, img){
+ const shot=img?`<img class="tr-shot" src="${img}" alt="">`:'';
+ return `<div class="tr-pitch" tabindex="0" data-slot="${slot}" onpaste="treinoPasteCampo(event)" onclick="this.focus()">
+  ${treinoCampoSVG()}${shot}
+  <button type="button" class="tr-colar tr-no-print" onclick="treinoColarSlot('${slot}',event)">Colar</button>
+ </div>`;
+}
+function treinoBlocoAtividade(i,m){
+ const g=m.goleiro||'sem';
+ const n='tr-m'+i+'-g';
+ return `<table class="tr-tab tr-ativ">
+  <tr><th colspan="4" class="tr-sec"><input class="tr-tit" id="tr-m${i}-tit" value="${treinoEsc(m.titulo||('ATIVIDADE '+(i+1)))}" oninput="treinoLerTela()"></th></tr>
+  <tr>
+   <td class="tr-pitch-td" rowspan="8">${treinoCampoBox('m'+i, m.img)}</td>
+   <th class="tr-kh">GOLEIROS</th><th class="tr-kh">DURAÇÃO</th><th class="tr-kh">DIMENSÕES</th>
+  </tr>
+  <tr>
+   ${treinoGolCel(n,g,'sem','SEM GOLEIRO')}
+   <td class="tr-ctr"><input id="tr-m${i}-dur" value="${treinoEsc(m.duracao||'')}" oninput="treinoLerTela()"></td>
+   <td class="tr-ctr"><input id="tr-m${i}-dim" value="${treinoEsc(m.dimensao||'')}" oninput="treinoLerTela()"></td>
+  </tr>
+  <tr>
+   ${treinoGolCel(n,g,'1','1 GOLEIRO')}
+   <th class="tr-kh">SÉRIES x TEMPO</th><th class="tr-kh">RELAÇÃO NUMÉRICA</th>
+  </tr>
+  <tr>
+   ${treinoGolCel(n,g,'2','2 GOLEIROS')}
+   <td class="tr-ctr"><input id="tr-m${i}-ser" value="${treinoEsc(m.series||'')}" oninput="treinoLerTela()"></td>
+   <td class="tr-ctr"><input id="tr-m${i}-rel" value="${treinoEsc(m.relacao||'')}" oninput="treinoLerTela()"></td>
+  </tr>
+  <tr><th colspan="3" class="tr-kh">DESCRIÇÃO COMPLETA DA ATIVIDADE</th></tr>
+  <tr><td colspan="3"><textarea id="tr-m${i}-desc" rows="4" oninput="treinoLerTela()">${treinoEsc(m.descricao||'')}</textarea></td></tr>
+  <tr><th colspan="3" class="tr-kh">CONTEÚDO/COMPORTAMENTO</th></tr>
+  <tr><td colspan="3"><textarea id="tr-m${i}-con" rows="3" oninput="treinoLerTela()">${treinoEsc(m.conteudo||'')}</textarea></td></tr>
+ </table>`;
+}
+function renderCriacaoTreino(){
+ const m=document.getElementById('criacao-treino-modal'); if(!m) return;
+ if(!treinoState) treinoLoad();
+ const st=treinoState;
+ const cats=['Sub 11','Sub 12','Sub 13','Sub 16'];
+ const pg=st.prep.goleiro||'sem';
+ let blocos='';
+ if(st.prepFisica){
+  blocos+=`<table class="tr-tab tr-pf">
+   <tr><th colspan="5" class="tr-sec"><input class="tr-tit" id="tr-pf-tit" value="${treinoEsc(st.prep.titulo||'Prep. Física - Neno')}" oninput="treinoLerTela()"></th></tr>
+   <tr>
+    <td class="tr-pitch-td tr-pf-green" rowspan="4">${treinoCampoBox('prep', st.prep.img)}</td>
+    <th class="tr-kh">GOLEIROS</th><th class="tr-kh">DURAÇÃO</th><th class="tr-kh">DIMENSÕES</th>
+   </tr>
+   <tr>
+    ${treinoGolCel('tr-pf-g',pg,'sem','SEM GOLEIRO')}
+    <td class="tr-ctr"><input id="tr-pf-dur" value="${treinoEsc(st.prep.duracao||'')}" oninput="treinoLerTela()"></td>
+    <td></td>
+   </tr>
+   <tr><th colspan="4" class="tr-kh">DESCRIÇÃO COMPLETA DA ATIVIDADE</th></tr>
+   <tr><td colspan="4"><textarea id="tr-pf-desc" rows="2" oninput="treinoLerTela()">${treinoEsc(st.prep.descricao||'')}</textarea></td></tr>
+  </table>`;
+ }
+ for(let i=0;i<st.nModulos;i++) blocos+=treinoBlocoAtividade(i, st.modulos[i]||treinoModPadrao(i));
+ const pde=st.pdeOn?`
+  <table class="tr-tab"><tr><th class="tr-sec">PLANO DESENVOLVIMENTO ESPECÍFICO - PDE</th></tr></table>
+  <div class="tr-pde-top">
+   <table class="tr-tab tr-mini"><tr><th class="tr-kh">HORÁRIO PREVISTO</th></tr><tr><td><input id="tr-pde-h" value="${treinoEsc(st.pde.horario||'')}" oninput="treinoLerTela()"></td></tr></table>
+   <table class="tr-tab tr-mini"><tr><th class="tr-kh">TREINADOR</th></tr><tr><td><input id="tr-pde-tr" value="${treinoEsc(st.pde.treinador||'')}" oninput="treinoLerTela()"></td></tr></table>
+   <table class="tr-tab tr-mini"><tr><th class="tr-kh">TEMPO</th></tr><tr><td><input id="tr-pde-te" value="${treinoEsc(st.pde.tempo||'')}" oninput="treinoLerTela()"></td></tr></table>
+  </div>
+  <div class="tr-pde-bot">
+   <table class="tr-tab tr-atl"><tr><th class="tr-kh" colspan="2">ATLETAS</th></tr><tr><td colspan="2"><textarea id="tr-pde-atl" rows="8" oninput="treinoLerTela()" placeholder="Nome 1&#10;Nome 2">${treinoEsc(st.pde.atletas||'')}</textarea></td></tr></table>
+   <table class="tr-tab tr-mini"><tr><th class="tr-kh">TÉCNICA DESENVOLVIDA</th></tr><tr><td><textarea id="tr-pde-tec" rows="3" oninput="treinoLerTela()">${treinoEsc(st.pde.tecnica||'')}</textarea></td></tr></table>
+   <table class="tr-tab tr-atv"><tr><th class="tr-kh">ATIVIDADE:</th></tr><tr><td><textarea id="tr-pde-at" rows="4" oninput="treinoLerTela()">${treinoEsc(st.pde.atividade||'')}</textarea></td></tr></table>
+  </div>`:'';
+ m.innerHTML=`<div class="tr-card">
+  <button type="button" class="tr-close tr-no-print" onclick="closeCriacaoTreino()">×</button>
+  <div class="tr-toolbar tr-no-print">
+   <button type="button" class="tr-pdf" onclick="imprimirCriacaoTreino()">Exportar / Salvar PDF</button>
+   <button type="button" class="tr-limpar" onclick="treinoLimpar()">Limpar ficha</button>
+   <label class="tr-opt"><input type="checkbox" id="tr-prep" ${st.prepFisica?'checked':''} onchange="treinoOnChange()"> Prep. Física</label>
+   <label class="tr-opt">Módulos <select id="tr-nmod" onchange="treinoOnChange()">${[0,1,2,3,4].map(n=>`<option value="${n}" ${Number(st.nModulos)===n?'selected':''}>${n}</option>`).join('')}</select></label>
+   <label class="tr-opt"><input type="checkbox" id="tr-pde" ${st.pdeOn?'checked':''} onchange="treinoOnChange()"> Incluir PDE</label>
+  </div>
+  <div class="tr-sheet">
+   <table class="tr-tab tr-cab">
+   <colgroup><col style="width:22%"><col style="width:18%"><col style="width:20%"><col style="width:20%"><col style="width:20%"></colgroup>
+   <tr>
+    <td class="tr-logo" rowspan="9"><img src="logo.png" alt="CFA Prosol"></td>
+    <th colspan="4" class="tr-titulo">CENTRO DE FORMAÇÃO DE ATLETAS PROSOL</th>
+   </tr>
+   <tr><th class="tr-lab">PROFESSOR:</th><td colspan="3" class="tr-ctr"><input id="tr-prof" value="${treinoEsc(st.professor)}" oninput="treinoLerTela()"></td></tr>
+   <tr><th class="tr-lab">CATEGORIA:</th><td colspan="3" class="tr-ctr"><select id="tr-cat" onchange="treinoLerTela()">${cats.map(c=>`<option ${st.categoria===c?'selected':''}>${c}</option>`).join('')}</select></td></tr>
+   <tr><th class="tr-lab">DATA:</th><td colspan="3" class="tr-ctr"><input id="tr-data" type="date" value="${treinoEsc(st.data)}" oninput="treinoLerTela()"></td></tr>
+   <tr><th class="tr-lab">METODOLOGIA:</th><td colspan="3" class="tr-ctr"><input id="tr-met" value="${treinoEsc(st.metodologia)}" oninput="treinoLerTela()"></td></tr>
+   <tr><td class="tr-ch">Atletas do Grupo</td><td class="tr-ch">Testes</td><td class="tr-ch">Transição</td><td class="tr-ch">DM / Faltas</td></tr>
+   <tr>
+    <td class="tr-ctr"><textarea id="tr-atl" rows="2" oninput="treinoLerTela()">${treinoEsc(st.atletas)}</textarea></td>
+    <td class="tr-ctr"><input id="tr-tes" class="tr-green" value="${treinoEsc(st.testes)}" oninput="treinoLerTela()"></td>
+    <td class="tr-ctr"><input id="tr-tra" class="tr-red" value="${treinoEsc(st.transicao)}" oninput="treinoLerTela()"></td>
+    <td class="tr-ctr"><input id="tr-dm" class="tr-red" value="${treinoEsc(st.dmFaltas)}" oninput="treinoLerTela()"></td>
+   </tr>
+   <tr>
+    <td class="tr-ch" colspan="2">OBJETIVOS DA SESSÃO</td>
+    <td class="tr-ch">MATERIAIS UTILIZADOS</td>
+    <td class="tr-ch tr-campo" rowspan="2"><input id="tr-campo" value="${treinoEsc(st.campo)}" oninput="treinoLerTela()" placeholder="Campo"></td>
+   </tr>
+   <tr>
+    <td class="tr-ctr" colspan="2"><textarea id="tr-obj" rows="4" oninput="treinoLerTela()">${treinoEsc(st.objetivos)}</textarea></td>
+    <td class="tr-ctr"><textarea id="tr-mat" rows="4" oninput="treinoLerTela()">${treinoEsc(st.materiais)}</textarea></td>
+   </tr>
+   </table>
+   ${blocos}${pde}
+  </div>
+ </div>`;
+}
+function treinoDataBR(iso){
+ const m=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+ const p=String(iso||'').split('-');
+ if(p.length!==3) return iso||'';
+ return p[2]+'-'+m[Math.max(0,(+p[1]||1)-1)]+'-'+String(p[0]).slice(2);
+}
+function treinoTxt(v){ return treinoEsc(v).replace(/\n/g,'<br>'); }
+function treinoXprint(cur,v){ return cur===v?'<b class="x">X</b>':''; }
+function imprimirCriacaoTreino(){
+ treinoLerTela();
+ const st=treinoState||treinoPadrao();
+ const logo=(location.origin?location.href.replace(/[^/]+$/,'logo.png'):'logo.png');
+ let html='<table class="cab"><tr><td class="logo" rowspan="9"><img src="logo.png"></td><th colspan="4" class="tit">CENTRO DE FORMAÇÃO DE ATLETAS PROSOL</th></tr>';
+ html+=`<tr><th class="lab">PROFESSOR:</th><td colspan="3" class="ctr">${treinoTxt(st.professor)}</td></tr>`;
+ html+=`<tr><th class="lab">CATEGORIA:</th><td colspan="3" class="ctr">${treinoTxt(st.categoria)}</td></tr>`;
+ html+=`<tr><th class="lab">DATA:</th><td colspan="3" class="ctr">${treinoEsc(treinoDataBR(st.data))}</td></tr>`;
+ html+=`<tr><th class="lab">METODOLOGIA:</th><td colspan="3" class="ctr">${treinoTxt(st.metodologia)}</td></tr>`;
+ html+=`<tr><td class="ch">Atletas do Grupo</td><td class="ch">Testes</td><td class="ch">Transição</td><td class="ch">DM / Faltas</td></tr>`;
+ html+=`<tr><td class="ctr">${treinoTxt(st.atletas)}</td><td class="ctr verde">${treinoTxt(st.testes)}</td><td class="ctr verm">${treinoTxt(st.transicao)}</td><td class="ctr verm">${treinoTxt(st.dmFaltas)}</td></tr>`;
+ html+=`<tr><td class="ch">OBJETIVOS DA SESSÃO</td><td class="ch">MATERIAIS UTILIZADOS</td><td class="ch campo" colspan="2" rowspan="2">${treinoTxt(st.campo)}</td></tr>`;
+ html+=`<tr><td class="ctr">${treinoTxt(st.objetivos)}</td><td class="ctr">${treinoTxt(st.materiais)}</td></tr></table>`;
+ if(st.prepFisica){
+  const g=st.prep.goleiro||'sem';
+  html+=`<table class="blk"><tr><th colspan="5" class="sec">${treinoEsc(st.prep.titulo||'Prep. Física - Neno')}</th></tr>
+   <tr><td class="pitch" rowspan="4"><div class="pbox">${st.prep.img?`<img src="${st.prep.img}" style="width:100%;height:100%;object-fit:contain;display:block">`:''}</div></td><th class="kh">GOLEIROS</th><th class="kh">DURAÇÃO</th><th class="kh">DIMENSÕES</th></tr>
+   <tr><td class="it">${treinoXprint(g,'sem')} SEM GOLEIRO</td><td class="ctr">${treinoTxt(st.prep.duracao)}</td><td></td></tr>
+   <tr><th colspan="4" class="kh">DESCRIÇÃO COMPLETA DA ATIVIDADE</th></tr>
+   <tr><td colspan="4">${treinoTxt(st.prep.descricao)}</td></tr></table>`;
+ }
+  const shotMod=function(im){ return im?`<img src="${im}" style="width:100%;height:100%;object-fit:contain;display:block">`:''; };
+ const pitch=function(im){ return `<td class="pitch" rowspan="8"><div class="pbox">${shotMod(im)}</div></td>`; };
+ for(let i=0;i<(st.nModulos||0);i++){
+  const m=st.modulos[i]||{}; const g=m.goleiro||'sem';
+  html+=`<table class="blk">
+   <tr><th colspan="4" class="sec">${treinoEsc(m.titulo||('ATIVIDADE '+(i+1)))}</th></tr>
+   <tr>${pitch(m.img)}<th class="kh">GOLEIROS</th><th class="kh">DURAÇÃO</th><th class="kh">DIMENSÕES</th></tr>
+   <tr><td class="it">${treinoXprint(g,'sem')} SEM GOLEIRO</td><td class="ctr">${treinoTxt(m.duracao)}</td><td class="ctr">${treinoTxt(m.dimensao)}</td></tr>
+   <tr><td class="it">${treinoXprint(g,'1')} 1 GOLEIRO</td><th class="kh">SÉRIES x TEMPO</th><th class="kh">RELAÇÃO NUMÉRICA</th></tr>
+   <tr><td class="it">${treinoXprint(g,'2')} 2 GOLEIROS</td><td class="ctr">${treinoTxt(m.series)}</td><td class="ctr">${treinoTxt(m.relacao)}</td></tr>
+   <tr><th colspan="3" class="kh">DESCRIÇÃO COMPLETA DA ATIVIDADE</th></tr>
+   <tr><td colspan="3" class="desc">${treinoTxt(m.descricao)}</td></tr>
+   <tr><th colspan="3" class="kh">CONTEÚDO/COMPORTAMENTO</th></tr>
+   <tr><td colspan="3" class="desc">${treinoTxt(m.conteudo)}</td></tr>
+  </table>`;
+ }
+ if(st.pdeOn){
+  html+=`<table class="blk"><tr><th class="sec">PLANO DESENVOLVIMENTO ESPECÍFICO - PDE</th></tr></table>
+  <table class="pde3"><tr>
+   <td><table class="blk"><tr><th class="kh">HORÁRIO PREVISTO</th></tr><tr><td class="ctr">${treinoTxt(st.pde.horario)}</td></tr></table></td>
+   <td><table class="blk"><tr><th class="kh">TREINADOR</th></tr><tr><td class="ctr">${treinoTxt(st.pde.treinador)}</td></tr></table></td>
+   <td><table class="blk"><tr><th class="kh">TEMPO</th></tr><tr><td class="ctr">${treinoTxt(st.pde.tempo)}</td></tr></table></td>
+  </tr></table>
+  <table class="pde3"><tr>
+   <td style="width:28%"><table class="blk"><tr><th class="kh">ATLETAS</th></tr><tr><td>${treinoTxt(st.pde.atletas)}</td></tr></table></td>
+   <td style="width:28%"><table class="blk"><tr><th class="kh">TÉCNICA DESENVOLVIDA</th></tr><tr><td class="ctr">${treinoTxt(st.pde.tecnica)}</td></tr></table></td>
+   <td><table class="blk"><tr><th class="kh">ATIVIDADE:</th></tr><tr><td class="ctr">${treinoTxt(st.pde.atividade)}</td></tr></table></td>
+  </tr></table>`;
+ }
+ const w=window.open('','treino-pdf','width=794,height=1123');
+ if(!w){ alert('Permita pop-up para salvar o PDF.'); return; }
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Planilha de treino</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#fff}
+@page{size:A4 portrait;margin:5mm}
+#fit{width:200mm;margin:0 auto;font-family:Calibri,Carlito,Arial,sans-serif;font-size:9pt;color:#000}
+table{border-collapse:collapse;width:100%;margin:0 0 2px}
+td,th{border:1px solid #000;padding:1px 3px;vertical-align:middle;line-height:1.12}
+.tit{background:#000!important;color:#fff!important;font-size:11pt;font-weight:800;text-align:center;padding:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lab{background:#fff;color:#000;font-weight:800;text-align:left;width:20%;font-size:11pt}
+.ch{font-weight:800;text-align:center;font-size:11pt}
+.ctr,.desc{text-align:center;font-family:Calibri,Carlito,Arial,sans-serif;font-size:9pt;font-weight:400}
+.verde{color:#008000}
+.verm{color:#c00;font-weight:800}
+.logo{background:#58111a!important;width:42mm;text-align:center;padding:2px;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.logo img{width:36mm}
+.sec,.kh,.lab,.ch,.tit{font-size:11pt!important;font-weight:800;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sec,.kh{background:#c5c08a!important;color:#111!important}
+.it{font-style:italic;font-size:8.5px}
+.xcel{width:14px;text-align:center}
+.x{color:#c00;font-weight:900;font-size:11px}
+.pfgreen,.pitch{background:#4a7a22!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:0}
+.pitch{width:34%;height:auto}
+.pbox{min-height:16mm;height:100%;background:repeating-linear-gradient(90deg,#4a9a3a 0 8px,#3d8a32 8px 16px)}
+.desc{font-size:9pt;text-align:left;font-weight:400;font-family:Calibri,Carlito,Arial,sans-serif}
+.campo{text-align:center;font-weight:800;width:18%}
+.pde3{border:0!important;margin:0 0 3px}
+.pde3>tbody>tr>td{border:0!important;padding:0 3px;vertical-align:top}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+</style></head><body><div id="fit">${html}</div>
+<script>
+window.onload=function(){
+ var el=document.getElementById('fit');
+ var maxH=1050;
+ var h=el.scrollHeight||el.offsetHeight;
+ if(h>maxH){
+  var z=maxH/h;
+  document.documentElement.style.zoom=z;
+  document.body.style.zoom=z;
+ }
+ setTimeout(function(){window.print();},300);
+};
+<\/script></body></html>`);
+ w.document.close();
+}
+
 function modernV3Action(action,event){
  if(typeof limparSelecaoAtletaCadastro==='function') limparSelecaoAtletaCadastro(false); else esconderTooltipAtletaCadastro();
  document.body.classList.add('app-v3-mode');modernV3EnsureMenu();modernV3SetActive(event&&event.currentTarget);
@@ -10411,6 +11168,7 @@ function modernV3Action(action,event){
   if(action==='preparacao-fisica'){openPreparacaoFisicaQueixasModal();return;}
   if(action==='monitoramento-carga'){openMonitoramentoCargaModal();return;}
   if(action==='calendario-treino'){openCalendarioTreino();return;}
+  if(action==='criacao-treino'){openCriacaoTreino();return;}
  }catch(e){console.error(e);alert('Não foi possível abrir este módulo.');}
 }
 function modernV3BuildHome(){
@@ -10430,6 +11188,7 @@ function modernV3BuildHome(){
    <button onclick="modernV3Navigate('testes',event)"><i>🏃</i><strong>Testes físicos</strong><small>Avaliações físicas, dados e grupos.</small></button>
    <button onclick="modernV3Action('fotos',event)"><i>📸</i><strong>Fotos</strong><small>Galeria e fotos dos atletas.</small></button>
    <button onclick="modernV3Navigate('prancheta',event)"><i>📐</i><strong>Prancheta</strong><small>Organização tática virtual.</small></button>
+   <button onclick="modernV3Action('criacao-treino',event)"><i>📝</i><strong>Criação de treinos</strong><small>Planilha editável e PDF.</small></button>
    <button class="mv3-academy-card" onclick="modernV3Action('prosol-academy',event)"><i class="mv3-academy-ico"><img src="logo_academy.png" alt=""></i><strong>Prosol Academy</strong><small>Academy - Atletas e chamadas</small></button>
   </div>
  </div>`;
