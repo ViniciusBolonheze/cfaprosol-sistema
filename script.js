@@ -5778,39 +5778,98 @@ function tpCropRect(e, layer){
  const r=layer.getBoundingClientRect();
  return {x:Math.max(0,Math.min(r.width, e.clientX-r.left)), y:Math.max(0,Math.min(r.height, e.clientY-r.top))};
 }
+function tpCropNorm(){
+ const x0=Math.min(tpCrop.x0,tpCrop.x1), x1=Math.max(tpCrop.x0,tpCrop.x1);
+ const y0=Math.min(tpCrop.y0,tpCrop.y1), y1=Math.max(tpCrop.y0,tpCrop.y1);
+ tpCrop.x0=x0; tpCrop.x1=x1; tpCrop.y0=y0; tpCrop.y1=y1;
+}
+function tpCropClamp(layer){
+ const r=layer.getBoundingClientRect();
+ const minS=32;
+ let x0=tpCrop.x0, y0=tpCrop.y0, x1=tpCrop.x1, y1=tpCrop.y1;
+ if(x1<x0){ const t=x0; x0=x1; x1=t; }
+ if(y1<y0){ const t=y0; y0=y1; y1=t; }
+ if(x1-x0<minS) x1=x0+minS;
+ if(y1-y0<minS) y1=y0+minS;
+ if(x0<0){ x1-=x0; x0=0; }
+ if(y0<0){ y1-=y0; y0=0; }
+ if(x1>r.width){ x0-=(x1-r.width); x1=r.width; }
+ if(y1>r.height){ y0-=(y1-r.height); y1=r.height; }
+ x0=Math.max(0,x0); y0=Math.max(0,y0);
+ x1=Math.min(r.width,x1); y1=Math.min(r.height,y1);
+ tpCrop.x0=x0; tpCrop.y0=y0; tpCrop.x1=x1; tpCrop.y1=y1;
+}
 function tpCropDown(e){
  if(!tpCrop.on) return;
- e.preventDefault(); e.stopPropagation();
- const layer=document.getElementById('tp-crop-layer');
+ const layer=document.getElementById('tp-crop-layer'); if(!layer) return;
  const p=tpCropRect(e, layer);
  if(tpIsCoarse()){
-  if(!tpCrop.tap1){
-   tpCrop.tap1=true; tpCrop.ready=false;
-   tpCrop.x0=p.x; tpCrop.y0=p.y; tpCrop.x1=p.x+12; tpCrop.y1=p.y+12;
-   const copy=document.getElementById('tp-btn-copy');
-   if(copy) copy.disabled=true;
-   tpCropPaint();
+  if(e.target.closest && e.target.closest('.tp-crop-copy')) return;
+  e.preventDefault(); e.stopPropagation();
+  const h=e.target.closest && e.target.closest('.tp-crop-h');
+  const onBox=e.target.closest && e.target.closest('#tp-crop-box');
+  tpCropNorm();
+  if(h || onBox){
+   tpCrop.dragging=true;
+   tpCrop.mode=h?h.getAttribute('data-h'):'move';
+   tpCrop.start={x:p.x,y:p.y,x0:tpCrop.x0,y0:tpCrop.y0,x1:tpCrop.x1,y1:tpCrop.y1};
+   try{ layer.setPointerCapture(e.pointerId); }catch(err){}
    return;
   }
-  tpCrop.x1=p.x; tpCrop.y1=p.y; tpCrop.tap1=false;
-  const w=Math.abs(tpCrop.x1-tpCrop.x0), h=Math.abs(tpCrop.y1-tpCrop.y0);
-  tpCrop.ready=w>8 && h>8;
+  const lr=layer.getBoundingClientRect();
+  const side=Math.min(150, Math.max(72, Math.min(lr.width, lr.height)*0.36));
+  tpCrop.x0=Math.max(0, p.x-side/2);
+  tpCrop.y0=Math.max(0, p.y-side/2);
+  tpCrop.x1=Math.min(lr.width, tpCrop.x0+side);
+  tpCrop.y1=Math.min(lr.height, tpCrop.y0+side);
+  tpCropClamp(layer);
+  tpCrop.ready=true; tpCrop.dragging=false; tpCrop.mode=null;
   const copy=document.getElementById('tp-btn-copy');
-  if(copy) copy.disabled=!tpCrop.ready;
+  if(copy) copy.disabled=false;
   tpCropPaint();
   return;
  }
+ e.preventDefault(); e.stopPropagation();
  tpCrop.dragging=true; tpCrop.ready=false; tpCrop.x0=p.x; tpCrop.y0=p.y; tpCrop.x1=p.x; tpCrop.y1=p.y;
  tpCropPaint();
 }
 function tpCropMove(e){
- if(tpIsCoarse() || !tpCrop.dragging) return;
  const layer=document.getElementById('tp-crop-layer'); if(!layer) return;
+ if(tpIsCoarse()){
+  if(!tpCrop.dragging || !tpCrop.mode) return;
+  e.preventDefault();
+  const p=tpCropRect(e, layer);
+  const st=tpCrop.start; if(!st) return;
+  const dx=p.x-st.x, dy=p.y-st.y;
+  let x0=st.x0, y0=st.y0, x1=st.x1, y1=st.y1;
+  const m=tpCrop.mode;
+  if(m==='move'){ x0+=dx; y0+=dy; x1+=dx; y1+=dy; }
+  else{
+   if(m.indexOf('n')>=0) y0+=dy;
+   if(m.indexOf('s')>=0) y1+=dy;
+   if(m.indexOf('w')>=0) x0+=dx;
+   if(m.indexOf('e')>=0) x1+=dx;
+  }
+  tpCrop.x0=x0; tpCrop.y0=y0; tpCrop.x1=x1; tpCrop.y1=y1;
+  tpCropClamp(layer);
+  tpCrop.ready=true;
+  tpCropPaint();
+  return;
+ }
+ if(!tpCrop.dragging) return;
  const p=tpCropRect(e, layer);
  tpCrop.x1=p.x; tpCrop.y1=p.y; tpCropPaint();
 }
 function tpCropUp(){
- if(tpIsCoarse() || !tpCrop.dragging) return;
+ if(tpIsCoarse()){
+  tpCrop.dragging=false; tpCrop.mode=null;
+  const w=Math.abs(tpCrop.x1-tpCrop.x0), h=Math.abs(tpCrop.y1-tpCrop.y0);
+  tpCrop.ready=w>8 && h>8;
+  const copy=document.getElementById('tp-btn-copy');
+  if(copy) copy.disabled=!tpCrop.ready;
+  return;
+ }
+ if(!tpCrop.dragging) return;
  tpCrop.dragging=false;
  const w=Math.abs(tpCrop.x1-tpCrop.x0), h=Math.abs(tpCrop.y1-tpCrop.y0);
  tpCrop.ready=w>8 && h>8;
@@ -5824,6 +5883,16 @@ function tpCropPaint(){
  box.style.left=x+'px'; box.style.top=y+'px';
  box.style.width=w+'px';
  box.style.height=h+'px';
+ const mob=tpIsCoarse();
+ box.classList.toggle('tp-crop-mob', mob);
+ if(mob && !box.querySelector('.tp-crop-h')){
+  ['n','s','e','w','nw','ne','sw','se'].forEach(function(k){
+   const h=document.createElement('span');
+   h.className='tp-crop-h tp-crop-h-'+k;
+   h.setAttribute('data-h', k);
+   box.appendChild(h);
+  });
+ }
  if(!box.querySelector('.tp-crop-copy')){
   const b=document.createElement('button');
   b.type='button'; b.className='tp-crop-copy'; b.textContent='Copiar';

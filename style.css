@@ -4983,3 +4983,20 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
   .tr-card{overflow:auto;}
   .tr-pdf,.tr-limpar{position:relative;z-index:8;}
 }
+
+#tp-crop-box.tp-crop-mob{pointer-events:auto; touch-action:none;}
+.tp-crop-h{position:absolute;z-index:5;background:#f9c614;touch-action:none;}
+.tp-crop-h-n,.tp-crop-h-s{left:22px;right:22px;height:22px;}
+.tp-crop-h-n{top:-11px;}
+.tp-crop-h-s{bottom:-11px;}
+.tp-crop-h-e,.tp-crop-h-w{top:22px;bottom:22px;width:22px;}
+.tp-crop-h-w{left:-11px;}
+.tp-crop-h-e{right:-11px;}
+.tp-crop-h-nw,.tp-crop-h-ne,.tp-crop-h-sw,.tp-crop-h-se{
+  width:28px;height:28px;border-radius:3px;background:#f9c614;border:2px solid #111;
+}
+.tp-crop-h-nw{left:-14px;top:-14px;}
+.tp-crop-h-ne{right:-14px;top:-14px;}
+.tp-crop-h-sw{left:-14px;bottom:-14px;}
+.tp-crop-h-se{right:-14px;bottom:-14px;}
+.tp-crop-layer.on{touch-action:none;}
