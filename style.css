@@ -4973,3 +4973,13 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
 }
 .tp-crop-copy:hover{background:#222;}
 
+
+@media (max-width: 820px){
+  .tr-toolbar{position:relative;z-index:8;margin:32px 8px 12px 0;flex-wrap:wrap;}
+  .tr-close{z-index:9;}
+  .tr-logo{width:52px !important;max-width:18vw;padding:2px !important;}
+  .tr-logo img{width:44px !important;height:auto !important;max-width:100%;}
+  .tr-sheet{position:relative;z-index:1;overflow:auto;}
+  .tr-card{overflow:auto;}
+  .tr-pdf,.tr-limpar{position:relative;z-index:8;}
+}

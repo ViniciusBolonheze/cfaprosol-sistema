@@ -5749,9 +5749,12 @@ const TP_CONE_SVG = '<svg class="tp-ico" viewBox="0 0 64 72" preserveAspectRatio
 const TP_GOAL_SVG = '<svg class="tp-ico" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><ellipse cx="50" cy="37.5" rx="45" ry="2" fill="#000" opacity=".28"/><rect x="4" y="4" width="6" height="32" rx="1.5" fill="#fff" stroke="#444" stroke-width="1.2"/><rect x="90" y="4" width="6" height="32" rx="1.5" fill="#fff" stroke="#444" stroke-width="1.2"/><rect x="4" y="3" width="92" height="6" rx="1.5" fill="#fff" stroke="#444" stroke-width="1.2"/><g stroke="#cdd7dd" stroke-width="0.9" opacity=".9"><path d="M9 18 L91 18 M9 27 L91 27 M9 34 L91 34"/><path d="M22 9 L22 35 M36 9 L36 35 M50 9 L50 35 M64 9 L64 35 M78 9 L78 35"/></g></svg>';
 
 
-let tpCrop={on:false, dragging:false, ready:false, x0:0,y0:0,x1:0,y1:0};
+let tpCrop={on:false, dragging:false, ready:false, tap1:false, x0:0,y0:0,x1:0,y1:0};
+function tpIsCoarse(){
+ return (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (window.innerWidth<=900 && 'ontouchstart' in window);
+}
 function tpToggleSelecionar(){
- tpCrop.on=!tpCrop.on; tpCrop.dragging=false; tpCrop.ready=false;
+ tpCrop.on=!tpCrop.on; tpCrop.dragging=false; tpCrop.ready=false; tpCrop.tap1=false;
  const btn=document.getElementById('tp-btn-sel');
  const copy=document.getElementById('tp-btn-copy');
  if(btn) btn.classList.toggle('on', tpCrop.on);
@@ -5780,17 +5783,34 @@ function tpCropDown(e){
  e.preventDefault(); e.stopPropagation();
  const layer=document.getElementById('tp-crop-layer');
  const p=tpCropRect(e, layer);
+ if(tpIsCoarse()){
+  if(!tpCrop.tap1){
+   tpCrop.tap1=true; tpCrop.ready=false;
+   tpCrop.x0=p.x; tpCrop.y0=p.y; tpCrop.x1=p.x+12; tpCrop.y1=p.y+12;
+   const copy=document.getElementById('tp-btn-copy');
+   if(copy) copy.disabled=true;
+   tpCropPaint();
+   return;
+  }
+  tpCrop.x1=p.x; tpCrop.y1=p.y; tpCrop.tap1=false;
+  const w=Math.abs(tpCrop.x1-tpCrop.x0), h=Math.abs(tpCrop.y1-tpCrop.y0);
+  tpCrop.ready=w>8 && h>8;
+  const copy=document.getElementById('tp-btn-copy');
+  if(copy) copy.disabled=!tpCrop.ready;
+  tpCropPaint();
+  return;
+ }
  tpCrop.dragging=true; tpCrop.ready=false; tpCrop.x0=p.x; tpCrop.y0=p.y; tpCrop.x1=p.x; tpCrop.y1=p.y;
  tpCropPaint();
 }
 function tpCropMove(e){
- if(!tpCrop.dragging) return;
+ if(tpIsCoarse() || !tpCrop.dragging) return;
  const layer=document.getElementById('tp-crop-layer'); if(!layer) return;
  const p=tpCropRect(e, layer);
  tpCrop.x1=p.x; tpCrop.y1=p.y; tpCropPaint();
 }
 function tpCropUp(){
- if(!tpCrop.dragging) return;
+ if(tpIsCoarse() || !tpCrop.dragging) return;
  tpCrop.dragging=false;
  const w=Math.abs(tpCrop.x1-tpCrop.x0), h=Math.abs(tpCrop.y1-tpCrop.y0);
  tpCrop.ready=w>8 && h>8;
