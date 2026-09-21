@@ -5807,11 +5807,17 @@ function tpEnsureCropCss(){
  .tp-crop-h-n{top:-5px;} .tp-crop-h-s{bottom:-5px;}
  .tp-crop-h-e,.tp-crop-h-w{top:12px;bottom:12px;width:10px;}
  .tp-crop-h-w{left:-5px;} .tp-crop-h-e{right:-5px;}
+ .tp-crop-layer.on,.tp-crop-layer.tp-crop-pass{z-index:9999 !important;}
+ #tp-crop-box.tp-crop-mob{z-index:10000;}
  .tp-crop-h-nw,.tp-crop-h-ne,.tp-crop-h-sw,.tp-crop-h-se{
-   width:12px;height:12px;border-radius:2px;background:#f9c614;border:1px solid #111;
+   width:44px;height:44px;border:0;background:transparent;border-radius:0;z-index:10001;
  }
- .tp-crop-h-nw{left:-6px;top:-6px;} .tp-crop-h-ne{right:-6px;top:-6px;}
- .tp-crop-h-sw{left:-6px;bottom:-6px;} .tp-crop-h-se{right:-6px;bottom:-6px;}
+ .tp-crop-h-nw::after,.tp-crop-h-ne::after,.tp-crop-h-sw::after,.tp-crop-h-se::after{
+   content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;
+   background:#f9c614;border:1px solid #111;border-radius:2px;pointer-events:none;
+ }
+ .tp-crop-h-nw{left:-22px;top:-22px;} .tp-crop-h-ne{right:-22px;top:-22px;left:auto;}
+ .tp-crop-h-sw{left:-22px;bottom:-22px;top:auto;} .tp-crop-h-se{right:-22px;bottom:-22px;left:auto;top:auto;}
  .tp-crop-copy{pointer-events:auto;}
  .tp-h-n,.tp-h-s{left:12px;right:12px;width:auto;height:10px;border-radius:2px;}
  .tp-h-n{top:-5px;left:12px;margin:0;}
@@ -11468,7 +11474,7 @@ td,th{border:1px solid #000;padding:1px 3px;vertical-align:middle;line-height:1.
 .pde3{border:0!important;margin:0 0 3px}
 .pde3>tbody>tr>td{border:0!important;padding:0 3px;vertical-align:top}
 *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-</style></head><body><div id="fit">${html}</div>
+</style></head><body><div id="sharebar" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99999;padding:10px;background:#58111a;text-align:center"><button type="button" id="btnSharePdf" style="width:100%;max-width:420px;padding:14px;font-size:16px;font-weight:800;border:0;border-radius:8px;background:#f9c614;color:#111">Enviar PDF (WhatsApp)</button></div><div id="fit">${html}</div>
 <script>
 window.onload=function(){
  var el=document.getElementById('fit');
@@ -11481,7 +11487,7 @@ window.onload=function(){
  }
  var mob=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||(navigator.maxTouchPoints>0);
  setTimeout(function(){
-  if(mob && navigator.share){
+  if(mob){
    function load(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
    Promise.all([
     load('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'),
@@ -11489,14 +11495,27 @@ window.onload=function(){
    ]).then(function(){
     return html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#fff',logging:false});
    }).then(function(canvas){
-    var pdf=new (window.jspdf?window.jspdf.jsPDF:window.jsPDF)({orientation:'p',unit:'mm',format:'a4'});
+    var J=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
+    var pdf=new J({orientation:'p',unit:'mm',format:'a4'});
     pdf.addImage(canvas.toDataURL('image/jpeg',0.9),'JPEG',0,0,210,297);
     var blob=pdf.output('blob');
     var file=new File([blob],'treino-prosol.pdf',{type:'application/pdf'});
-    if(navigator.canShare && navigator.canShare({files:[file]})){
-     return navigator.share({files:[file],title:'Planilha de treino'});
+    function baixar(){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='treino-prosol.pdf'; a.click(); }
+    window._treinoFile=file;
+    var bar=document.getElementById('sharebar');
+    var btn=document.getElementById('btnSharePdf');
+    if(bar) bar.style.display='block';
+    function enviar(){
+     if(!navigator.share){ baixar(); return; }
+     navigator.share({files:[window._treinoFile],title:'Planilha de treino'}).catch(function(){
+      canvas.toBlob(function(png){
+       var img=new File([png],'treino-prosol.png',{type:'image/png'});
+       navigator.share({files:[img],title:'Planilha de treino'}).catch(function(){ baixar(); });
+      },'image/png');
+     });
     }
-    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='treino-prosol.pdf'; a.click();
+    if(btn) btn.onclick=enviar;
+    enviar();
    }).catch(function(err){ console.warn(err); window.print(); });
   } else window.print();
  },350);
