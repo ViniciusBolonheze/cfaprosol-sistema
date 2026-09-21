@@ -11395,6 +11395,10 @@ function treinoTxt(v){ return treinoEsc(v).replace(/\n/g,'<br>'); }
 function treinoXprint(cur,v){ return cur===v?'<b class="x">X</b>':''; }
 function imprimirCriacaoTreino(){
  treinoLerTela();
+ let pdfNome=prompt('Nome do arquivo PDF:','treino-prosol');
+ if(pdfNome===null) return;
+ pdfNome=String(pdfNome||'treino-prosol').replace(/[\\/:*?"<>|]+/g,'').trim()||'treino-prosol';
+ if(!/\.pdf$/i.test(pdfNome)) pdfNome+='.pdf';
  const st=treinoState||treinoPadrao();
  const logo=(location.origin?location.href.replace(/[^/]+$/,'logo.png'):'logo.png');
  let html='<table class="cab"><tr><td class="logo" rowspan="9"><img src="logo.png"></td><th colspan="4" class="tit">CENTRO DE FORMAÇÃO DE ATLETAS PROSOL</th></tr>';
@@ -11445,10 +11449,10 @@ function imprimirCriacaoTreino(){
  }
  const w=window.open('','treino-pdf','width=794,height=1123');
  if(!w){ alert('Permita pop-up para salvar o PDF.'); return; }
- w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Planilha de treino</title>
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=794"><title>Planilha de treino</title>
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;background:#fff}
+html,body{margin:0;padding:0;background:#fff;width:794px;min-width:794px;max-width:794px}
 @page{size:A4 portrait;margin:5mm}
 #fit{width:200mm;margin:0 auto;font-family:Calibri,Carlito,Arial,sans-serif;font-size:9pt;color:#000}
 table{border-collapse:collapse;width:100%;margin:0 0 2px}
@@ -11478,16 +11482,21 @@ td,th{border:1px solid #000;padding:1px 3px;vertical-align:middle;line-height:1.
 <script>
 window.onload=function(){
  var el=document.getElementById('fit');
+ var pdfNome=${JSON.stringify(pdfNome)};
  var maxH=1050;
- var h=el.scrollHeight||el.offsetHeight;
- if(h>maxH){
-  var z=maxH/h;
-  el.style.transformOrigin='top center';
-  el.style.transform='scale('+z+')';
-  document.documentElement.style.zoom=z;
-  document.body.style.zoom=z;
- }
  var mob=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||(navigator.maxTouchPoints>0);
+ if(!mob){
+  var h=el.scrollHeight||el.offsetHeight;
+  if(h>maxH){
+   var z=maxH/h;
+   el.style.transformOrigin='top center';
+   el.style.transform='scale('+z+')';
+   document.documentElement.style.zoom=z;
+   document.body.style.zoom=z;
+  }
+  setTimeout(function(){ window.print(); },300);
+  return;
+ }
  setTimeout(function(){
   if(mob){
    function load(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
@@ -11495,18 +11504,19 @@ window.onload=function(){
     load('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'),
     load('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js')
    ]).then(function(){
-    return html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#fff',logging:false});
+    return html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#fff',logging:false,windowWidth:794,width:794});
    }).then(function(canvas){
     var J=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
     var pdf=new J({orientation:'p',unit:'mm',format:'a4'});
-    var img=canvas.toDataURL('image/jpeg',0.9);
+    var img=canvas.toDataURL('image/jpeg',0.92);
     var cw=canvas.width, ch=canvas.height, pw=210, ph=297;
-    var w=pw, h=pw*(ch/cw);
-    if(h>ph){ h=ph; w=ph*(cw/ch); }
-    pdf.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
+    var sc=Math.min(pw/cw, ph/ch);
+    var w=cw*sc, h=ch*sc;
+    if(h>ph){ var z=ph/h; w*=z; h=ph; }
+    pdf.addImage(img,'JPEG',(pw-w)/2,4,w,h);
     var blob=pdf.output('blob');
-    var file=new File([blob],'treino-prosol.pdf',{type:'application/pdf'});
-    function baixar(){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='treino-prosol.pdf'; a.click(); }
+    var file=new File([blob],pdfNome,{type:'application/pdf'});
+    function baixar(){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=pdfNome; a.click(); }
     window._treinoFile=file;
     var bar=document.getElementById('sharebar');
     var btn=document.getElementById('btnSharePdf');
