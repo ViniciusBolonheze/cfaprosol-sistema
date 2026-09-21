@@ -11482,6 +11482,8 @@ window.onload=function(){
  var h=el.scrollHeight||el.offsetHeight;
  if(h>maxH){
   var z=maxH/h;
+  el.style.transformOrigin='top center';
+  el.style.transform='scale('+z+')';
   document.documentElement.style.zoom=z;
   document.body.style.zoom=z;
  }
@@ -11497,7 +11499,11 @@ window.onload=function(){
    }).then(function(canvas){
     var J=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
     var pdf=new J({orientation:'p',unit:'mm',format:'a4'});
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.9),'JPEG',0,0,210,297);
+    var img=canvas.toDataURL('image/jpeg',0.9);
+    var cw=canvas.width, ch=canvas.height, pw=210, ph=297;
+    var w=pw, h=pw*(ch/cw);
+    if(h>ph){ h=ph; w=ph*(cw/ch); }
+    pdf.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
     var blob=pdf.output('blob');
     var file=new File([blob],'treino-prosol.pdf',{type:'application/pdf'});
     function baixar(){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='treino-prosol.pdf'; a.click(); }
