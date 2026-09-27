@@ -5062,24 +5062,28 @@ function rppNormalizarExtra(item,catId){const id=item?.id||item||{};return {nome
 function rppExtraList(catId){if(!relatorioPsrPseExtras[catId])relatorioPsrPseExtras[catId]=[];return relatorioPsrPseExtras[catId];}
 function rppLocalizarExtra(extra){
  const nome=normalizarTextoTrabalho(extra?.nomeCompleto||extra?.nome_completo||extra?.nome||'');
- const nasc=normalizarTextoTrabalho(extra?.nascimento||'');
+ const nasc=rppNormNasc(extra?.nascimento||extra?.data_nascimento||'');
  const ano=normalizarTextoTrabalho(extra?.ano||'');
- let item=null;
- if(nome&&nasc)item=trabalhoTodosAtletas().find(a=>normalizarTextoTrabalho(a.id.nomeCompleto)===nome&&normalizarTextoTrabalho(a.id.nascimento)===nasc)||null;
- if(!item&&nome&&ano)item=localizarAtletaTrabalhoPorNomeAno({nomeCompleto:nome,ano});
- if(item)return item;
- if(nome)return {id:{nomeCompleto:nome,apelido:normalizarTextoTrabalho(extra?.apelido||nome),nascimento:nasc,ano}};
- return null;
+ if(!nome) return null;
+ const candidatos=trabalhoTodosAtletas().filter(a=>normalizarTextoTrabalho(a.id.nomeCompleto)===nome);
+ // Datas ISO e brasileiras identificam a mesma pessoa; não confundir homônimos.
+ let item=nasc?candidatos.find(a=>rppNormNasc(a.id.nascimento)===nasc):null;
+ if(!item && !nasc){
+  const porAno=ano?candidatos.filter(a=>String(a.id.ano)===ano):candidatos;
+  if(porAno.length===1) item=porAno[0];
+ }
+ if(item) return item;
+ return {id:{nomeCompleto:nome,apelido:normalizarTextoTrabalho(extra?.apelido||nome),nascimento:nasc,ano}};
 }
 function rppAtletasRelatorio(){
+ // Mesma composição das médias e dos gráficos, inclusive quando só a categoria
+ // de origem está selecionada: extras de outras categorias não retornam a ela.
  const mapa=new Map();
- const cats=rppCats();
  rppCategoriasSelecionadas().forEach(catId=>{
-  const cat=cats[catId];
-  trabalhoAtletasPorAnos(cat?.anos||[]).forEach(a=>mapa.set(rppKeyAtletaId(a.id),a));
- });
- rppCategoriasSelecionadas().forEach(catId=>{
-  rppExtraList(catId).forEach(extra=>{const item=rppLocalizarExtra(extra);if(item){const key=rppKeyAtletaId(item.id)||rppKeyExtra(extra);if(key&&!mapa.has(key))mapa.set(key,item);}});
+  rppAtletasCategoriaTodas(catId).forEach(item=>{
+   const key=rppKeyAtletaId(item.id);
+   if(key) mapa.set(key,item);
+  });
  });
  return Array.from(mapa.values());
 }
@@ -5281,30 +5285,25 @@ function rppChaveExtraAtleta(extra,item){
 function rppAtletasCategoriaTodas(catId){
  const mapa=new Map();
  const cat=rppCats()[catId];
- const extrasAqui=new Set();
- const extrasOutros=new Set();
+ if(!cat) return [];
+ const extrasTodas=new Set();
+ const extrasAqui=new Map();
+ // A prioridade dos extras não depende dos filtros visuais nem do tipo PSR/PSE.
  rppCatIds().forEach(id=>{
-  (typeof rppExtraList==='function'?rppExtraList(id):[]).forEach(extra=>{
-   const item=typeof rppLocalizarExtra==='function'?rppLocalizarExtra(extra):null;
+  rppExtraList(id).forEach(extra=>{
+   const item=rppLocalizarExtra(extra);
+   if(!item) return;
    const key=rppChaveExtraAtleta(extra,item);
    if(!key) return;
-   if(id===catId) extrasAqui.add(key);
-   else extrasOutros.add(key);
+   extrasTodas.add(key);
+   if(id===catId) extrasAqui.set(key,item);
   });
  });
- if(typeof trabalhoAtletasPorAnos==='function'){
-  trabalhoAtletasPorAnos(cat?.anos||[]).forEach(a=>{
-   const k=rppKeyAtletaId(a.id);
-   if(k && !extrasOutros.has(k)) mapa.set(k,a);
-  });
- }
- (typeof rppExtraList==='function'?rppExtraList(catId):[]).forEach(extra=>{
-  const item=typeof rppLocalizarExtra==='function'?rppLocalizarExtra(extra):null;
-  const key=rppChaveExtraAtleta(extra,item);
-  if(!key) return;
-  if(item) mapa.set(key,item);
-  else mapa.set(key,{ id:{ nomeCompleto:extra.nomeCompleto||extra.nome||'', nascimento:extra.nascimento||'', ano:extra.ano||'', apelido:extra.apelido||extra.nome||'' } });
+ trabalhoAtletasPorAnos(cat.anos||[]).forEach(item=>{
+  const key=rppKeyAtletaId(item.id);
+  if(key && !extrasTodas.has(key)) mapa.set(key,item);
  });
+ extrasAqui.forEach((item,key)=>mapa.set(key,item));
  return Array.from(mapa.values());
 }
 function rppMediaCatDia(catId, iso){
@@ -5658,7 +5657,7 @@ function renderSelecionarExtraRelatorioPsrPse(){
  const extrasKeys=new Set(rppExtraList(catId).map(rppKeyExtra));
  const atletas=trabalhoTodosAtletas().filter(a=>(filtro==='todos'||a.id.ano===filtro)&&(!busca||(`${a.id.apelido} ${a.id.nomeCompleto}`).toLowerCase().includes(busca)));
  const lista=atletas.map(a=>{const key=rppKeyAtletaId(a.id);const enc=encodeURIComponent(key);const jaExtra=extrasKeys.has(rppKeyExtra(a.id))||extrasKeys.has(key);const jaPadrao=(cat?.anos||[]).includes(String(a.id.ano));return `<div class="rpp-extra-item ${jaPadrao?'padrao':''}"><div><strong>${rppEscape(a.id.apelido||a.id.nomeCompleto)}</strong><small>${rppEscape(a.id.nomeCompleto)} • ${rppEscape(a.id.ano)}${jaPadrao?' • padrão da categoria':''}${jaExtra?' • já adicionado':''}</small></div><button type="button" ${jaExtra||jaPadrao?'disabled':''} onclick="adicionarExtraRelatorioPsrPse('${catId}',decodeURIComponent('${enc}'))">${jaExtra?'Adicionado':(jaPadrao?'Padrão':'Adicionar')}</button></div>`;}).join('')||'<p class="rpp-empty">Nenhum atleta encontrado.</p>';
- modal.innerHTML=`<div class="rpp-extra-card"><button class="rpp-close" onclick="closeSelecionarExtraRelatorioPsrPse()">×</button><h2>Adicionar atleta extra</h2><p>Escolha a categoria do relatório onde este atleta também deve aparecer.</p><div class="rpp-extra-filters"><select onchange="setRelatorioPsrPseExtraCat(this.value)">${Object.keys(cats).map(id=>`<option value="${id}" ${id===catId?'selected':''}>${rppEscape(cats[id].label)}</option>`).join('')}</select><select onchange="setRelatorioPsrPseExtraFiltroAno(this.value)"><option value="todos">Todos os anos</option>${anos.map(a=>`<option value="${rppEscape(a)}" ${a===filtro?'selected':''}>${rppEscape(a)}</option>`).join('')}</select><input placeholder="Buscar atleta..." value="${rppEscape(relatorioPsrPseExtraModal.busca)}" oninput="setRelatorioPsrPseExtraBusca(this.value)"></div><div class="rpp-extra-list">${lista}</div></div>`;
+ modal.innerHTML=`<div class="rpp-extra-card"><button class="rpp-close" onclick="closeSelecionarExtraRelatorioPsrPse()">×</button><h2>Adicionar atleta extra</h2><p>Escolha a categoria onde o atleta deve aparecer. Como extra, ele deixa de aparecer na categoria de origem e nas médias dela.</p><div class="rpp-extra-filters"><select onchange="setRelatorioPsrPseExtraCat(this.value)">${Object.keys(cats).map(id=>`<option value="${id}" ${id===catId?'selected':''}>${rppEscape(cats[id].label)}</option>`).join('')}</select><select onchange="setRelatorioPsrPseExtraFiltroAno(this.value)"><option value="todos">Todos os anos</option>${anos.map(a=>`<option value="${rppEscape(a)}" ${a===filtro?'selected':''}>${rppEscape(a)}</option>`).join('')}</select><input placeholder="Buscar atleta..." value="${rppEscape(relatorioPsrPseExtraModal.busca)}" oninput="setRelatorioPsrPseExtraBusca(this.value)"></div><div class="rpp-extra-list">${lista}</div></div>`;
 }
 function adicionarExtraRelatorioPsrPse(catId,key){
  const item=trabalhoTodosAtletas().find(a=>rppKeyAtletaId(a.id)===key);if(!item)return;
@@ -6006,7 +6005,7 @@ const pranchetaSistemasMini = {
  '5-3-2': [[8,50,'G'],[23,12,'2'],[23,31,'3'],[23,50,'4'],[23,69,'5'],[23,88,'6'],[51,32,'8'],[51,50,'10'],[51,68,'11'],[80,38,'9'],[80,62,'7']]
 };
 let pranchetaMiniContador = 12;
-let tpState = { pieces: [], frames: [], nextId: 1, homeN: 1, awayN: 1, sel: null, selIds: [] };
+let tpState = { pieces: [], frames: [], nextId: 1, homeN: 1, awayN: 1, sel: null, selIds: [], kit:null, squadOn:null };
 let tpUndo=[];
 
 function tpIsSel(id){
@@ -6312,6 +6311,53 @@ function tpDrawGoal(ctx,pw,ph){
  }
  ctx.restore();
 }
+
+function tpFillToken(ctx,r,p,t){
+ const isGk=t==='gk-home'||t==='gk-away';
+ const c1=p.c1||(t==='home'?'#d63031':t==='away'?'#0984e3':t==='gk-home'?'#f9c614':'#111');
+ const c2=p.c2||'#fff';
+ const st=p.kitStyle||'solid';
+ ctx.save();
+ ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.clip();
+ if(st==='solid'||isGk){
+  ctx.fillStyle=isGk?c1:c1; ctx.fillRect(-r,-r,r*2,r*2);
+ }else if(st==='halves'){
+  ctx.fillStyle=c1; ctx.fillRect(-r,-r,r,r*2);
+  ctx.fillStyle=c2; ctx.fillRect(0,-r,r,r*2);
+ }else{
+  const vert=st!=='hoops';
+  const step=Math.max(3,r/3);
+  for(let i=-r;i<r;i+=step){
+   ctx.fillStyle=((Math.floor((i+r)/step)%2)===0)?c1:c2;
+   if(st==='diag'){
+    ctx.save(); ctx.rotate(Math.PI/4);
+    ctx.fillRect(i,-r*2,step,r*4); ctx.restore();
+   }else if(vert) ctx.fillRect(i,-r,step,r*2);
+   else ctx.fillRect(-r,i,r*2,step);
+  }
+ }
+ ctx.restore();
+ ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+ ctx.strokeStyle='#fff'; ctx.lineWidth=Math.max(1.2,r*0.12); ctx.stroke();
+ const lab=p.showNum!==false?String(p.label==null?'':p.label):'';
+ if(lab){
+  ctx.fillStyle=t==='gk-home'?'#111':'#fff';
+  ctx.font='bold '+Math.max(8,r*0.9)+'px Arial';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(lab.slice(0,3),0,1);
+ }
+ const name=p.showName!==false?String(p.name==null?'':p.name).trim():'';
+ if(name){
+  const y=p.namePos==='above'?-r-8:r+8;
+  ctx.font='bold '+Math.max(8,r*0.78)+'px Arial';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.strokeStyle='#111'; ctx.lineWidth=2.5;
+  ctx.strokeText(name,0,y);
+  ctx.fillStyle='#fff'; ctx.fillText(name,0,y);
+ }
+
+}
+
 function tpDrawPiecesOn(ctx,W,H){
  const pieces=(typeof tpState!=='undefined' && tpState.pieces)||[];
  pieces.forEach(function(p){
@@ -6323,10 +6369,7 @@ function tpDrawPiecesOn(ctx,W,H){
   const t=p.type;
   if(t==='home'||t==='away'||t==='gk-home'||t==='gk-away'){
    const r=Math.max(9, Math.min(W,H)*0.017);
-   ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
-   ctx.fillStyle=t==='home'?'#d63031':t==='away'?'#0984e3':t==='gk-home'?'#f9c614':'#111';
-   ctx.fill();
-   ctx.lineWidth=Math.max(2,r*0.18); ctx.strokeStyle='#fff'; ctx.stroke();
+   tpFillToken(ctx,r,p,t);
   }else if(t==='ball'){
    const r=Math.max(6,Math.min(W,H)*0.012);
    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
@@ -6621,19 +6664,30 @@ function renderPranchetaVirtual(){
   <div class="tp-body">
    <aside class="tp-tools">
     <b>Peças</b>
-    <div id="tp-add-pop" class="tp-add-pop">
-    <button type="button" class="tp-tool home" onclick="tpAdd('home')">+ Jogador casa</button>
-    <button type="button" class="tp-tool away" onclick="tpAdd('away')">+ Jogador fora</button>
-    <button type="button" class="tp-tool gk-home" onclick="tpAdd('gk-home')">+ Goleiro casa</button>
-    <button type="button" class="tp-tool gk-away" onclick="tpAdd('gk-away')">+ Goleiro fora</button>
-    <button type="button" class="tp-tool ball" onclick="adicionarBolaPrancheta()">+ Bola</button>
-    <button type="button" class="tp-tool cone" onclick="tpAdd('cone')">+ Cone</button>
-    <button type="button" class="tp-tool goal" onclick="tpAdd('goal')">+ Trave</button>
-    <button type="button" class="tp-tool arrow" onclick="tpAdd('arrow')">+ Seta</button>
-    <button type="button" class="tp-tool square" onclick="tpAdd('square')">+ Quadrado</button>
-    <button type="button" class="tp-tool circle" onclick="tpAdd('circle')">+ Círculo</button>
+    <div class="tp-desk-only tp-kit-row">
+     <button type="button" class="tp-kit-btn" data-team="home" aria-controls="tp-kit-panel" aria-expanded="false" onpointerdown="tpKitPointer(event,'home')" onclick="tpKitClick(event,'home')">
+      <span class="tp-kit-disc" id="tp-disc-home"></span>
+      <small>Casa</small>
+     </button>
+     <button type="button" class="tp-kit-btn" data-team="away" aria-controls="tp-kit-panel" aria-expanded="false" onpointerdown="tpKitPointer(event,'away')" onclick="tpKitClick(event,'away')">
+      <span class="tp-kit-disc" id="tp-disc-away"></span>
+      <small>Fora</small>
+     </button>
     </div>
-    <p class="tp-hint">Duplo clique no jogador para número. Botão direito: frente, trás, girar ou excluir. Bolinhas: girar e redimensionar.</p>
+    <div id="tp-kit-panel" class="tp-desk-only tp-kit-panel" hidden></div>
+    <div id="tp-add-pop" class="tp-add-pop">
+    <button type="button" class="tp-tool home tp-mob-only" onpointerdown="tpToolPointer(event,'home')">+ Jogador casa</button>
+    <button type="button" class="tp-tool away tp-mob-only" onpointerdown="tpToolPointer(event,'away')">+ Jogador fora</button>
+    <button type="button" class="tp-tool gk-home tp-mob-only" onpointerdown="tpToolPointer(event,'gk-home')">+ Goleiro casa</button>
+    <button type="button" class="tp-tool gk-away tp-mob-only" onpointerdown="tpToolPointer(event,'gk-away')">+ Goleiro fora</button>
+    <button type="button" class="tp-tool ball" onpointerdown="tpToolPointer(event,'ball')">+ Bola</button>
+    <button type="button" class="tp-tool cone" onpointerdown="tpToolPointer(event,'cone')">+ Cone</button>
+    <button type="button" class="tp-tool goal" onpointerdown="tpToolPointer(event,'goal')">+ Trave</button>
+    <button type="button" class="tp-tool arrow" onpointerdown="tpToolPointer(event,'arrow')">+ Seta</button>
+    <button type="button" class="tp-tool square" onpointerdown="tpToolPointer(event,'square')">+ Quadrado</button>
+    <button type="button" class="tp-tool circle" onpointerdown="tpToolPointer(event,'circle')">+ Círculo</button>
+    </div>
+    <p class="tp-hint">Duplo clique no jogador para editar número e nome. Botão direito: frente, trás, girar ou excluir. Bolinhas: girar e redimensionar. Ctrl+arrastar duplica.</p>
    </aside>
    <div class="tp-field-col">
     <div class="mini-board-area tp-field-wrap">
@@ -6642,6 +6696,7 @@ function renderPranchetaVirtual(){
       <div id="mini-board-players"></div>
      </div>
     </div>
+    <div id="tp-squad" class="tp-desk-only tp-squad" hidden></div>
    </div>
    <aside class="tp-frames">
     <b>Telas <span id="tp-frame-count">0</span></b>
@@ -6655,6 +6710,7 @@ function renderPranchetaVirtual(){
  if(!tpState.pieces.length) resetPrancheta();
  else tpRenderPieces();
  tpRenderFrames();
+ if(typeof tpKitEnsure==='function'){ tpKitEnsure(); tpPaintKitDiscs(); tpRenderSquad(); }
  const board=document.getElementById('mini-football-board');
  if(board && !board.__tpClickInit){
   board.__tpClickInit=true;
@@ -6702,7 +6758,9 @@ function resetPrancheta(){
  pranchetaMiniContador=12;
  (pranchetaSistemasMini[form]||[]).forEach(p=>{
   const isGk=p[2]==='G';
-  tpState.pieces.push({id:tpNewId(),type:isGk?'gk-home':'home',x:p[0],y:p[1],rot:0,w:isGk?7:6,h:isGk?7:6,label:String(p[2])});
+  const pc={id:tpNewId(),type:isGk?'gk-home':'home',x:p[0],y:p[1],rot:0,w:isGk?7:6,h:isGk?7:6,label:String(p[2])};
+  if(typeof tpApplyKitToPiece==='function') tpApplyKitToPiece(pc);
+  tpState.pieces.push(pc);
  });
  tpState.pieces.push({id:tpNewId(),type:'ball',x:50,y:50,rot:0,w:5,h:5,label:''});
  tpState.pieces.unshift(
@@ -6734,6 +6792,340 @@ function tpSpawnXY(type){
  if(type==='ball') return {x:50, y:50};
  return {x:46+n*3, y:48};
 }
+
+function tpKitEnsure(){
+ if(!tpState.kit){
+  tpState.kit={
+   home:{c1:'#1e6fff',c2:'#ffffff',style:'solid',showNum:true,showName:true,numPos:'in',gkC1:'#f9c614',gkC2:'#111111'},
+   away:{c1:'#d63031',c2:'#ffffff',style:'solid',showNum:true,showName:true,numPos:'in',gkC1:'#111111',gkC2:'#f9c614'}
+  };
+ }
+ if(!tpState.squadOn) tpState.squadOn={home:false,away:false};
+}
+function tpKitOf(team){ tpKitEnsure(); return tpState.kit[team]||tpState.kit.home; }
+function tpTokenBg(c1,c2,style){
+ const a=c1||'#1e6fff', b=c2||'#fff';
+ if(style==='stripes') return 'repeating-linear-gradient(90deg,'+a+' 0 5px,'+b+' 5px 10px)';
+ if(style==='hoops') return 'repeating-linear-gradient(180deg,'+a+' 0 5px,'+b+' 5px 10px)';
+ if(style==='halves') return 'linear-gradient(90deg,'+a+' 50%,'+b+' 50%)';
+ if(style==='diag') return 'repeating-linear-gradient(45deg,'+a+' 0 6px,'+b+' 6px 12px)';
+ return a;
+}
+function tpPaintKitDiscs(){
+ tpKitEnsure();
+ ['home','away'].forEach(function(t){
+  const el=document.getElementById('tp-disc-'+t);
+  if(!el) return;
+  const k=tpKitOf(t);
+  el.style.background=tpTokenBg(k.c1,k.c2,k.style);
+ });
+}
+function tpApplyKitToPiece(piece){
+ tpKitEnsure();
+ const isAway=piece.type==='away'||piece.type==='gk-away';
+ const isGk=piece.type==='gk-home'||piece.type==='gk-away';
+ const k=tpKitOf(isAway?'away':'home');
+ piece.c1=isGk?k.gkC1:k.c1;
+ piece.c2=isGk?k.gkC2:k.c2;
+ piece.kitStyle=isGk?'solid':k.style;
+ piece.showNum=k.showNum!==false;
+ piece.showName=k.showName!==false;
+ piece.numPos='in';
+ if(piece.name==null) piece.name='';
+ if(piece.namePos!=='above') piece.namePos='below';
+ piece.color=piece.c1;
+}
+function tpPlayerText(value){
+ return String(value==null?'':value).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+ });
+}
+function tpPlayerTokenHtml(p){
+ const isP=['home','away','gk-home','gk-away'].indexOf(p.type)>=0;
+ if(!isP) return '';
+ const c1=p.c1||(p.type==='away'?'#0984e3':p.type==='gk-home'?'#f9c614':p.type==='gk-away'?'#111':'#d63031');
+ const c2=p.c2||'#fff';
+ const bg=tpTokenBg(c1,c2,p.kitStyle||'solid');
+ const lab=p.showNum!==false?String(p.label==null?'':p.label):'';
+ const name=p.showName!==false?String(p.name==null?'':p.name).trim():'';
+ const gk=(p.type==='gk-home'||p.type==='gk-away')?' tp-disc-gk':'';
+ let h='<span class="tp-disc'+gk+'" style="background:'+bg+'">';
+ if(lab) h+='<em>'+tpPlayerText(lab.slice(0,3))+'</em>';
+ h+='</span>';
+ if(name) h+='<span class="tp-lab-name tp-name-'+(p.namePos==='above'?'above':'below')+'">'+tpPlayerText(name)+'</span>';
+ return h;
+}
+function tpEditPlayer(id){
+ const p=tpState.pieces.find(function(q){return q.id===id;});
+ if(!p || !['home','away','gk-home','gk-away'].includes(p.type)) return;
+ const old=document.getElementById('tp-player-editor');
+ if(old) old.remove();
+ if(typeof tpHideCtx==='function') tpHideCtx();
+ const dialog=document.createElement('dialog');
+ dialog.id='tp-player-editor';
+ dialog.className='tp-player-editor';
+ dialog.setAttribute('aria-labelledby','tp-player-editor-title');
+ dialog.innerHTML='<form class="tp-player-form">'
+  +'<div class="tp-player-editor-head"><h3 id="tp-player-editor-title">Editar jogador</h3><button type="button" data-cancel aria-label="Fechar">×</button></div>'
+  +'<label for="tp-player-number">Número</label><input id="tp-player-number" name="number" type="text" maxlength="3" autocomplete="off" placeholder="Ex.: 10 ou G">'
+  +'<label for="tp-player-name">Nome</label><input id="tp-player-name" name="playerName" type="text" maxlength="40" autocomplete="off" placeholder="Sem nome">'
+  +'<label for="tp-player-name-pos">Posição do nome</label><select id="tp-player-name-pos" name="namePosition"><option value="below">Abaixo do jogador</option><option value="above">Acima do jogador</option></select>'
+  +'<p>O número fica dentro do círculo. Sem nome preenchido, nenhum nome é exibido.</p>'
+  +'<div class="tp-player-editor-actions"><button type="button" data-cancel>Cancelar</button><button type="submit">Salvar</button></div></form>';
+ const number=dialog.querySelector('#tp-player-number');
+ const name=dialog.querySelector('#tp-player-name');
+ const position=dialog.querySelector('#tp-player-name-pos');
+ number.value=String(p.label==null?'':p.label);
+ name.value=String(p.name==null?'':p.name);
+ position.value=p.namePos==='above'?'above':'below';
+ dialog.querySelectorAll('[data-cancel]').forEach(function(btn){btn.onclick=function(){dialog.close();};});
+ dialog.addEventListener('pointerdown',function(e){e.stopPropagation();});
+ dialog.addEventListener('keydown',function(e){e.stopPropagation();});
+ dialog.addEventListener('close',function(){dialog.remove();});
+ dialog.querySelector('form').addEventListener('submit',function(e){
+  e.preventDefault();
+  const current=tpState.pieces.find(function(q){return q.id===id;});
+  if(current){
+   tpPushUndo();
+   current.label=number.value.trim().slice(0,3);
+   current.name=name.value.trim().slice(0,40);
+   current.namePos=position.value==='above'?'above':'below';
+   current.numPos='in';
+   current.showNum=true;
+   current.showName=true;
+   tpRenderPieces();
+  }
+  dialog.close();
+ });
+ document.body.appendChild(dialog);
+ dialog.showModal();
+ number.focus(); number.select();
+}
+
+// Casa/Fora: clique alterna a configuração; arraste adiciona uma peça.
+function tpKitClick(e,team){
+ const btn=e.currentTarget;
+ if(btn.__tpKitSkipClick){
+  btn.__tpKitSkipClick=false;
+  e.preventDefault(); e.stopPropagation();
+  return;
+ }
+ const pan=document.getElementById('tp-kit-panel');
+ if(pan && !pan.hidden && tpState.kitTeam===team) tpCloseKit();
+ else tpOpenKit(team);
+}
+function tpKitSyncExpanded(){
+ const pan=document.getElementById('tp-kit-panel');
+ document.querySelectorAll('.tp-kit-btn[data-team]').forEach(function(btn){
+  btn.setAttribute('aria-expanded',String(!!pan && !pan.hidden && tpState.kitTeam===btn.dataset.team));
+ });
+}
+function tpKitPointer(e,team){
+ if(e.button!==0 || e.isPrimary===false) return;
+ const btn=e.currentTarget;
+ if(btn.__tpKitDragging) return;
+ btn.__tpKitSkipClick=false;
+ btn.__tpKitDragging=true;
+ e.preventDefault(); e.stopPropagation();
+ const pointerId=e.pointerId, startX=e.clientX, startY=e.clientY;
+ let moved=false, ghost=null, ended=false;
+ function move(ev){
+  if(ev.pointerId!==pointerId) return;
+  if(!moved && Math.hypot(ev.clientX-startX,ev.clientY-startY)>6){
+   moved=true;
+   const kit=tpKitOf(team);
+   ghost=document.createElement('div');
+   ghost.className='tp-squad-ghost';
+   ghost.style.background=tpTokenBg(kit.c1,kit.c2,kit.style);
+   ghost.textContent=kit.showNum!==false?String(team==='away'?tpState.awayN:tpState.homeN):'';
+   document.body.appendChild(ghost);
+  }
+  if(ghost){
+   ghost.style.left=(ev.clientX-18)+'px';
+   ghost.style.top=(ev.clientY-18)+'px';
+  }
+ }
+ function finish(ev,cancelled){
+  if(ended) return;
+  if(ev.pointerId!=null && ev.pointerId!==pointerId) return;
+  if(!cancelled) move(ev);
+  ended=true;
+  btn.__tpKitDragging=false;
+  btn.__tpKitSkipClick=moved || cancelled;
+  document.removeEventListener('pointermove',move);
+  document.removeEventListener('pointerup',up);
+  document.removeEventListener('pointercancel',cancel);
+  document.removeEventListener('keydown',key);
+  window.removeEventListener('blur',cancel);
+  btn.removeEventListener('lostpointercapture',cancel);
+  if(btn.hasPointerCapture?.(pointerId)) btn.releasePointerCapture(pointerId);
+  if(ghost) ghost.remove();
+  if(cancelled || !moved) return;
+  const br=tpBoardRect();
+  if(!br || !br.width || !br.height || ev.clientX<br.left || ev.clientX>br.right || ev.clientY<br.top || ev.clientY>br.bottom) return;
+  tpPushUndo();
+  const label=String(team==='away'?tpState.awayN++:tpState.homeN++);
+  const piece={id:tpNewId(),type:team,x:(ev.clientX-br.left)/br.width*100,y:(ev.clientY-br.top)/br.height*100,rot:0,w:6,h:6,label:label};
+  tpApplyKitToPiece(piece);
+  tpInsertPiece(piece);
+  tpSetSel(piece.id,false);
+  tpRenderPieces();
+ }
+ function up(ev){finish(ev,false);}
+ function cancel(ev){finish(ev,true);}
+ function key(ev){if(ev.key==='Escape'){ev.preventDefault();cancel(ev);}}
+ document.addEventListener('pointermove',move);
+ document.addEventListener('pointerup',up);
+ document.addEventListener('pointercancel',cancel);
+ document.addEventListener('keydown',key);
+ window.addEventListener('blur',cancel);
+ btn.addEventListener('lostpointercapture',cancel);
+ try{btn.setPointerCapture(pointerId);}catch(err){}
+}
+function tpOpenKit(team){
+ tpKitEnsure();
+ tpState.kitTeam=team;
+ tpState.squadOn[team]=true;
+ const k=tpKitOf(team);
+ const pan=document.getElementById('tp-kit-panel');
+ if(!pan) return;
+ pan.hidden=false;
+ tpKitSyncExpanded();
+ const styles=[['solid','1 cor'],['stripes','Faixas'],['hoops','Listras'],['halves','Meio'],['diag','Diag.']];
+ pan.innerHTML='<div class="tp-kit-hd">'+(team==='home'?'Casa':'Fora')+' <button type="button" class="tp-kit-x" onclick="tpCloseKit()">×</button></div>'
+  +'<div class="tp-kit-sec"><span>Estilo</span><div class="tp-kit-styles">'
+  +styles.map(function(x){return '<button type="button" class="tp-st'+(k.style===x[0]?' on':'')+'" data-st="'+x[0]+'" onclick="tpKitSet(\'style\',\''+x[0]+'\')"><i style="background:'+tpTokenBg(k.c1,k.c2,x[0])+'"></i>'+x[1]+'</button>';}).join('')
+  +'</div></div>'
+  +'<div class="tp-kit-sec"><span>Cores</span><label>1 <input type="color" value="'+k.c1+'" oninput="tpKitSet(\'c1\',this.value)"></label>'
+  +'<label>2 <input type="color" value="'+k.c2+'" oninput="tpKitSet(\'c2\',this.value)"></label></div>'
+  +'<div class="tp-kit-sec"><span>Goleiro</span><label>1 <input type="color" value="'+k.gkC1+'" oninput="tpKitSet(\'gkC1\',this.value)"></label>'
+  +'<label>2 <input type="color" value="'+k.gkC2+'" oninput="tpKitSet(\'gkC2\',this.value)"></label></div>'
+  +'<div class="tp-kit-sec"><label><input type="checkbox" '+(k.showNum!==false?'checked':'')+' onchange="tpKitSet(\'showNum\',this.checked)"> Número</label>'
+  +'<label><input type="checkbox" '+(k.showName!==false?'checked':'')+' onchange="tpKitSet(\'showName\',this.checked)"> Nome</label></div>'
+  +'<p class="tp-kit-tip">Arraste G e 2–14 da barra embaixo para o campo.</p>';
+ tpPaintKitDiscs();
+ tpRenderSquad();
+}
+function tpCloseKit(){
+ const pan=document.getElementById('tp-kit-panel');
+ if(pan) pan.hidden=true;
+ tpKitSyncExpanded();
+}
+function tpKitSet(key,val){
+ tpKitEnsure();
+ const t=tpState.kitTeam||'home';
+ tpState.kit[t][key]=val;
+ tpOpenKit(t);
+ tpState.pieces.forEach(function(p){
+  const away=p.type==='away'||p.type==='gk-away';
+  const team=away?'away':'home';
+  if(team!==t) return;
+  if(['home','away','gk-home','gk-away'].indexOf(p.type)<0) return;
+  tpApplyKitToPiece(p);
+ });
+ tpRenderPieces();
+}
+function tpRenderSquad(){
+ const box=document.getElementById('tp-squad');
+ if(!box) return;
+ tpKitEnsure();
+ const on=tpState.squadOn||{};
+ if(!on.home && !on.away){ box.hidden=true; box.innerHTML=''; return; }
+ box.hidden=false;
+ function row(team){
+  const k=tpKitOf(team);
+  const nums=['G'].concat([2,3,4,5,6,7,8,9,10,11,12,13,14]);
+  return '<div class="tp-squad-row"><b>'+(team==='home'?'Casa':'Fora')+'</b>'+nums.map(function(n){
+   const gk=n==='G';
+   const bg=gk?tpTokenBg(k.gkC1,k.gkC2,'solid'):tpTokenBg(k.c1,k.c2,k.style);
+   const lab=gk?'G':String(n);
+   return '<button type="button" class="tp-squad-chip'+(gk?' gk':'')+'" style="background:'+bg+'" data-team="'+team+'" data-n="'+lab+'" onpointerdown="tpSquadDrag(event,\''+team+'\',\''+lab+'\','+(gk?'true':'false')+')"><em>'+(k.showNum!==false?lab:'')+'</em></button>';
+  }).join('')+'</div>';
+ }
+ box.innerHTML=(on.home?row('home'):'')+(on.away?row('away'):'');
+}
+function tpSquadDrag(e,team,lab,isGk){
+ e.preventDefault(); e.stopPropagation();
+ const ghost=document.createElement('div');
+ ghost.className='tp-squad-ghost';
+ ghost.innerHTML=e.currentTarget.innerHTML;
+ ghost.style.background=e.currentTarget.style.background;
+ document.body.appendChild(ghost);
+ function place(ev){
+  ghost.style.left=(ev.clientX-18)+'px';
+  ghost.style.top=(ev.clientY-18)+'px';
+ }
+ place(e);
+ function up(ev){
+  document.removeEventListener('pointermove',place);
+  document.removeEventListener('pointerup',up);
+  ghost.remove();
+  const br=tpBoardRect();
+  if(!br) return;
+  if(ev.clientX<br.left||ev.clientY<br.top||ev.clientX>br.right||ev.clientY>br.bottom) return;
+  const type=isGk?(team==='away'?'gk-away':'gk-home'):(team==='away'?'away':'home');
+  const piece={id:tpNewId(),type:type,x:(ev.clientX-br.left)/br.width*100,y:(ev.clientY-br.top)/br.height*100,rot:0,w:isGk?7:6,h:isGk?7:6,label:lab};
+  tpApplyKitToPiece(piece);
+  tpInsertPiece(piece);
+  tpSetSel(piece.id,false);
+  tpRenderPieces();
+ }
+ document.addEventListener('pointermove',place);
+ document.addEventListener('pointerup',up);
+}
+
+
+function tpToolPointer(e,type){
+ if(e.button && e.button!==0) return;
+ if(typeof tpEhCelular==='function' && tpEhCelular()){
+  if(type==='ball') adicionarBolaPrancheta(); else tpAdd(type);
+  return;
+ }
+ e.preventDefault(); e.stopPropagation();
+ const ghost=document.createElement('div');
+ ghost.className='tp-squad-ghost';
+ const names={ball:'●',cone:'▲',goal:'⌂',arrow:'→',square:'□',circle:'○',home:'C',away:'F','gk-home':'G','gk-away':'G'};
+ ghost.textContent=names[type]||'+';
+ document.body.appendChild(ghost);
+ let moved=false;
+ const startX=e.clientX, startY=e.clientY;
+ function place(ev){
+  ghost.style.left=(ev.clientX-18)+'px';
+  ghost.style.top=(ev.clientY-18)+'px';
+  if(Math.hypot(ev.clientX-startX, ev.clientY-startY)>6) moved=true;
+ }
+ place(e);
+ function up(ev){
+  document.removeEventListener('pointermove',place);
+  document.removeEventListener('pointerup',up);
+  ghost.remove();
+  const br=tpBoardRect();
+  const over=br && ev.clientX>=br.left && ev.clientY>=br.top && ev.clientX<=br.right && ev.clientY<=br.bottom;
+  if(over && moved){
+   let label='', w=6, h=6, rot=0;
+   if(type==='home'){ label=String(tpState.homeN++); }
+   else if(type==='away'){ label=String(tpState.awayN++); }
+   else if(type==='gk-home'||type==='gk-away'){ label='G'; w=7; h=7; }
+   else if(type==='ball'){ w=5; h=5; }
+   else if(type==='cone'){ w=2; h=3; }
+   else if(type==='goal'){ w=10; h=5; }
+   else if(type==='arrow'){ w=18; h=3; }
+   else if(type==='square'){ w=18; h=18; }
+   else if(type==='circle'){ w=16; h=16; }
+   const piece={id:tpNewId(),type:type,x:(ev.clientX-br.left)/br.width*100,y:(ev.clientY-br.top)/br.height*100,rot:rot,w:w,h:h,label:label};
+   if(typeof tpApplyKitToPiece==='function') tpApplyKitToPiece(piece);
+   tpPushUndo();
+   tpInsertPiece(piece);
+   tpSetSel(piece.id,false);
+   tpRenderPieces();
+  }else{
+   if(type==='ball') adicionarBolaPrancheta(); else tpAdd(type);
+  }
+ }
+ document.addEventListener('pointermove',place);
+ document.addEventListener('pointerup',up);
+}
+
 function tpAdd(type){
  let label='', w=6, h=6, rot=0;
  if(type==='home'){ label=String(tpState.homeN++); }
@@ -6747,6 +7139,7 @@ function tpAdd(type){
  else if(type==='circle'){ label=''; w=16; h=16; }
  const xy=tpSpawnXY(type);
  const piece={id:tpNewId(),type,x:xy.x,y:xy.y,rot,w,h,label};
+ if(typeof tpApplyKitToPiece==='function') tpApplyKitToPiece(piece);
  tpInsertPiece(piece);
  tpSetSel(piece.id,false);
  tpRenderPieces();
@@ -6764,22 +7157,24 @@ function tpPieceColor(p){
 function tpPieceInner(p){
  const col=tpPieceColor(p);
  const dash=p.stroke==='dash';
- const dashA=dash?' stroke-dasharray=\"7 6\"':'';
- const hs = '<span class=\"tp-handle tp-h-rot\" data-h=\"rot\"></span><span class=\"tp-handle tp-h-se\" data-h=\"se\"></span>';
- const har = '<span class=\"tp-handle tp-h-a0\" data-h=\"a0\"></span><span class=\"tp-handle tp-h-a1\" data-h=\"a1\"></span>';
- const hse = '<span class=\"tp-handle tp-h-se\" data-h=\"se\"></span>';
- const hsq = ['nw','ne','sw','se'].map(function(k){return '<span class=\"tp-handle tp-h-'+k+'\" data-h=\"'+k+'\"></span>';}).join('');
- if(p.type==='ball') return '<img class=\"tp-ico-img\" src=\"bola.png\" alt=\"Bola\">';
+ const dashA=dash?' stroke-dasharray="7 6"':'';
+ const hs = '<span class="tp-handle tp-h-rot" data-h="rot"></span><span class="tp-handle tp-h-se" data-h="se"></span>';
+ const har = '<span class="tp-handle tp-h-a0" data-h="a0"></span><span class="tp-handle tp-h-a1" data-h="a1"></span>';
+ const hse = '<span class="tp-handle tp-h-se" data-h="se"></span>';
+ const hsq = ['nw','ne','sw','se'].map(function(k){return '<span class="tp-handle tp-h-'+k+'" data-h="'+k+'"></span>';}).join('');
+ if(p.type==='ball') return '<img class="tp-ico-img" src="bola.png" alt="Bola">';
  if(p.type==='goal') return TP_GOAL_SVG+hs;
  if(p.type==='cone') return TP_CONE_SVG+hs;
  if(p.type==='arrow'){
   const dsh=dash?' tp-arrow-dash':'';
-  return '<span class=\"tp-arrow-body'+dsh+'\" style=\"background:'+col+';--tp-ac:'+col+'\"></span>'+har;
+  return '<span class="tp-arrow-body'+dsh+'" style="background:'+col+';--tp-ac:'+col+'"></span>'+har;
  }
- if(p.type==='square') return '<svg class=\"tp-shape-svg\" viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\"><rect x=\"4\" y=\"4\" width=\"92\" height=\"92\" fill=\"none\" stroke=\"transparent\" stroke-width=\"10\"/><rect x=\"4\" y=\"4\" width=\"92\" height=\"92\" fill=\"none\" stroke=\"'+col+'\" stroke-width=\"1.5\" vector-effect=\"non-scaling-stroke\"'+dashA+'/></svg>'+hsq;
- if(p.type==='circle') return '<svg class=\"tp-shape-svg\" viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\"><circle cx=\"50\" cy=\"50\" r=\"45\" fill=\"none\" stroke=\"'+col+'\" stroke-width=\"1.5\" vector-effect=\"non-scaling-stroke\"'+dashA+'/></svg>'+hse;
+ if(p.type==='square') return '<svg class="tp-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none" pointer-events="none"><rect class="tp-shape-hit" pointer-events="stroke" x="4" y="4" width="92" height="92" fill="none" stroke="transparent" stroke-width="1.5" vector-effect="non-scaling-stroke"/><rect pointer-events="stroke" x="4" y="4" width="92" height="92" fill="none" stroke="'+col+'" stroke-width="1.5" vector-effect="non-scaling-stroke"'+dashA+'/></svg>'+hsq;
+ if(p.type==='circle') return '<svg class="tp-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none" pointer-events="none"><circle class="tp-shape-hit" pointer-events="stroke" cx="50" cy="50" r="45" fill="none" stroke="transparent" stroke-width="1.5" vector-effect="non-scaling-stroke"/><circle pointer-events="stroke" cx="50" cy="50" r="45" fill="none" stroke="'+col+'" stroke-width="1.5" vector-effect="non-scaling-stroke"'+dashA+'/></svg>'+hse;
+ if(['home','away','gk-home','gk-away'].indexOf(p.type)>=0) return tpPlayerTokenHtml(p);
  return '';
 }
+
 function tpRenderPieces(){
  const area=document.getElementById('mini-board-players');
  if(!area)return;
@@ -6803,14 +7198,14 @@ function tpRenderPieces(){
    el.innerHTML=tpPieceInner(p);
   } else {
    el.style.transform=rot;
-   el.textContent=p.label;
+   el.innerHTML=tpPlayerTokenHtml(p);
   }
   el.style.zIndex=(p.type==='square'||p.type==='circle')?String(1+tpState.pieces.indexOf(p)):String(40+tpState.pieces.indexOf(p));
   el.addEventListener('pointerdown',e=>tpPointerDown(e,p,el));
   el.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();if(!tpIsSel(p.id)) tpSetSel(p.id,false); tpPaintSel(); tpShowCtx(e,p);});
   el.ondblclick=()=>{
    if(['home','away','gk-home','gk-away'].includes(p.type)){
-    const n=prompt('Número ou nome:',p.label); if(n!==null){p.label=n; tpRenderPieces();}
+    tpEditPlayer(p.id);
    }
   };
   area.appendChild(el);
@@ -6839,15 +7234,18 @@ function tpCloneSelection(ids){
  return newIds;
 }
 function tpPointerDown(e,p,el){
+ if(e.button!=null && e.button!==0) return;
  const h=e.target.closest&&e.target.closest('.tp-handle');
  const mode=h?h.getAttribute('data-h'):'move';
  e.preventDefault(); e.stopPropagation();
  const ctrl=!!(e.ctrlKey||e.metaKey);
  const shift=!!e.shiftKey;
- if(ctrl){
+ // Defer deselection until release: Ctrl+drag must still copy the entire selection.
+ const deselectOnClick=ctrl && mode==='move' && tpIsSel(p.id);
+ if(ctrl && !tpIsSel(p.id)){
   tpSetSel(p.id, true);
   tpPaintSel();
- }else if(!tpIsSel(p.id)){
+ }else if(!ctrl && !tpIsSel(p.id)){
   tpSetSel(p.id, false);
   tpPaintSel();
  }
@@ -6858,10 +7256,12 @@ function tpPointerDown(e,p,el){
  const br=tpBoardRect(); if(!br)return;
  const start={x:e.clientX,y:e.clientY,px:p.x,py:p.y,pw:p.w,ph:p.h,pr:p.rot};
  let dragging=false;
+ let menuOpened=false;
  let hold=null;
  if(mode==='move'){
   hold=setTimeout(function(){
    if(dragging)return;
+   menuOpened=true;
    tpShowCtx({clientX:start.x,clientY:start.y},p);
   },550);
  }
@@ -6970,9 +7370,17 @@ function tpPointerDown(e,p,el){
   el.releasePointerCapture?.(ev.pointerId);
   el.removeEventListener('pointermove',move);
   el.removeEventListener('pointerup',up);
+  el.removeEventListener('pointercancel',up);
+  if(ev.type!=='pointercancel' && deselectOnClick && !dragging && !menuOpened){
+   tpState.selIds=(tpState.selIds||[]).filter(id=>id!==p.id);
+   tpState.sel=tpState.selIds.length?tpState.selIds[tpState.selIds.length-1]:null;
+   tpPaintSel();
+  }
+  if(copied) tpRenderPieces();
  }
  el.addEventListener('pointermove',move);
  el.addEventListener('pointerup',up);
+ el.addEventListener('pointercancel',up);
 }
 function tpSalvarTela(){
  tpState.frames.push({pieces:tpClonePieces()});
@@ -7057,6 +7465,24 @@ function tpShowCtx(e,p){
   });
  }
  let extra='';
+ const isJog=['home','away','gk-home','gk-away'].indexOf(p.type)>=0;
+ if(isJog){
+  const colors=[['#111111','Preto'],['#ffffff','Branco'],['#d63031','Vermelho'],['#f9c614','Amarelo'],['#0984e3','Azul'],['#27ae60','Verde']];
+  const palette=function(secondary){
+   return '<div class="tp-ctx-colors">'+colors.map(function(c){
+    const action=secondary?"tpSetJogCores(null,'"+c[0]+"')":"tpSetJogCores('"+c[0]+"',null)";
+    return '<button type="button" class="tp-c" style="background:'+c[0]+';border:1px solid #999" title="'+c[1]+'" aria-label="'+c[1]+'" onclick="'+action+';tpHideCtx()"></button>';
+   }).join('')+'</div>';
+  };
+  const multiple=(tpState.selIds||[]).filter(id=>{
+   const it=tpState.pieces.find(q=>q.id===id);
+   return it && ['home','away','gk-home','gk-away'].includes(it.type);
+  }).length>1;
+  extra='<div class="tp-ctx-lab">'+(multiple?'Cor dos jogadores selecionados':'Cor do jogador')+'</div>'+palette(false);
+  if(p.kitStyle && p.kitStyle!=='solid'){
+   extra+='<div class="tp-ctx-lab">Cor secundária</div>'+palette(true);
+  }
+ }
  if(p.type==='square'||p.type==='circle'||p.type==='arrow'){
   extra='<div class=\"tp-ctx-lab\">Traço</div>'
    +'<button type=\"button\" onclick=\"tpSetTraço(\'solid\')\">Traço inteiro</button>'
@@ -7101,10 +7527,31 @@ function tpSetTraço(v){
  tpHideCtx(); tpRenderPieces();
 }
 function tpSetCor(c){
- const item=tpPecaDoMenu(); if(!item)return;
+ const ids=(tpState.selIds&&tpState.selIds.length)?tpState.selIds.slice():[];
+ const item=tpPecaDoMenu();
+ if(item && ids.indexOf(item.id)<0) ids.push(item.id);
+ if(!ids.length)return;
  tpPushUndo();
- item.color=c;
+ ids.forEach(function(id){
+  const it=tpState.pieces.find(function(x){return x.id===id;});
+  if(it) it.color=c;
+ });
  tpHideCtx(); tpRenderPieces();
+}
+function tpSetJogCores(c1,c2){
+ const ids=(tpState.selIds&&tpState.selIds.length)?tpState.selIds.slice():[];
+ const item=tpPecaDoMenu();
+ if(item && ids.indexOf(item.id)<0) ids.push(item.id);
+ if(!ids.length)return;
+ tpPushUndo();
+ ids.forEach(function(id){
+  const it=tpState.pieces.find(function(x){return x.id===id;});
+  if(!it) return;
+  if(['home','away','gk-home','gk-away'].indexOf(it.type)<0) return;
+  if(c1){ it.c1=c1; it.color=c1; }
+  if(c2) it.c2=c2;
+ });
+ tpRenderPieces();
 }
 function tpExcluirPeca(){
  const ids=(tpState.selIds&&tpState.selIds.length)?tpState.selIds.slice():[];
@@ -7258,9 +7705,7 @@ function tpDrawPieces(ctx,W,H,pieces){
    ctx.fillStyle='#111'; ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(2.5,-1.5); ctx.lineTo(1.5,1.5); ctx.lineTo(-1.5,1.5); ctx.lineTo(-2.5,-1.5); ctx.closePath(); ctx.fill();
    ctx.restore(); return;
   }
-  ctx.fillStyle=fill; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
-  if(p.label){ ctx.fillStyle=color; ctx.font='bold 10px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(p.label).slice(0,3),0,0); }
+  tpFillToken(ctx,r,p,p.type);
   ctx.restore();
  });
 }
