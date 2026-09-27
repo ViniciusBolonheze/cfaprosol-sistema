@@ -5482,6 +5482,7 @@ function rppBindGrafZoom(box){
   if(z===1){ x=0; y=0; }
   inner.style.transform='translate('+x+'px,'+y+'px) scale('+z+')';
   box.style.cursor=z>1?'grab':'';
+  box.style.touchAction=z>1?'none':'pan-y';
  }
  inner.style.transformOrigin='0 0';
  box.addEventListener('wheel', function(e){
