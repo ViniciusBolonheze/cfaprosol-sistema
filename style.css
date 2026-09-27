@@ -5132,3 +5132,14 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
 .tp-player-editor-head button{font-size:20px;line-height:1;padding:5px 9px;}
 .tp-player-editor-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;}
 .tp-player-editor-actions button[type=submit]{background:#f9c614;color:#111;border-color:#f9c614;}
+
+/* Celular: rolar + Elementos sem acionar peças; somente o toque concluído adiciona. */
+@media(max-width:900px), (pointer:coarse){
+ .tp-tool{touch-action:pan-y;}
+ .tp-add-pop.open{touch-action:pan-y;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;}
+}
+@media(max-width:900px){
+ .tp-add-pop.open{max-height:55dvh;overflow-y:auto;overflow-x:hidden;}
+ /* Faixa invisível de 12px para cada lado da linha, sem preencher a forma. */
+ .tp-shape-svg > .tp-shape-hit{stroke-width:24px;}
+}

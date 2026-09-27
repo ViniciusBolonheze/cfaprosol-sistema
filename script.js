@@ -6676,16 +6676,16 @@ function renderPranchetaVirtual(){
     </div>
     <div id="tp-kit-panel" class="tp-desk-only tp-kit-panel" hidden></div>
     <div id="tp-add-pop" class="tp-add-pop">
-    <button type="button" class="tp-tool home tp-mob-only" onpointerdown="tpToolPointer(event,'home')">+ Jogador casa</button>
-    <button type="button" class="tp-tool away tp-mob-only" onpointerdown="tpToolPointer(event,'away')">+ Jogador fora</button>
-    <button type="button" class="tp-tool gk-home tp-mob-only" onpointerdown="tpToolPointer(event,'gk-home')">+ Goleiro casa</button>
-    <button type="button" class="tp-tool gk-away tp-mob-only" onpointerdown="tpToolPointer(event,'gk-away')">+ Goleiro fora</button>
-    <button type="button" class="tp-tool ball" onpointerdown="tpToolPointer(event,'ball')">+ Bola</button>
-    <button type="button" class="tp-tool cone" onpointerdown="tpToolPointer(event,'cone')">+ Cone</button>
-    <button type="button" class="tp-tool goal" onpointerdown="tpToolPointer(event,'goal')">+ Trave</button>
-    <button type="button" class="tp-tool arrow" onpointerdown="tpToolPointer(event,'arrow')">+ Seta</button>
-    <button type="button" class="tp-tool square" onpointerdown="tpToolPointer(event,'square')">+ Quadrado</button>
-    <button type="button" class="tp-tool circle" onpointerdown="tpToolPointer(event,'circle')">+ Círculo</button>
+    <button type="button" class="tp-tool home tp-mob-only" onpointerdown="tpToolPointer(event,'home')" onclick="tpToolClick(event,'home')">+ Jogador casa</button>
+    <button type="button" class="tp-tool away tp-mob-only" onpointerdown="tpToolPointer(event,'away')" onclick="tpToolClick(event,'away')">+ Jogador fora</button>
+    <button type="button" class="tp-tool gk-home tp-mob-only" onpointerdown="tpToolPointer(event,'gk-home')" onclick="tpToolClick(event,'gk-home')">+ Goleiro casa</button>
+    <button type="button" class="tp-tool gk-away tp-mob-only" onpointerdown="tpToolPointer(event,'gk-away')" onclick="tpToolClick(event,'gk-away')">+ Goleiro fora</button>
+    <button type="button" class="tp-tool ball" onpointerdown="tpToolPointer(event,'ball')" onclick="tpToolClick(event,'ball')">+ Bola</button>
+    <button type="button" class="tp-tool cone" onpointerdown="tpToolPointer(event,'cone')" onclick="tpToolClick(event,'cone')">+ Cone</button>
+    <button type="button" class="tp-tool goal" onpointerdown="tpToolPointer(event,'goal')" onclick="tpToolClick(event,'goal')">+ Trave</button>
+    <button type="button" class="tp-tool arrow" onpointerdown="tpToolPointer(event,'arrow')" onclick="tpToolClick(event,'arrow')">+ Seta</button>
+    <button type="button" class="tp-tool square" onpointerdown="tpToolPointer(event,'square')" onclick="tpToolClick(event,'square')">+ Quadrado</button>
+    <button type="button" class="tp-tool circle" onpointerdown="tpToolPointer(event,'circle')" onclick="tpToolClick(event,'circle')">+ Círculo</button>
     </div>
     <p class="tp-hint">Duplo clique no jogador para editar número e nome. Botão direito: frente, trás, girar ou excluir. Bolinhas: girar e redimensionar. Ctrl+arrastar duplica.</p>
    </aside>
@@ -7075,12 +7075,20 @@ function tpSquadDrag(e,team,lab,isGk){
 }
 
 
+function tpToolIsMobile(){
+ return window.innerWidth<=900 || (typeof tpEhCelular==='function' && tpEhCelular());
+}
+function tpToolClick(e,type){
+ // Mouse dragging on desktop is handled by tpToolPointer; do not add twice.
+ // Keyboard activation (detail=0) still works on desktop.
+ if(!tpToolIsMobile() && e.detail!==0) return;
+ e.preventDefault(); e.stopPropagation();
+ if(type==='ball') adicionarBolaPrancheta(); else tpAdd(type);
+}
 function tpToolPointer(e,type){
  if(e.button && e.button!==0) return;
- if(typeof tpEhCelular==='function' && tpEhCelular()){
-  if(type==='ball') adicionarBolaPrancheta(); else tpAdd(type);
-  return;
- }
+ // Do not preventDefault or create a piece on touch-down: allow native scroll.
+ if(tpToolIsMobile()) return;
  e.preventDefault(); e.stopPropagation();
  const ghost=document.createElement('div');
  ghost.className='tp-squad-ghost';
