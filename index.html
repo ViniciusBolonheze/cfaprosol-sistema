@@ -8,7 +8,7 @@
     <link rel="shortcut icon" type="image/png" href="logo.png">
     <link rel="apple-touch-icon" href="logo.png">
     <meta name="theme-color" content="#58111a">
-    <link rel="stylesheet" href="style.css?v=modern-v3-ajustes-44-peso-fix-script">
+    <link rel="stylesheet" href="style.css?v=calendario-psr-pse-v3-20260927">
     <!-- FontAwesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS (XLSX) para leitura de arquivos do Excel -->
@@ -176,7 +176,8 @@
                     
                     <div class="pf-subtab-group">
                         <select id="pf-eval-select" class="pf-select-control" onchange="renderPfTable()"></select>
-                        <select id="pf-year-select" class="pf-select-control" onchange="renderPfTable()">
+                        <label class="ae-physical-filter">Categoria de treino<select id="ae-pf-cat" onchange="document.getElementById('pf-year-select').value='todos';renderPfTable()"><option value="">Anos / todos</option><option value="sub11">Sub 11</option><option value="sub12">Sub 12</option><option value="sub13">Sub 13</option><option value="sub16">Sub 16</option></select></label>
+                        <select id="pf-year-select" class="pf-select-control" onchange="document.getElementById('ae-pf-cat').value='';renderPfTable()">
                             <option value="todos">Todos os Anos</option>
                             <option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option>
                             <option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option>
@@ -556,6 +557,6 @@
         </div>
     </div>
 </div>
-    <script src="script.js?v=modern-v3-ajustes-44-peso-fix-script"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a338776c3c8537a6',t:'MTc4ODE0MTg4Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script src="script.js?v=calendario-psr-pse-v3-20260927"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a41e268519ee808f',t:'MTc5MDU1MDI5OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
