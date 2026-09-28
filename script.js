@@ -10339,7 +10339,8 @@ function avdRelPeriodo(){
  return {de:avdRelState.de||'',ate:avdRelState.ate||''};
 }
 function openAvdRelatorio(){
- avdRelState={cat:'',modo:'sempre',de:'',ate:'',linhas:[],carregando:false,sort:{key:'nome',dir:'asc'}};
+ avdRelRequest++;
+ avdRelState={cat:'',modo:'sempre',tipo:'treino_jogo',de:'',ate:'',linhas:[],carregando:false,sort:{key:'nome',dir:'asc'}};
  let m=document.getElementById('avd-rel-modal');
  if(!m){
   m=document.createElement('div'); m.id='avd-rel-modal'; m.className='avd-rel-overlay';
@@ -10349,7 +10350,7 @@ function openAvdRelatorio(){
  m.style.display='flex';
  renderAvdRelatorio();
 }
-function closeAvdRelatorio(){ const m=document.getElementById('avd-rel-modal'); if(m) m.style.display='none'; }
+function closeAvdRelatorio(){ avdRelRequest++;avdRelState.carregando=false; const m=document.getElementById('avd-rel-modal'); if(m) m.style.display='none'; }
 function avdRelSetModo(modo){
  avdRelState.modo=modo;
  if(modo==='periodo' && !avdRelState.de){
@@ -10364,38 +10365,50 @@ function avdRelSetDe(v){ avdRelState.de=v; if(avdRelState.cat) carregarAvdRelato
 function avdRelSetAte(v){ avdRelState.ate=v; if(avdRelState.cat) carregarAvdRelatorio(); }
 function avdRelEscolherCat(id){ avdRelState.cat=id; carregarAvdRelatorio(); }
 async function carregarAvdRelatorio(){
- if(!await aeExigir())return;
- const cat=avdRelState.cat; if(!cat){ renderAvdRelatorio(); return; }
- avdRelState.carregando=true; renderAvdRelatorio();
+ const request=++avdRelRequest;
+ const cat=avdRelState.cat;
+ if(!cat){avdRelState.carregando=false;renderAvdRelatorio();return;}
  const per=avdRelPeriodo();
+ const tipo=avdRelState.tipo||'treino_jogo';
+ avdRelState.carregando=true;renderAvdRelatorio();
  try{
+  if(!await aeExigir()){
+   if(request===avdRelRequest)avdRelState.linhas=[];
+   return;
+  }
+  if(request!==avdRelRequest)return;
   const [allNotas,diasRows]=await Promise.all([aeAvdLerTabela('avaliacao_diaria_notas',per.de,per.ate),aeAvdLerTabela('avaliacao_diaria_dias',per.de,per.ate)]);
+  if(request!==avdRelRequest)return;
   const data=aeAvdNotasParaCategoria(allNotas,cat);
-  const tipo=avdRelState.tipo||'treino_jogo';
   const jogoMap={};
-  (diasRows||[]).forEach(d=>{ if(d&&d.data) jogoMap[d.categoria+'|'+d.data]=!!d.jogo; });
+  // A marcação pertence à data/categoria em que a nota foi registrada, inclusive extras.
+  (diasRows||[]).forEach(d=>{if(d&&d.data)jogoMap[d.categoria+'|'+String(d.data).slice(0,10)]=!!d.jogo;});
   const mapa={};
   (data||[]).forEach(r=>{
-   const k=r.atleta_key; if(!k) return;
+   const k=r.atleta_key;if(!k)return;
    const isJogo=!!jogoMap[r.categoria+'|'+r.data];
-   if(tipo==='treino' && isJogo) return;
-   if(tipo==='jogo' && !isJogo) return;
-   if(!mapa[k]) mapa[k]={faltas:0,dm:0,nc:0,notas:[]};
+   if(tipo==='treino'&&isJogo)return;
+   if(tipo==='jogo'&&!isJogo)return;
+   if(!mapa[k])mapa[k]={faltas:0,dm:0,nc:0,notas:[]};
    const n=Number(r.nota);
-   if(n===0) mapa[k].faltas++;
-   else if(n===9) mapa[k].dm++;
-   else if(n===8) mapa[k].nc++;
-   else if(Number.isFinite(n) && n>=1 && n<=5) mapa[k].notas.push(n);
+   if(n===0)mapa[k].faltas++;
+   else if(n===9)mapa[k].dm++;
+   else if(n===8)mapa[k].nc++;
+   else if(Number.isFinite(n)&&n>=1&&n<=5)mapa[k].notas.push(n);
   });
   const atletas=avdAtletasCat(cat).slice().sort((a,b)=>String(a.id.apelido||a.id.nomeCompleto||'').localeCompare(String(b.id.apelido||b.id.nomeCompleto||''),'pt-BR'));
   avdRelState.linhas=atletas.map(a=>{
    const k=avdChaveId(a.id);
    const t=mapa[k]||{faltas:0,dm:0,nc:0,notas:[]};
-   const media=t.notas.length? t.notas.reduce((s,v)=>s+v,0)/t.notas.length : null;
-   return {nome:a.id.apelido||a.id.nomeCompleto||'', ano:a.id.ano||'', faltas:t.faltas, dm:t.dm, media};
+   const media=t.notas.length?t.notas.reduce((s,v)=>s+v,0)/t.notas.length:null;
+   return {nome:a.id.apelido||a.id.nomeCompleto||'',ano:a.id.ano||'',faltas:t.faltas,dm:t.dm,media};
   });
- }catch(e){ console.warn(e); avdRelState.linhas=[]; alert('Erro ao carregar o relatório.'); }
- avdRelState.carregando=false; renderAvdRelatorio();
+ }catch(e){
+  if(request!==avdRelRequest)return;
+  console.warn(e);avdRelState.linhas=[];alert('Erro ao carregar o relatório.');
+ }finally{
+  if(request===avdRelRequest){avdRelState.carregando=false;renderAvdRelatorio();}
+ }
 }
 function avdRelOrdenar(key){
  const cur=avdRelState.sort||{key:'nome',dir:'asc'};
@@ -10418,6 +10431,7 @@ function avdRelLinhasOrd(){
  });
 }
 function imprimirAvdRelatorio(){
+ if(avdRelState.carregando){alert('Aguarde o carregamento do relatório.');return;}
  if(!avdRelState.cat){ alert('Selecione uma categoria.'); return; }
  const cats=avdCats();
  const lab=(cats[avdRelState.cat]&&cats[avdRelState.cat].label)||avdRelState.cat;
@@ -10476,7 +10490,7 @@ function renderAvdRelatorio(){
   <h2>Relatório — Avaliação Diária</h2>
   <div class="avd-rel-cats">${catBtns}</div>
   ${filtros}
-  ${avdRelState.cat?`<div class="avd-rel-actions"><button type="button" class="avd-rel-print" onclick="imprimirAvdRelatorio()">Imprimir/Exportar</button></div>`:''}
+  ${avdRelState.cat?`<div class="avd-rel-actions"><button type="button" class="avd-rel-print" ${avdRelState.carregando?'disabled':''} onclick="imprimirAvdRelatorio()">Imprimir/Exportar</button></div>`:''}
   ${corpo}
  </div>`;
 }
@@ -12276,4 +12290,12 @@ function aeAtualizarTestesSemGravar(){
  // não pode alterar nem esses campos em memória: restaura os mesmos objetos.
  const rows=(excelData||[]).map(r=>[r,{...r}]),cols=excelColumns.slice();
  try{renderPfTable();}finally{for(const [row,saved]of rows){Object.keys(row).forEach(k=>{if(!(k in saved))delete row[k];});Object.assign(row,saved);}excelColumns.splice(0,excelColumns.length,...cols);}
+}
+
+let avdRelRequest=0;
+function avdRelSetTipo(tipo){
+ if(!['treino','treino_jogo','jogo'].includes(tipo))return;
+ avdRelState.tipo=tipo;
+ if(avdRelState.cat)return carregarAvdRelatorio();
+ renderAvdRelatorio();
 }
