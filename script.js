@@ -5054,6 +5054,45 @@ function rppNormNasc(v){
  if(br) return br[3]+'-'+br[2]+'-'+br[1];
  return normalizarTextoTrabalho(s);
 }
+function rppChaveAtletaAnularPse(item){
+ const id=item&&item.id&&typeof item.id==='object'?item.id:(item||{});
+ const chave=AE.key(id);if(chave)return chave;
+ let raw=String(item&&item.atleta_key||trabalhoChaveAtleta(id)||'').trim();
+ const sep=raw.lastIndexOf('||');
+ if(sep>=0){const normalizada=AE.key({nomeCompleto:raw.slice(0,sep),nascimento:raw.slice(sep+2)});if(normalizada)return normalizada;}
+ return normalizarTextoTrabalho(raw).toLowerCase();
+}
+function rppPseFoiAnulado(atleta,dataISO){
+ if(relatorioPsrPseState.tipo!=='pse')return false;
+ const idx=relatorioPsrPseState.avdPseAnulacoes;
+ if(!(idx instanceof Map))return false;
+ const key=rppChaveAtletaAnularPse(atleta),dia=rppIsoData(dataISO);
+ return !!(key&&dia&&idx.get(dia+'|'+key));
+}
+function rppIndexarAnulacoesPse(rows){
+ const latest=new Map();
+ (rows||[]).forEach(r=>{
+  const dia=rppIsoData(r.data),key=rppChaveAtletaAnularPse(r);if(!dia||!key)return;
+  const id=dia+'|'+key,stamp=String(r.atualizado||r.atualizado_em||'');
+  const catAtual=typeof AE.categoria==='function'?AE.categoria(r,'avd'):'';
+  const preferida=r.categoria===catAtual?1:0,prev=latest.get(id);
+  if(!prev||stamp>prev.stamp||(stamp===prev.stamp&&preferida>=prev.preferida))latest.set(id,{value:r.anular_pse===true||r.anular_pse==='true',stamp,preferida});
+ });
+ return new Map([...latest].map(([k,v])=>[k,v.value]));
+}
+async function rppFetchAnulacoesPse(inicio,fim){
+ const page=1000,all=[];let from=0;
+ while(true){
+  const {data,error}=await _supabase.from('avaliacao_diaria_notas').select('data,categoria,atleta_key,nome_completo,nascimento,ano,anular_pse,atualizado').gte('data',inicio).lte('data',fim).order('data',{ascending:true}).order('categoria',{ascending:true}).range(from,from+page-1);
+  if(error)throw error;
+  const chunk=data||[];all.push(...chunk);if(chunk.length<page)break;from+=page;
+ }
+ return rppIndexarAnulacoesPse(all);
+}
+function rppColunaAnularPseAusente(error){
+ const texto=[error&&error.message,error&&error.details,error&&error.hint,error&&error.code].filter(Boolean).join(' ').toLowerCase();
+ return texto.includes('anular_pse')&&(texto.includes('column')||texto.includes('schema cache')||texto.includes('42703')||texto.includes('pgrst204'));
+}
 function rppNotaPseNum(row){
  if(!row) return null;
  let v=null;
@@ -5102,7 +5141,7 @@ function rppMediaCatDia(catId, iso){
  atletas.forEach(a=>{
   const row=rppRespostaAtletaData(a, iso);
   const n=rppNotaParaMedia(row);
-  if(n===null) return;
+  if(n===null||rppPseFoiAnulado(a,iso)) return;
   const k=rppKeyAtletaId(a.id)||normalizarTextoTrabalho(a.id&&a.id.nomeCompleto||'');
   if(k && visto.has(k)) return;
   if(k) visto.add(k);
@@ -5117,7 +5156,7 @@ function rppMediaCatPeriodo(catId, dias){
  dias.forEach(iso=>{
   atletas.forEach(a=>{
    const n=rppNotaParaMedia(rppRespostaAtletaData(a, iso));
-   if(n!==null) vals.push(n);
+   if(n!==null&&!rppPseFoiAnulado(a,iso)) vals.push(n);
   });
  });
  if(!vals.length) return null;
@@ -5450,6 +5489,7 @@ function renderRelatorioPsrPse(){
  modal.style.display='flex';
 }
 let rppRespCache={inicio:'',fim:'',rows:[]};
+let rppLoadRequest=0;
 function rppIndexarRespostas(rows){
  const idx=new Map();
  (rows||[]).forEach(function(r){
@@ -5485,13 +5525,28 @@ async function rppFetchRespostasPeriodo(inicio,fim){
  return all;
 }
 async function carregarRespostasRelatorioPsrPse(){
- if(!await aeExigir())return;
- const periodo=rppPeriodoAtual();relatorioPsrPseState.carregando=true;renderRelatorioPsrPse();
+ const request=++rppLoadRequest;
+ if(!await aeExigir()){if(request===rppLoadRequest){relatorioPsrPseState.carregando=false;renderRelatorioPsrPse();}return;}
+ if(request!==rppLoadRequest)return;
+ const periodo=rppPeriodoAtual(),tipo=relatorioPsrPseState.tipo;
+ relatorioPsrPseState.carregando=true;renderRelatorioPsrPse();
  try{
-  relatorioPsrPseState.respostas=await rppFetchRespostasPeriodo(periodo.inicio, periodo.fim);
-  rppIndexarRespostas(relatorioPsrPseState.respostas);
- }catch(e){console.error(e);alert('Erro ao carregar respostas PSR/PSE. Verifique a tabela portal_respostas_diarias no Supabase.');relatorioPsrPseState.respostas=[]; relatorioPsrPseState.respIdx=new Map();}
- finally{relatorioPsrPseState.carregando=false;renderRelatorioPsrPse();}
+  const [respostas,anulacoes]=await Promise.all([
+   rppFetchRespostasPeriodo(periodo.inicio,periodo.fim),
+   tipo==='pse'?rppFetchAnulacoesPse(periodo.inicio,periodo.fim):Promise.resolve(new Map())
+  ]);
+  if(request!==rppLoadRequest)return;
+  relatorioPsrPseState.respostas=respostas;
+  relatorioPsrPseState.avdPseAnulacoes=anulacoes;
+  rppIndexarRespostas(respostas);
+ }catch(e){
+  if(request!==rppLoadRequest)return;
+  console.error(e);
+  if(tipo==='pse'&&rppColunaAnularPseAusente(e))alert('A regra ANULAR PSE ainda não foi instalada no Supabase. Execute o arquivo SQL de instalação desta atualização e recarregue o Sistema.');
+  else alert('Erro ao carregar respostas PSR/PSE. Verifique as tabelas portal_respostas_diarias e avaliacao_diaria_notas no Supabase.');
+  relatorioPsrPseState.respostas=[];relatorioPsrPseState.respIdx=new Map();relatorioPsrPseState.avdPseAnulacoes=new Map();
+ }
+ finally{if(request===rppLoadRequest){relatorioPsrPseState.carregando=false;renderRelatorioPsrPse();}}
 }
 async function openRelatorioPsrPse(tipo){
  if(!await aeExigir())return;
@@ -5500,7 +5555,7 @@ async function openRelatorioPsrPse(tipo){
  if(!modal){modal=document.createElement('div');modal.id='relatorio-psrpse-modal';modal.className='rpp-overlay';document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal)closeRelatorioPsrPse();});}
  modal.style.display='flex';renderRelatorioPsrPse();await carregarRespostasRelatorioPsrPse();
 }
-function closeRelatorioPsrPse(){const modal=document.getElementById('relatorio-psrpse-modal');if(modal)modal.style.display='none';}
+function closeRelatorioPsrPse(){rppLoadRequest++;const modal=document.getElementById('relatorio-psrpse-modal');if(modal)modal.style.display='none';}
 function setRelatorioPsrPseData(valor){relatorioPsrPseState.data=rppAjustarFimSemanaParaSexta(valor||rppDataPadrao());carregarRespostasRelatorioPsrPse();}
 function setRelatorioPsrPseView(view){relatorioPsrPseState.view=view;relatorioPsrPseState.sort=rppDefaultSortParaView(view,relatorioPsrPseState.tipo);carregarRespostasRelatorioPsrPse();}
 function toggleRelatorioPsrPseCategoria(catId,checked){relatorioPsrPseState.categorias[catId]=!!checked;renderRelatorioPsrPse();}
@@ -10248,7 +10303,7 @@ async function tpApagarProjeto(nome){
 }
 
 
-let avdState={cat:'',data:'',notas:{},anotacao:'',jogo:false,dias:[],extras:null,carregando:false};
+let avdState={cat:'',data:'',notas:{},anularPse:{},anotacao:'',jogo:false,dias:[],extras:null,carregando:false};
 function avdHoje(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function avdCats(){return typeof categoriasTrabalhoDiarioConfig==='function'?categoriasTrabalhoDiarioConfig():{sub11:{label:'Sub 11',anos:['2015','2016','2017','2018']},sub12:{label:'Sub 12',anos:['2014']},sub13:{label:'Sub 13',anos:['2013']},sub16:{label:'Sub 16',anos:['2012','2011','2010','2009']}};}
 function avdCatIds(){return Object.keys(avdCats());}
@@ -10277,6 +10332,7 @@ function closeAvaliacaoDiaria(){ const m=document.getElementById('avd-modal'); i
 function avdSetCat(id){ avdState.cat=id; avdListarDias().then(avdCarregarDia); }
 function avdSetData(v){ avdState.data=v; avdCarregarDia(); }
 function avdSetNota(k,n){ avdState.notas[k]=n; document.querySelectorAll('.avd-notas').forEach(el=>{ if(el.getAttribute('data-k')===k){ el.querySelectorAll('button').forEach(b=>b.classList.toggle('on', Number(b.dataset.n)===n)); } }); }
+function avdSetAnularPse(k,marcado){avdState.anularPse[k]=!!marcado;}
 function avdPsrNumCampo(v){
  if(v===undefined||v===null||v==='') return null;
  const n=Number(String(v).replace(',','.'));
@@ -10505,8 +10561,10 @@ function avdRender(){
   const k=avdChaveId(a.id);
   const n=avdNota(k);
   const nome=a.id.apelido||a.id.nomeCompleto||'';
-  const btns=[0,1,2,3,4,5,9,8].map(v=>'<button type="button" data-n="'+v+'" class="'+(n===v?'on':'')+(v===9?' avd-dm':'')+(v===8?' avd-nc':'')+'" onclick="avdSetNota(\''+k.replace(/'/g,"\\'")+'\','+v+')">'+(v===0?'F':v===9?'DM':v===8?'NC':v)+'</button>').join('');
-  return '<div class="avd-row"><span class="avd-nome">'+avdEsc(nome)+' <small>'+avdEsc(a.id.ano||'')+'</small> <small class="avd-psrpse">'+avdEsc(avdTextoPsrPse(a,med.psr,med.pse))+'</small></span><div class="avd-notas" data-k="'+avdEsc(k)+'">'+btns+'</div></div>';
+  const pseAnulado=avdState.anularPse[k]===true;
+  const encodedK=encodeURIComponent(k);
+  const btns=[0,7,1,2,3,4,5,9,8].map(v=>'<button type="button" data-n="'+v+'" class="'+(n===v?'on':'')+(v===7?' avd-sem-nota':'')+(v===9?' avd-dm':'')+(v===8?' avd-nc':'')+'" onclick="avdSetNota(\''+k.replace(/'/g,"\\'")+'\','+v+')">'+(v===0?'F':v===7?'X':v===9?'DM':v===8?'NC':v)+'</button>').join('');
+  return '<div class="avd-row" data-k="'+avdEsc(k)+'"><div class="avd-atleta-info"><span class="avd-nome">'+avdEsc(nome)+' <small>'+avdEsc(a.id.ano||'')+'</small></span><label class="avd-anular-pse" title="Não incluir a resposta PSE deste atleta na média"><input type="checkbox" data-k="'+encodedK+'" '+(pseAnulado?'checked':'')+' onchange="avdSetAnularPse(decodeURIComponent(this.dataset.k),this.checked)"><span>ANULAR PSE</span></label><small class="avd-psrpse">'+avdEsc(avdTextoPsrPse(a,med.psr,med.pse))+'</small></div><div class="avd-notas" data-k="'+avdEsc(k)+'">'+btns+'</div></div>';
  }).join('')||('<p class="avd-empty">'+(avdState.cat?'Nenhum atleta nesta categoria.':'Selecione uma categoria.')+'</p>');
  m.innerHTML=`<div class="avd-card">
   <button class="avd-close" onclick="closeAvaliacaoDiaria()">×</button>
@@ -10522,7 +10580,7 @@ function avdRender(){
    <button type="button" class="avd-print" onclick="avdRelatorio()">Imprimir/Exportar</button>
    <button type="button" class="avd-rel" onclick="openAvdRelatorio()">Relatório</button>
   </div>
-  <div class="avd-legenda"><span><b>F</b> falta</span><span><b>DM</b> lesionado (só fortalecimento)</span><span><b>NC</b> não convocado</span><span><b>1–2</b> fraco</span><span><b>3</b> médio</span><span><b>4–5</b> bom</span></div>
+  <div class="avd-legenda"><span><b>F</b> falta</span><span><b>X</b> sem nota</span><span><b>DM</b> lesionado (só fortalecimento)</span><span><b>NC</b> não convocado</span><span><b>1–2</b> fraco</span><span><b>3</b> médio</span><span><b>4–5</b> bom</span></div>
   <div class="avd-list">${avdState.carregando?'<p class="avd-empty">Carregando...</p>':rows}</div>
   <label class="avd-jogo-lab"><input type="checkbox" id="avd-jogo" ${avdState.jogo?'checked':''} onchange="avdState.jogo=this.checked"> <b>Jogo</b> neste dia</label>
   <label class="avd-anot-lab">Objetivos e informações do dia</label>
@@ -10543,8 +10601,8 @@ async function avdCarregarDia(){
  if(!avdState.cat){ avdState.carregando=false; avdRender(); return; }
  avdState.carregando=true; avdRender();
  const atletas=avdAtletas();
- const notas={};
- atletas.forEach(a=>{ notas[avdChaveId(a.id)]=3; });
+ const notas={},anularPse={};
+ atletas.forEach(a=>{ const k=avdChaveId(a.id); notas[k]=3; anularPse[k]=false; });
  avdState.anotacao=''; avdState.jogo=false;
  try{
   const [{data:dia},{data:rows},{data:resp}]=await Promise.all([
@@ -10554,22 +10612,35 @@ async function avdCarregarDia(){
   ]);
   if(dia && dia.anotacao!=null) avdState.anotacao=dia.anotacao;
   if(dia && dia.jogo!=null) avdState.jogo=!!dia.jogo;
-  (rows||[]).forEach(r=>{ if(r.atleta_key!=null) notas[r.atleta_key]=Number(r.nota); });
+  (rows||[]).forEach(r=>{ if(r.atleta_key!=null){notas[r.atleta_key]=Number(r.nota);anularPse[r.atleta_key]=r.anular_pse===true||r.anular_pse==='true';} });
   avdState.respostasDia=resp||[];
  }catch(e){ console.warn(e); }
  avdState.notas=notas;
+ avdState.anularPse=anularPse;
  avdState.carregando=false;
  avdRender();
+}
+let avdAnularPseColunaOK=false;
+async function avdVerificarColunaAnularPse(){
+ if(avdAnularPseColunaOK)return true;
+ const {error}=await _supabase.from('avaliacao_diaria_notas').select('anular_pse').limit(1);
+ if(error){
+  if(rppColunaAnularPseAusente(error))alert('Não foi possível salvar: instale primeiro a coluna ANULAR PSE executando o SQL desta atualização no Supabase.');
+  else alert('Não foi possível conferir a configuração ANULAR PSE no Supabase. Verifique a conexão e tente novamente.');
+  return false;
+ }
+ avdAnularPseColunaOK=true;return true;
 }
 async function avdSalvar(){
  if(!await aeExigir())return;
  if(!avdState.cat){ alert('Selecione uma categoria.'); return; }
+ if(!await avdVerificarColunaAnularPse())return;
  const ta=document.getElementById('avd-anotacao');
  if(ta) avdState.anotacao=ta.value||'';
  const atletas=avdAtletas();
  const payload=atletas.map(a=>{
   const id=a.id||{}; const k=avdChaveId(id);
-  return { data:avdState.data, categoria:avdState.cat, atleta_key:k, nome_completo:id.nomeCompleto||'', nascimento:id.nascimento||'', ano:id.ano||'', nota:avdNota(k), atualizado:new Date().toISOString() };
+  return { data:avdState.data, categoria:avdState.cat, atleta_key:k, nome_completo:id.nomeCompleto||'', nascimento:id.nascimento||'', ano:id.ano||'', nota:avdNota(k), anular_pse:avdState.anularPse[k]===true, atualizado:new Date().toISOString() };
  }).filter(x=>x.atleta_key && x.atleta_key!=='||');
  const jogoEl=document.getElementById('avd-jogo');
  if(jogoEl) avdState.jogo=!!jogoEl.checked;
@@ -10577,7 +10648,7 @@ async function avdSalvar(){
  if(e1){ alert('Não salvou o dia.\n'+e1.message); return; }
  if(payload.length){
   const {error:e2}=await _supabase.from('avaliacao_diaria_notas').upsert(payload,{ onConflict:'data,categoria,atleta_key' });
-  if(e2){ alert('Não salvou as notas.\n'+e2.message); return; }
+  if(e2){if(rppColunaAnularPseAusente(e2))alert('Não salvou as notas: atualize o schema do Supabase executando o SQL ANULAR PSE.\n'+e2.message);else alert('Não salvou as notas.\n'+e2.message);return;}
  }
  await avdListarDias();
  avdRender();
@@ -10591,7 +10662,7 @@ async function avdExcluirDia(){
  const q2=await _supabase.from('avaliacao_diaria_dias').delete().eq('data',avdState.data).eq('categoria',avdState.cat);
  if(q2.error){ alert('Não excluiu o dia.\n'+q2.error.message); return; }
  avdState.anotacao='';
- const notas={}; avdAtletas().forEach(a=>notas[avdChaveId(a.id)]=3); avdState.notas=notas;
+ const notas={},anularPse={}; avdAtletas().forEach(a=>{const k=avdChaveId(a.id);notas[k]=3;anularPse[k]=false;}); avdState.notas=notas;avdState.anularPse=anularPse;
  await avdListarDias(); avdRender();
  alert('Dia excluído.');
 }
@@ -10605,11 +10676,11 @@ function avdRelatorio(){
  const atletas=avdAtletas();
  const rows=atletas.map(a=>{
   const n=avdNota(avdChaveId(a.id));
-  const lab=n===0?'Falta':n===9?'DM':String(n);
+  const lab=n===0?'Falta':n===7?'X':n===9?'DM':n===8?'NC':String(n);
   return '<tr><td>'+avdEsc(a.id.apelido||a.id.nomeCompleto)+'</td><td>'+avdEsc(a.id.ano||'')+'</td><td>'+lab+'</td></tr>';
  }).join('');
  const w=window.open('','avdprint','width=900,height=700');
- w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Avaliação Diária</title><style>body{font-family:Arial,sans-serif;margin:16px;color:#111}h2{color:#58111a;text-align:center}table{width:100%;border-collapse:collapse}th{background:#58111a;color:#f9c614}th,td{border:1px solid #999;padding:8px;text-align:center}td:first-child{text-align:left}pre{white-space:pre-wrap;border:1px solid #ddd;padding:10px;background:#faf7f0}</style></head><body><h2>Avaliação Diária — '+avdEsc(cat?.label||'')+' — '+avdBR(avdState.data)+'</h2><p><b>F</b> falta · <b>DM</b> lesionado (fortalecimento) · <b>1–2</b> fraco · <b>3</b> médio · <b>4–5</b> bom</p><table><thead><tr><th>Atleta</th><th>Ano</th><th>Nota</th></tr></thead><tbody>'+rows+'</tbody></table><h3>Objetivos e informações</h3><pre>'+avdEsc(avdState.anotacao||'—')+'</pre><script>window.onload=()=>setTimeout(()=>window.print(),300)<\\/script></body></html>');
+ w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Avaliação Diária</title><style>body{font-family:Arial,sans-serif;margin:16px;color:#111}h2{color:#58111a;text-align:center}table{width:100%;border-collapse:collapse}th{background:#58111a;color:#f9c614}th,td{border:1px solid #999;padding:8px;text-align:center}td:first-child{text-align:left}pre{white-space:pre-wrap;border:1px solid #ddd;padding:10px;background:#faf7f0}</style></head><body><h2>Avaliação Diária — '+avdEsc(cat?.label||'')+' — '+avdBR(avdState.data)+'</h2><p><b>F</b> falta · <b>X</b> sem nota · <b>DM</b> lesionado (fortalecimento) · <b>NC</b> não convocado · <b>1–2</b> fraco · <b>3</b> médio · <b>4–5</b> bom</p><table><thead><tr><th>Atleta</th><th>Ano</th><th>Nota</th></tr></thead><tbody>'+rows+'</tbody></table><h3>Objetivos e informações</h3><pre>'+avdEsc(avdState.anotacao||'—')+'</pre><script>window.onload=()=>setTimeout(()=>window.print(),300)<\\/script></body></html>');
  w.document.close();
 }
 
@@ -12283,7 +12354,7 @@ function aeAvdNotasParaCategoria(rows,cat){
 }
 async function aeAvdAtualizarLista(){
  const cat=avdState.cat,date=avdState.data;const ta=document.getElementById('avd-anotacao');if(ta)avdState.anotacao=ta.value;avdRender();if(!cat||!date)return;
- try{const rows=aeAvdNotasParaCategoria(await aeAvdLerTabela('avaliacao_diaria_notas',date,date),cat);if(avdState.cat!==cat||avdState.data!==date)return;for(const r of rows)if(!Object.prototype.hasOwnProperty.call(avdState.notas,r.atleta_key))avdState.notas[r.atleta_key]=Number(r.nota);const t=document.getElementById('avd-anotacao');if(t)avdState.anotacao=t.value;avdRender();}catch(e){console.warn('Histórico AVD não sincronizado:',e);}
+ try{const rows=aeAvdNotasParaCategoria(await aeAvdLerTabela('avaliacao_diaria_notas',date,date),cat);if(avdState.cat!==cat||avdState.data!==date)return;for(const r of rows){if(!Object.prototype.hasOwnProperty.call(avdState.notas,r.atleta_key))avdState.notas[r.atleta_key]=Number(r.nota);if(!Object.prototype.hasOwnProperty.call(avdState.anularPse,r.atleta_key))avdState.anularPse[r.atleta_key]=r.anular_pse===true||r.anular_pse==='true';}const t=document.getElementById('avd-anotacao');if(t)avdState.anotacao=t.value;avdRender();}catch(e){console.warn('Histórico AVD não sincronizado:',e);}
 }
 function aeAtualizarTestesSemGravar(){
  // O renderizador legado calcula campos derivados ao desenhar. Um vínculo novo
