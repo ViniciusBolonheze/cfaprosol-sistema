@@ -4786,7 +4786,8 @@ html body .jogos-salvos-card .jogo-salvo-acoes button em{display:none!important;
   }
   .peso-nome-ano{
     display:inline;
-    white-space:nowrap;
+    white-space:normal;
+    overflow-wrap:anywhere;
     font-size:11px;
     line-height:1.2;
   }
@@ -5235,3 +5236,112 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
 #calendario-treino-modal .cal-treino-error{background:#fff1cc;color:#763d00;border:1px solid #e8bd67;border-radius:8px;padding:10px;margin:10px 0;font-size:12px;}
 #calendario-treino-modal .cal-treino-refresh{margin-top:12px;min-height:36px;padding:7px 12px;border:1px solid #ccc;background:#fafafa;color:#58111a;border-radius:8px;cursor:pointer;}
 @media(max-width:600px){#calendario-treino-modal{padding:8px;}#calendario-treino-modal .cal-treino-card{padding:14px 10px;max-height:94dvh;}#calendario-treino-modal .cal-treino-card h2{font-size:19px;}#calendario-treino-modal .cal-treino-day i{font-size:9px;}#calendario-treino-modal .cal-questionario-row{gap:5px;}}
+
+/* Jogo no calendário: ativação por categoria e lápis de edição */
+#calendario-treino-modal .cal-treino-card{max-width:760px;}
+#calendario-treino-modal .cal-treino-day{min-height:76px;}
+#calendario-treino-modal .cal-questionario-row{grid-template-columns:minmax(68px,.86fr) minmax(0,1fr) minmax(0,1fr) minmax(116px,auto);}
+.cal-jogo-control{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;}
+.cal-jogo-toggle,.cal-jogo-edit{min-height:38px;border:1px solid #b9aeb0;border-radius:8px;background:#faf8f8;color:#58111a;font-weight:800;cursor:pointer;box-sizing:border-box;}
+.cal-jogo-toggle{padding:6px 10px;min-width:78px;}
+.cal-jogo-toggle.on{background:#58111a;border-color:#58111a;color:#f9c614;}
+.cal-jogo-edit{width:38px;padding:4px;font-size:18px;line-height:1;}
+.cal-jogo-toggle.disabled,.cal-jogo-edit:disabled{opacity:.48;cursor:not-allowed;}
+.cal-jogo-toggle.disabled{pointer-events:none;}
+.cal-jogo-toggle input{flex:0 0 18px;width:18px;height:18px;margin:0;accent-color:#58111a;}
+.cal-jogo-toggle span{white-space:nowrap;}
+.cal-treino-day.has-game{box-shadow:inset 0 0 0 1px #58111a;}
+.cal-jogo-calendar-error{margin-top:8px;}
+
+.cal-jogo-overlay,.cal-jogo-suboverlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(20,8,10,.58);}
+.cal-jogo-overlay{z-index:11000;}
+.cal-jogo-suboverlay{z-index:11100;}
+.cal-jogo-card,.cal-jogo-subcard{position:relative;box-sizing:border-box;width:min(760px,96vw);max-height:94dvh;overflow:auto;background:#fff;border:2px solid #f9c614;border-radius:16px;padding:22px;box-shadow:0 20px 55px #0005;color:#222;}
+.cal-jogo-card h2{margin:0 35px 4px 0;color:#58111a;font-size:22px;}
+.cal-jogo-date{margin:0 0 16px;color:#666;text-transform:capitalize;font-size:13px;}
+.cal-jogo-close,.cal-jogo-sub-close{position:absolute;right:10px;top:8px;border:0;background:transparent;color:#58111a;font-size:28px;line-height:1;cursor:pointer;}
+.cal-jogo-times,.cal-jogo-convocacao{border:1px solid #e8e2e3;border-radius:12px;padding:14px;margin:12px 0;background:#fffdfd;}
+.cal-jogo-times h3,.cal-jogo-convocacao h3,.cal-jogo-subcard h3{margin:0 0 6px;color:#58111a;font-size:16px;}
+.cal-jogo-times p,.cal-jogo-convocacao p,.cal-jogo-subcard p{margin:4px 0 10px;color:#555;font-size:12px;line-height:1.45;}
+.cal-jogo-time-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px;}
+.cal-jogo-time-grid label{display:flex;flex-direction:column;gap:5px;color:#58111a;font-weight:800;font-size:12px;}
+.cal-jogo-time-grid input{min-height:40px;box-sizing:border-box;width:100%;padding:7px 8px;border:1px solid #cfc7c8;border-radius:8px;font:inherit;color:#222;background:#fff;}
+.cal-jogo-hint{display:block;margin-top:9px;color:#666;font-size:11px;}
+.cal-jogo-treino{display:flex;align-items:center;gap:9px;padding:12px;border:1px solid #ddd;border-radius:10px;background:#f7f5f5;color:#58111a;font-weight:800;font-size:13px;}
+.cal-jogo-treino input{width:20px;height:20px;accent-color:#58111a;}
+.cal-jogo-actions,.cal-jogo-footer,.cal-jogo-sub-actions,.cal-jogo-manual-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.cal-jogo-actions button,.cal-jogo-footer button,.cal-jogo-sub-actions button,.cal-jogo-manual-tools button{min-height:38px;padding:8px 12px;border:1px solid #d6cdce;border-radius:8px;background:#fff;color:#58111a;font-weight:800;cursor:pointer;}
+.cal-jogo-actions button:hover,.cal-jogo-footer button:hover,.cal-jogo-sub-actions button:hover,.cal-jogo-manual-tools button:hover{filter:brightness(.96);}
+.cal-jogo-actions button:disabled,.cal-jogo-footer button:disabled,.cal-jogo-sub-actions button:disabled{opacity:.5;cursor:not-allowed;}
+.cal-jogo-footer{justify-content:flex-end;margin-top:16px;}
+.cal-jogo-footer .cal-jogo-save,.cal-jogo-sub-actions .primary{background:#58111a;border-color:#58111a;color:#f9c614;}
+.cal-jogo-footer .cal-jogo-cancel{color:#555;}
+.cal-jogo-roster-status{padding:9px 10px;border-radius:8px;background:#fff7df;color:#765300;font-size:12px;line-height:1.4;}
+.cal-jogo-roster-status.imported{background:#eaf8ef;color:#166534;}
+.cal-jogo-roster-status.error,.cal-jogo-msg.error,.cal-jogo-warning{background:#fff0ef;color:#9b1c12;}
+.cal-jogo-roster-status.loading{background:#eef5ff;color:#214c85;}
+.cal-jogo-roster-view{max-height:180px;overflow:auto;margin-top:9px;padding:6px 9px;border:1px solid #e8e2e3;border-radius:8px;background:#fff;}
+.cal-jogo-roster-list{list-style:none;margin:0;padding:0;}
+.cal-jogo-roster-list li{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:6px 2px;border-bottom:1px solid #eee;cursor:default;}
+.cal-jogo-roster-list li:last-child{border-bottom:0;}
+.cal-jogo-roster-list li>span{min-width:0;overflow-wrap:anywhere;color:#222;font-size:12px;font-weight:700;}
+.cal-jogo-roster-list li>small{flex:0 0 auto;color:#666;font-size:10px;white-space:nowrap;}
+.cal-jogo-roster-empty{margin:0;padding:7px 2px;color:#666;font-size:12px;}
+.cal-jogo-roster-empty.error{color:#9b1c12;}
+@media(max-width:480px){.cal-jogo-roster-list li{align-items:flex-start;flex-direction:column;gap:2px;}}
+.cal-jogo-convocacao>small{display:block;margin-top:9px;color:#666;line-height:1.4;}
+.cal-jogo-msg{min-height:18px;margin-top:10px;font-size:12px;}
+.cal-jogo-msg.ok{color:#176b37;}
+.cal-jogo-msg.error{padding:8px;border-radius:8px;}
+.cal-jogo-subcard{width:min(560px,95vw);padding:20px;}
+.cal-jogo-subcard select{width:100%;box-sizing:border-box;min-height:180px;border:1px solid #ccc;border-radius:8px;padding:7px;font:inherit;}
+.cal-jogo-sub-actions{justify-content:flex-end;margin-top:14px;}
+.cal-jogo-manual-card{width:min(700px,96vw);}
+.cal-jogo-manual-card>p{padding-right:18px;}
+.cal-jogo-ct-overlay{z-index:11200;}
+.cal-jogo-ct-card{width:min(760px,96vw);}
+.cal-jogo-ct-filters{display:grid;grid-template-columns:minmax(130px,.65fr) minmax(190px,1fr);align-items:end;gap:10px;margin:8px 0;}
+.cal-jogo-ct-filters label{display:flex;flex-direction:column;gap:5px;color:#58111a;font-size:12px;font-weight:800;}
+.cal-jogo-ct-filters select{min-height:40px;padding:7px 8px;font:inherit;}
+.cal-jogo-ct-filters .cal-jogo-search{margin:0;}
+.cal-jogo-ct-list{max-height:56dvh;}
+@media(max-width:620px){.cal-jogo-ct-filters{grid-template-columns:1fr;}}
+.cal-jogo-search{width:100%;box-sizing:border-box;min-height:40px;margin:4px 0 9px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;font:inherit;}
+.cal-jogo-manual-tools{justify-content:space-between;margin:0 0 8px;}
+.cal-jogo-manual-tools strong{margin-left:auto;color:#58111a;font-size:12px;}
+.cal-jogo-manual-list{max-height:50dvh;overflow:auto;border:1px solid #eee;border-radius:10px;padding:8px;}
+.cal-jogo-year-group{margin:0 0 10px;}
+.cal-jogo-year-group h4{position:sticky;top:-8px;z-index:1;margin:0;padding:7px 8px;background:#58111a;color:#f9c614;border-radius:6px;font-size:13px;}
+.cal-jogo-manual-row{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 8px;border-bottom:1px solid #eee;cursor:pointer;}
+.cal-jogo-manual-row:hover{background:#fff9e5;}
+.cal-jogo-manual-row input{flex:0 0 18px;width:18px;height:18px;accent-color:#58111a;}
+.cal-jogo-manual-row span{display:flex;flex-direction:column;min-width:0;}
+.cal-jogo-manual-row strong{overflow-wrap:anywhere;color:#222;font-size:13px;}
+.cal-jogo-manual-row small{margin-top:2px;color:#666;font-size:11px;}
+.cal-jogo-warning{padding:8px 10px;margin-top:8px;border-radius:8px;font-size:11px;}
+@media(max-width:620px){
+ #calendario-treino-modal .cal-questionario-row{grid-template-columns:minmax(58px,.78fr) minmax(0,1fr) minmax(0,1fr) minmax(86px,auto);gap:4px;font-size:11px;}
+ #calendario-treino-modal .cal-questionario-row label{gap:3px;padding:4px;min-height:38px;font-size:11px;}
+ .cal-jogo-control{gap:3px;}
+ .cal-jogo-toggle{min-width:59px;padding:5px;font-size:11px;}
+ .cal-jogo-edit{width:32px;min-height:34px;font-size:16px;}
+ .cal-jogo-time-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+ .cal-jogo-card,.cal-jogo-subcard{padding:18px 14px;}
+}
+@media(max-width:380px){
+ #calendario-treino-modal .cal-questionario-row{grid-template-columns:minmax(52px,.7fr) minmax(0,1fr) minmax(0,1fr) minmax(78px,auto);gap:3px;font-size:10px;}
+ #calendario-treino-modal .cal-questionario-row label{font-size:10px;}
+ .cal-jogo-toggle{min-width:53px;font-size:10px;}
+ .cal-jogo-edit{width:28px;padding:2px;}
+}
+/* PSE: goleiros sempre agrupados visualmente e médias independentes por grupo. */
+.rpp-table tbody tr.rpp-goleiro-row{background:rgba(59,130,246,.13)!important;}
+.rpp-table tbody tr.rpp-goleiro-row:hover{background:rgba(59,130,246,.20)!important;}
+.rpp-list-col li.rpp-goleiro-item{padding:2px 5px;border-radius:5px;background:rgba(59,130,246,.13);}
+.rpp-med-table-split{min-width:960px!important;}
+.rpp-med-table-split th:first-child,.rpp-med-table-split td:first-child{min-width:150px;}
+.rpp-med-table-split td.rpp-med-linha,.rpp-med-table-split td.rpp-med-goleiros{min-width:76px;}
+.rpp-med-table-split thead tr:nth-child(2) th{position:sticky;top:40px;z-index:3;background:#f1f5f9!important;color:#475569!important;font-size:12px!important;}
+.rpp-med-table-split thead tr:nth-child(2) th.rpp-med-sub-goleiros{background:rgba(59,130,246,.18)!important;color:#1e3a8a!important;}
+.rpp-med-table-split td.rpp-med-goleiros{background:rgba(59,130,246,.13)!important;}
+.rpp-med-table-split tr.rpp-med-geral-row td.rpp-med-goleiros{background:#73313a!important;}

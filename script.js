@@ -4668,50 +4668,78 @@ async function limparRespostaPreparacaoFisica(){
 
 /* === MONITORAMENTO DE CARGA - PSR/PSE === */
 
-/* === CALENDÁRIO DE TREINOS (exceções; padrão no código) === */
+/* === CALENDÁRIO DE TREINOS + CONFIGURAÇÃO DE JOGO POR DATA/CATEGORIA === */
 const CAL_TREINO_CATS=[{id:'sub11',label:'Sub 11'},{id:'sub12',label:'Sub 12'},{id:'sub13',label:'Sub 13'},{id:'sub16',label:'Sub 16'}];
-let calTreinoState={ano:0,mes:0,sel:'',lista:[],carregando:false};
+const CAL_JOGO_TABELA='portal_jogos_calendario';
+let calTreinoState={ano:0,mes:0,sel:'',lista:[],jogos:[],carregando:false,ready:false,gameReady:false,error:'',jogoError:'',salvando:false,request:0};
+let calJogoEditorState=null;
 
 function calTreinoISO(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function calTreinoParse(iso){const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3]):new Date();}
 function calTreinoPadrao(cat,d){const dia=d.getDay();if(!CAL_TREINO_CATS.some(c=>c.id===cat))return false;return cat==='sub11'?[1,3,5].includes(dia):[1,2,3,4,5].includes(dia);}
-function calTreinoExcecao(iso,cat){return (calTreinoState.lista||[]).find(r=>String(r.data).slice(0,10)===iso && r.categoria===cat);}
+function calTreinoExcecao(iso,cat){return (calTreinoState.lista||[]).find(r=>String(r.data).slice(0,10)===iso&&r.categoria===cat);}
+function calTreinoJogo(iso,cat){return (calTreinoState.jogos||[]).find(r=>String(r.data).slice(0,10)===iso&&r.categoria===cat)||null;}
+function calTreinoJogoAtivo(iso,cat){return calTreinoJogo(iso,cat)?.jogo_liberado===true;}
 function calTreinoTem(iso,cat,tipo){const ex=calTreinoExcecao(iso,cat),pad=calTreinoPadrao(cat,calTreinoParse(iso));if(tipo==='psr'||tipo==='pse')return ex?ex[tipo+'_liberado']===true:pad;return calTreinoTem(iso,cat,'psr')||calTreinoTem(iso,cat,'pse');}
-function openCalendarioTreino(){
- const hoje=new Date();
- calTreinoState.ano=hoje.getFullYear();
- calTreinoState.mes=hoje.getMonth();
- calTreinoState.sel=calTreinoISO(hoje);
- let m=document.getElementById('calendario-treino-modal');
- if(!m){
-  m=document.createElement('div');
-  m.id='calendario-treino-modal';
-  m.className='cal-treino-overlay';
-  document.body.appendChild(m);
-  m.addEventListener('click',e=>{if(e.target===m)closeCalendarioTreino();});
+function calJogoEsc(v){return String(v??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+function calJogoHHMM(v){return String(v||'').slice(0,5);}
+function calJogoHorariosPadrao(cat){return cat==='sub11'||cat==='sub12'?{pre_jogo_abre:'06:00',pre_jogo_fecha:'16:30',pos_jogo_abre:'16:30',pos_jogo_fecha:'23:00'}:{pre_jogo_abre:'06:00',pre_jogo_fecha:'15:00',pos_jogo_abre:'15:01',pos_jogo_fecha:'23:00'};}
+function calJogoMinutos(v){const m=String(v||'').match(/^(\d{2}):(\d{2})/);if(!m)return null;const h=Number(m[1]),n=Number(m[2]);return h<=23&&n<=59?h*60+n:null;}
+function calJogoHorariosValidos(v){const pa=calJogoMinutos(v.pre_jogo_abre),pf=calJogoMinutos(v.pre_jogo_fecha),oa=calJogoMinutos(v.pos_jogo_abre),of=calJogoMinutos(v.pos_jogo_fecha);return pa!==null&&pf!==null&&oa!==null&&of!==null&&pa<pf&&oa<of&&pf<=oa;}
+function calJogoIdentidadeKey(id){const nome=id?.nomeCompleto||id?.nome_completo||id?.nome||'',nasc=id?.nascimento||id?.data_nascimento||'';return AE.key({nomeCompleto:nome,nascimento:nasc})||'';}
+function calJogoListaTodosCT(){
+ const saida=[],seen=new Set();
+ for(const atleta of trabalhoTodosAtletas()){
+  const id=atleta.id||{},key=calJogoIdentidadeKey(id);if(!key)continue;
+  const vinculo=AE.vinculo(id),aparicoes=[{ano:String(id.ano||''),tipo:'Ano de origem'}];
+  if(vinculo?.calendario===true&&String(vinculo.ano_destino||'')&&String(vinculo.ano_destino)!==String(id.ano||''))aparicoes.push({ano:String(vinculo.ano_destino),tipo:'Representando'});
+  for(const ap of aparicoes){
+   const categoria=AE.categoriaAno(ap.ano),k=key+'||'+ap.ano+'||'+ap.tipo;if(seen.has(k))continue;seen.add(k);
+   saida.push({identityKey:key,anoExibicao:ap.ano,tipoAparicao:ap.tipo,categoria,apelido:id.apelido||id.nomeCompleto,nomeCompleto:id.nomeCompleto,nascimento:id.nascimento});
+  }
  }
- m.style.display='flex';
- carregarCalendarioTreino();
+ return saida.sort((a,b)=>Number(a.anoExibicao)-Number(b.anoExibicao)||String(a.apelido).localeCompare(String(b.apelido),'pt-BR')||String(a.nomeCompleto).localeCompare(String(b.nomeCompleto),'pt-BR'));
 }
-function closeCalendarioTreino(){const m=document.getElementById('calendario-treino-modal'); if(m) m.style.display='none';}
+function calJogoListaElegiveis(cat){return calJogoListaTodosCT().filter(x=>x.categoria===cat);}
+function calJogoIdentidadesUnicas(aparicoes){const mapa=new Map();(aparicoes||[]).forEach(a=>{if(a?.identityKey&&!mapa.has(a.identityKey))mapa.set(a.identityKey,{nomeCompleto:a.nomeCompleto,nascimento:a.nascimento});});return mapa;}
+function calJogoAtualizarCache(cfg){
+ if(!cfg)return;const iso=String(cfg.data||'').slice(0,10),cat=cfg.categoria;if(!iso||!cat)return;
+ const arr=(calTreinoState.jogos||[]).filter(r=>!(String(r.data).slice(0,10)===iso&&r.categoria===cat));
+ arr.push({...cfg,data:iso});calTreinoState.jogos=arr;
+}
+function openCalendarioTreino(){
+ const hoje=new Date();calTreinoState.ano=hoje.getFullYear();calTreinoState.mes=hoje.getMonth();calTreinoState.sel=calTreinoISO(hoje);
+ let m=document.getElementById('calendario-treino-modal');
+ if(!m){m=document.createElement('div');m.id='calendario-treino-modal';m.className='cal-treino-overlay';document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeCalendarioTreino();});}
+ m.style.display='flex';carregarCalendarioTreino();
+}
+function closeCalendarioTreino(){const m=document.getElementById('calendario-treino-modal');if(m)m.style.display='none';calJogoCloseEditor();}
 function calTreinoMes(delta){const d=new Date(calTreinoState.ano,calTreinoState.mes+delta,1);calTreinoState.ano=d.getFullYear();calTreinoState.mes=d.getMonth();calTreinoState.sel=calTreinoISO(d);return carregarCalendarioTreino();}
-function calTreinoSel(iso){ calTreinoState.sel=iso; renderCalendarioTreino(); }
+function calTreinoSel(iso){calTreinoState.sel=iso;renderCalendarioTreino();}
 async function carregarCalendarioTreino(){
  const request=(calTreinoState.request||0)+1;calTreinoState.request=request;
  const ano=calTreinoState.ano,mes=calTreinoState.mes;
- calTreinoState.carregando=true;calTreinoState.ready=false;calTreinoState.error='';renderCalendarioTreino();
+ calTreinoState.carregando=true;calTreinoState.ready=false;calTreinoState.gameReady=false;calTreinoState.jogos=[];calTreinoState.jogoError='';calTreinoState.error='';renderCalendarioTreino();
  try{
-  const {data,error}=await _supabase.from('dias_treino_excecao').select('data,categoria,psr_liberado,pse_liberado').gte('data',calTreinoISO(new Date(ano,mes,1))).lte('data',calTreinoISO(new Date(ano,mes+1,0))).order('data');
-  if(error)throw error;if((data||[]).some(r=>typeof r.psr_liberado!=='boolean'||typeof r.pse_liberado!=='boolean'))throw new Error('SQL do calendário separado ainda não instalado.');
-  if(calTreinoState.request!==request)return;calTreinoState.lista=data||[];calTreinoState.ready=true;
- }catch(e){if(calTreinoState.request!==request)return;console.warn(e);calTreinoState.lista=[];calTreinoState.error='Não foi possível carregar o calendário. Confira a conexão e execute o SQL de PSR/PSE separados.';}
+  const inicio=calTreinoISO(new Date(ano,mes,1)),fim=calTreinoISO(new Date(ano,mes+1,0));
+  const [excecoes,jogos]=await Promise.all([
+   _supabase.from('dias_treino_excecao').select('data,categoria,psr_liberado,pse_liberado').gte('data',inicio).lte('data',fim).order('data'),
+   _supabase.from(CAL_JOGO_TABELA).select('data,categoria,jogo_liberado,pre_jogo_abre,pre_jogo_fecha,pos_jogo_abre,pos_jogo_fecha,convocacao_importada,treino_nao_convocados,atualizado_em').gte('data',inicio).lte('data',fim).order('data')
+  ]);
+  if(excecoes.error)throw excecoes.error;
+  if((excecoes.data||[]).some(r=>typeof r.psr_liberado!=='boolean'||typeof r.pse_liberado!=='boolean'))throw new Error('SQL do calendário separado ainda não instalado.');
+  if(calTreinoState.request!==request)return;
+  calTreinoState.lista=excecoes.data||[];calTreinoState.ready=true;
+  if(jogos.error){calTreinoState.jogos=[];calTreinoState.gameReady=false;calTreinoState.jogoError='Configuração Jogo indisponível. Execute o SQL de Jogo antes de usar este recurso.';}
+  else if((jogos.data||[]).some(r=>typeof r.jogo_liberado!=='boolean')){calTreinoState.jogos=[];calTreinoState.gameReady=false;calTreinoState.jogoError='A tabela de configuração Jogo está incompleta. Confira a migração do Supabase.';}
+  else{calTreinoState.jogos=jogos.data||[];calTreinoState.gameReady=true;calTreinoState.jogoError='';}
+ }catch(e){if(calTreinoState.request!==request)return;console.warn(e);calTreinoState.lista=[];calTreinoState.jogos=[];calTreinoState.ready=false;calTreinoState.gameReady=false;calTreinoState.error='Não foi possível carregar PSR/PSE. Confira a conexão e o SQL do calendário.';}
  finally{if(calTreinoState.request===request){calTreinoState.carregando=false;renderCalendarioTreino();}}
 }
 async function calTreinoToggle(cat,tipo,on){
  if(!calTreinoState.ready||calTreinoState.carregando||calTreinoState.salvando)return;
  if(!CAL_TREINO_CATS.some(c=>c.id===cat)||!['psr','pse'].includes(tipo))return;
- const iso=calTreinoState.sel,ano=calTreinoState.ano,mes=calTreinoState.mes;
- calTreinoState.salvando=true;calTreinoState.error='';renderCalendarioTreino();
+ const iso=calTreinoState.sel,ano=calTreinoState.ano,mes=calTreinoState.mes;calTreinoState.salvando=true;calTreinoState.error='';renderCalendarioTreino();
  try{
   const {data,error}=await _supabase.rpc('cal_questionario_definir',{p_data:iso,p_categoria:cat,p_tipo:tipo,p_liberado:!!on});
   if(error)throw error;if(!data||typeof data.psr_liberado!=='boolean'||typeof data.pse_liberado!=='boolean')throw new Error('Resposta inválida ao salvar calendário.');
@@ -4719,21 +4747,212 @@ async function calTreinoToggle(cat,tipo,on){
  }catch(e){console.warn(e);calTreinoState.error='Não foi possível salvar a alteração. Atualize o calendário e tente novamente.';}
  finally{calTreinoState.salvando=false;renderCalendarioTreino();}
 }
+function calTreinoCapturarScroll(){const card=document.querySelector('#calendario-treino-modal .cal-treino-card');return card?{top:card.scrollTop,left:card.scrollLeft}:null;}
+function calTreinoRestaurarScroll(pos){if(!pos)return;const card=document.querySelector('#calendario-treino-modal .cal-treino-card');if(card){card.scrollTop=pos.top;card.scrollLeft=pos.left;}}
+async function calTreinoToggleJogo(cat,on){
+ if(!calTreinoState.gameReady||calTreinoState.carregando||calTreinoState.salvando)return;
+ if(!CAL_TREINO_CATS.some(c=>c.id===cat))return;
+ const iso=calTreinoState.sel,ano=calTreinoState.ano,mes=calTreinoState.mes,existente=calTreinoJogo(iso,cat),padrao=calJogoHorariosPadrao(cat),scroll=calTreinoCapturarScroll();
+ calTreinoState.salvando=true;calTreinoState.jogoError='';renderCalendarioTreino();calTreinoRestaurarScroll(scroll);
+ try{
+  let query;
+  if(on){
+   const times={pre_jogo_abre:calJogoHHMM(existente?.pre_jogo_abre)||padrao.pre_jogo_abre,pre_jogo_fecha:calJogoHHMM(existente?.pre_jogo_fecha)||padrao.pre_jogo_fecha,pos_jogo_abre:calJogoHHMM(existente?.pos_jogo_abre)||padrao.pos_jogo_abre,pos_jogo_fecha:calJogoHHMM(existente?.pos_jogo_fecha)||padrao.pos_jogo_fecha};
+   if(!calJogoHorariosValidos(times)){Object.assign(times,padrao);}
+   const payload={data:iso,categoria:cat,jogo_liberado:true,...times,convocacao_importada:existente?.convocacao_importada===true,treino_nao_convocados:existente?.treino_nao_convocados===true,atualizado_em:new Date().toISOString()};
+   query=existente?_supabase.from(CAL_JOGO_TABELA).update({...payload}).eq('data',iso).eq('categoria',cat).select('*').single():_supabase.from(CAL_JOGO_TABELA).insert(payload).select('*').single();
+  }else{
+   if(!existente)return;
+   query=_supabase.from(CAL_JOGO_TABELA).update({jogo_liberado:false,atualizado_em:new Date().toISOString()}).eq('data',iso).eq('categoria',cat).select('*').single();
+  }
+  const {data,error}=await query;if(error)throw error;if(!data)throw new Error('Não houve confirmação do Supabase.');
+  if(calTreinoState.ano===ano&&calTreinoState.mes===mes)calJogoAtualizarCache(data);
+ }catch(e){console.warn(e);calTreinoState.jogoError='Não foi possível salvar Jogo. Confira a migração e tente novamente.';}
+ finally{const scrollFinal=calTreinoCapturarScroll()||scroll;calTreinoState.salvando=false;renderCalendarioTreino();calTreinoRestaurarScroll(scrollFinal);}
+}
+function calJogoEnsureOverlay(id,className,closeFn){let m=document.getElementById(id);if(!m){m=document.createElement('div');m.id=id;m.className=className;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeFn();});}return m;}
+function calJogoCloseModal(id){const m=document.getElementById(id);if(m)m.style.display='none';}
+function calJogoCloseEditor(){calJogoCloseModal('cal-jogo-ct-atletas-modal');calJogoCloseModal('cal-jogo-lista-salva-modal');calJogoCloseModal('cal-jogo-manual-modal');calJogoCloseModal('cal-jogo-editor-modal');calJogoEditorState=null;}
+function calJogoTimesEditor(cfg,cat){const p=calJogoHorariosPadrao(cat);return {pre_jogo_abre:calJogoHHMM(cfg?.pre_jogo_abre)||p.pre_jogo_abre,pre_jogo_fecha:calJogoHHMM(cfg?.pre_jogo_fecha)||p.pre_jogo_fecha,pos_jogo_abre:calJogoHHMM(cfg?.pos_jogo_abre)||p.pos_jogo_abre,pos_jogo_fecha:calJogoHHMM(cfg?.pos_jogo_fecha)||p.pos_jogo_fecha};}
+async function calTreinoEditarJogo(cat){
+ if(!calTreinoState.gameReady||!CAL_TREINO_CATS.some(c=>c.id===cat))return;
+ const iso=calTreinoState.sel,cfg=calTreinoJogo(iso,cat);if(!cfg?.jogo_liberado)return;
+ calJogoEditorState={data:iso,categoria:cat,config:{...cfg,...calJogoTimesEditor(cfg,cat)},convocados:[],rosterLoaded:cfg.convocacao_importada!==true,rosterLoading:false,rosterError:'',busy:false,error:'',notice:'',salvas:[],manualEntries:[],manualTodosEntries:[],manualAnoFiltro:'todos',manualBuscaTodos:'',manualSelected:new Set(),manualMap:new Map()};
+ const m=calJogoEnsureOverlay('cal-jogo-editor-modal','cal-jogo-overlay',calJogoCloseEditor);m.style.display='flex';calJogoRenderEditor();
+ if(cfg.convocacao_importada===true)await calJogoCarregarConvocados();
+}
+function calJogoRenderEditor(){
+ const s=calJogoEditorState,m=document.getElementById('cal-jogo-editor-modal');if(!s||!m)return;
+ const c=CAL_TREINO_CATS.find(x=>x.id===s.categoria),t=s.config;
+ m.innerHTML=`<div class="cal-jogo-card"><button class="cal-jogo-close" aria-label="Fechar" onclick="calJogoCloseEditor()">×</button><h2>Editar Jogo — ${calJogoEsc(c?.label||s.categoria)}</h2><p class="cal-jogo-date">${calTreinoParse(s.data).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</p><section class="cal-jogo-times"><h3>Horários dos questionários</h3><p>Para convocados, a janela Pré controla PSR/Pré e a janela Pós controla PSE/Pós. Não convocados seguem os horários normais de PSR/PSE; os valores iniciais das janelas usam os horários habituais da categoria e podem ser ajustados para este jogo.</p><div class="cal-jogo-time-grid"><label>Pré-Jogo — abre<input id="cal-jogo-pre-abre" type="time" value="${calJogoHHMM(t.pre_jogo_abre)}"></label><label>Pré-Jogo — fecha<input id="cal-jogo-pre-fecha" type="time" value="${calJogoHHMM(t.pre_jogo_fecha)}"></label><label>Pós-Jogo — abre<input id="cal-jogo-pos-abre" type="time" value="${calJogoHHMM(t.pos_jogo_abre)}"></label><label>Pós-Jogo — fecha<input id="cal-jogo-pos-fecha" type="time" value="${calJogoHHMM(t.pos_jogo_fecha)}"></label></div><small class="cal-jogo-hint">A hora de fechamento é exclusiva; Pré-Jogo precisa terminar antes ou no início de Pós-Jogo.</small></section><label class="cal-jogo-treino"><input id="cal-jogo-treino-nao-convocados" type="checkbox" ${t.treino_nao_convocados===true?'checked':''}> Não convocados terão treino (libera PSE; PSR segue liberado)</label><small class="cal-jogo-hint">Convocados: PSR/Pré na janela Pré e PSE/Pós na janela Pós. Não convocados: PSR e, se o treino estiver marcado, PSE nos horários normais; não recebem Pré/Pós.</small><div class="cal-jogo-convocacao"><h3>Convocação</h3><p id="cal-jogo-roster-status" class="cal-jogo-roster-status"></p><div class="cal-jogo-actions"><button type="button" onclick="calJogoAbrirImportacaoSalva()">Importar convocação salva</button><button type="button" onclick="calJogoAbrirSelecaoManual()" ${s.busy||s.rosterLoading||(s.config.convocacao_importada===true&&!s.rosterLoaded)?'disabled':''}>Selecionar manualmente</button></div><div id="cal-jogo-roster-view" class="cal-jogo-roster-view" role="region" aria-label="Convocados para conferência" aria-live="polite"></div></div><div id="cal-jogo-editor-msg" class="cal-jogo-msg" role="status"></div><div class="cal-jogo-footer"><button type="button" class="cal-jogo-save" onclick="calJogoSalvarConfiguracao()" ${s.busy?'disabled':''}>Salvar horários e treinos</button><button type="button" class="cal-jogo-cancel" onclick="calJogoCloseEditor()">Fechar</button></div></div>`;
+ calJogoAtualizarStatusEditor();calJogoRenderListaConvocados();if(s.error)calJogoMensagemEditor(s.error,'error');else if(s.notice)calJogoMensagemEditor(s.notice,'ok');
+}
+function calJogoMensagemEditor(texto,tipo=''){const el=document.getElementById('cal-jogo-editor-msg');if(el){el.textContent=texto||'';el.className='cal-jogo-msg'+(tipo?' '+tipo:'');}}
+function calJogoAtualizarStatusEditor(){
+ const s=calJogoEditorState,el=document.getElementById('cal-jogo-roster-status');if(!s||!el)return;
+ if(s.rosterLoading){el.textContent='Carregando convocados importados…';el.className='cal-jogo-roster-status loading';}
+ else if(s.rosterError){el.textContent=s.rosterError;el.className='cal-jogo-roster-status error';}
+ else if(s.config.convocacao_importada===true){el.textContent=`Convocação importada: ${s.convocados.length} atleta(s). PSR é liberado para todos; PSE depende da convocação/treino.`;el.className='cal-jogo-roster-status imported';}
+ else{el.textContent='Convocação ainda não importada. PSR é liberado para todos; PSE e Pré/Pós aguardam a importação da lista.';el.className='cal-jogo-roster-status pending';}
+}
+function calJogoDataNascimentoBR(v){const s=String(v||'').trim(),m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:s;}
+function calJogoRenderListaConvocados(){
+ const s=calJogoEditorState,el=document.getElementById('cal-jogo-roster-view');if(!s||!el)return;
+ if(s.rosterError){el.innerHTML='<p class="cal-jogo-roster-empty error">Lista indisponível para conferência.</p>';return;}
+ if(s.config.convocacao_importada!==true){el.innerHTML='<p class="cal-jogo-roster-empty">Convocação ainda não importada.</p>';return;}
+ if(s.rosterLoading||!s.rosterLoaded){el.innerHTML='<p class="cal-jogo-roster-empty">Carregando convocados…</p>';return;}
+ const lista=[...(s.convocados||[])].sort((a,b)=>String(a.nomeCompleto||'').localeCompare(String(b.nomeCompleto||''),'pt-BR'));
+ if(!lista.length){el.innerHTML='<p class="cal-jogo-roster-empty">Convocação importada sem atletas.</p>';return;}
+ el.innerHTML=`<ul class="cal-jogo-roster-list">${lista.map(a=>`<li><span>${calJogoEsc(a.nomeCompleto||'')}</span><small>Nascimento: ${calJogoEsc(calJogoDataNascimentoBR(a.nascimento))}</small></li>`).join('')}</ul>`;
+}
+async function calJogoCarregarConvocados(){
+ const s=calJogoEditorState;if(!s||s.rosterLoading)return;
+ s.rosterLoading=true;s.rosterError='';calJogoAtualizarStatusEditor();calJogoRenderListaConvocados();
+ try{
+  const {data,error}=await _supabase.rpc('portal_jogo_convocacao_listar',{p_data:s.data,p_categoria:s.categoria});if(error)throw error;
+  let r=data;if(typeof r==='string')r=JSON.parse(r);if(!r||r.convocacao_importada!==true||!Array.isArray(r.convocados))throw new Error('Resposta inválida do Supabase.');
+  s.convocados=r.convocados.map(v=>({nomeCompleto:v.nome_completo||v.nomeCompleto||'',nascimento:v.nascimento||''})).filter(v=>v.nomeCompleto&&v.nascimento);
+  s.rosterLoaded=true;
+ }catch(e){console.warn('Lista de convocados do jogo:',e);s.rosterError='Não foi possível carregar a lista salva para conferência. Verifique a conexão e a RPC de consulta da convocação.';s.rosterLoaded=false;}
+ finally{s.rosterLoading=false;calJogoAtualizarStatusEditor();calJogoRenderListaConvocados();const b=document.querySelector('#cal-jogo-editor-modal .cal-jogo-actions button:nth-child(2)');if(b)b.disabled=s.busy||(s.config.convocacao_importada===true&&!s.rosterLoaded);}
+}
+async function calJogoSalvarConfiguracao(){
+ const s=calJogoEditorState;if(!s||s.busy)return;
+ const valores={pre_jogo_abre:document.getElementById('cal-jogo-pre-abre')?.value||'',pre_jogo_fecha:document.getElementById('cal-jogo-pre-fecha')?.value||'',pos_jogo_abre:document.getElementById('cal-jogo-pos-abre')?.value||'',pos_jogo_fecha:document.getElementById('cal-jogo-pos-fecha')?.value||'',treino_nao_convocados:!!document.getElementById('cal-jogo-treino-nao-convocados')?.checked};
+ if(!calJogoHorariosValidos(valores)){calJogoMensagemEditor('Confira os horários: cada abertura deve ser anterior ao fechamento e Pré-Jogo deve terminar até o início de Pós-Jogo.','error');return;}
+ s.busy=true;s.error='';s.notice='';const btn=document.querySelector('#cal-jogo-editor-modal .cal-jogo-save');if(btn){btn.disabled=true;btn.textContent='Salvando…';}
+ try{
+  const {data,error}=await _supabase.from(CAL_JOGO_TABELA).update({...valores,atualizado_em:new Date().toISOString()}).eq('data',s.data).eq('categoria',s.categoria).select('*').single();if(error)throw error;if(!data)throw new Error('Jogo não encontrado no calendário.');
+  s.config={...s.config,...data,...valores};calJogoAtualizarCache(s.config);renderCalendarioTreino();calJogoCloseEditor();
+ }catch(e){console.warn(e);s.error='Não foi possível salvar os horários ou a opção de treino. Confira a conexão e tente novamente.';calJogoMensagemEditor(s.error,'error');if(btn){btn.disabled=false;btn.textContent='Salvar horários e treinos';}}
+ finally{s.busy=false;if(calJogoEditorState===s){const b=document.querySelector('#cal-jogo-editor-modal .cal-jogo-save');if(b){b.disabled=false;b.textContent='Salvar horários e treinos';}const man=document.querySelector('#cal-jogo-editor-modal .cal-jogo-actions button:nth-child(2)');if(man)man.disabled=s.config.convocacao_importada===true&&!s.rosterLoaded;}}
+}
+async function calJogoAbrirImportacaoSalva(){
+ const s=calJogoEditorState;if(!s||s.busy)return;calJogoMensagemEditor('Buscando convocações salvas…');
+ try{
+  const {data,error}=await _supabase.from('convocacoes').select('nome,dados,atualizado_em').order('nome');if(error)throw error;
+  if(!data?.length){calJogoMensagemEditor('Nenhuma convocação salva foi encontrada.','error');return;}
+  s.salvas=data;const m=calJogoEnsureOverlay('cal-jogo-lista-salva-modal','cal-jogo-suboverlay',()=>calJogoCloseModal('cal-jogo-lista-salva-modal'));
+  m.innerHTML=`<div class="cal-jogo-subcard"><h3>Importar convocação salva</h3><p>Serão importados todos os atletas identificáveis da convocação salva, inclusive os de outras categorias. Se convocados, seguirão os horários deste Jogo.</p><select id="cal-jogo-convocacao-salva" size="8">${data.map((x,i)=>`<option value="${i}">${calJogoEsc(x.nome)}${x.atualizado_em?' — '+calJogoEsc(new Date(x.atualizado_em).toLocaleDateString('pt-BR')):''}</option>`).join('')}</select><div class="cal-jogo-sub-actions"><button type="button" class="primary" onclick="calJogoAplicarConvocacaoSalva()">Importar selecionada</button><button type="button" onclick="calJogoCloseModal('cal-jogo-lista-salva-modal')">Cancelar</button></div></div>`;m.style.display='flex';
+  calJogoMensagemEditor('');
+ }catch(e){console.warn(e);calJogoMensagemEditor('Não foi possível carregar as convocações salvas.','error');}
+}
+async function calJogoAplicarConvocacaoSalva(){
+ const s=calJogoEditorState;if(!s||s.busy)return;const i=Number(document.getElementById('cal-jogo-convocacao-salva')?.value),registro=s.salvas[i];if(!registro)return alert('Selecione uma convocação salva.');
+ let dados=registro.dados||{};if(typeof dados==='string'){try{dados=JSON.parse(dados);}catch(e){dados={};}}
+ const detalhes=Array.isArray(dados.selecionadosDetalhes)?dados.selecionadosDetalhes:[];if(!detalhes.length)return alert('A convocação salva não contém atletas identificáveis.');
+ try{await AE.load(true);}catch(e){return alert(AE.estado.error||'Não foi possível sincronizar Atletas Extras.');}
+ const incluidosPorIdentidade=new Map();
+ detalhes.forEach(x=>{const key=calJogoIdentidadeKey(x),nomeCompleto=x.nomeCompleto||x.nome_completo||x.nome||'',nascimento=x.nascimento||x.data_nascimento||'';if(key&&nomeCompleto&&nascimento&&!incluidosPorIdentidade.has(key))incluidosPorIdentidade.set(key,{nomeCompleto,nascimento});});
+ const incluidos=[...incluidosPorIdentidade.values()];
+ if(!incluidos.length)return alert('A convocação salva não contém atletas com nome e nascimento identificáveis.');
+ if(await calJogoImportarConvocados(incluidos))calJogoCloseModal('cal-jogo-lista-salva-modal');
+}
+async function calJogoAbrirSelecaoManual(){
+ const s=calJogoEditorState;if(!s||s.busy||s.rosterLoading||(s.config.convocacao_importada===true&&!s.rosterLoaded))return;
+ try{await AE.load(true);}catch(e){alert(AE.estado.error||'Não foi possível sincronizar Atletas Extras.');return;}
+ const entradas=calJogoListaElegiveis(s.categoria),todas=calJogoListaTodosCT();if(!todas.length)return alert('Não há atletas cadastrados no CT para selecionar.');
+ const mapa=calJogoIdentidadesUnicas(todas);s.manualEntries=entradas;s.manualTodosEntries=todas;s.manualAnoFiltro='todos';s.manualBuscaTodos='';s.manualMap=mapa;s.manualSelected=new Set((s.convocados||[]).map(calJogoIdentidadeKey).filter(k=>mapa.has(k)));
+ const m=calJogoEnsureOverlay('cal-jogo-manual-modal','cal-jogo-suboverlay',()=>calJogoCloseModal('cal-jogo-manual-modal'));calJogoRenderSelecaoManual();m.style.display='flex';
+}
+function calJogoRenderSelecaoManual(){
+ const s=calJogoEditorState,m=document.getElementById('cal-jogo-manual-modal');if(!s||!m)return;
+ const grupos=[...new Set(s.manualEntries.map(x=>x.anoExibicao))].sort((a,b)=>Number(a)-Number(b));
+ const conteudo=grupos.map(ano=>{const itens=s.manualEntries.map((x,i)=>({x,i})).filter(y=>y.x.anoExibicao===ano);return `<section class="cal-jogo-year-group" data-year-group="${ano}"><h4>Ano ${calJogoEsc(ano)}</h4>${itens.map(({x,i})=>`<label class="cal-jogo-manual-row" data-search="${calJogoEsc([x.apelido,x.nomeCompleto,x.anoExibicao,x.tipoAparicao].join(' ').toLocaleLowerCase('pt-BR'))}"><input type="checkbox" data-entry-index="${i}" data-identity-key="${encodeURIComponent(x.identityKey)}" ${s.manualSelected.has(x.identityKey)?'checked':''} onchange="calJogoManualToggle(${i},this.checked)"><span><strong>${calJogoEsc(x.apelido||x.nomeCompleto)}</strong><small>${calJogoEsc(x.tipoAparicao)} ${calJogoEsc(x.anoExibicao)}${x.apelido&&x.nomeCompleto&&x.apelido!==x.nomeCompleto?' · '+calJogoEsc(x.nomeCompleto):''}</small></span></label>`).join('')}</section>`;}).join('');
+ m.innerHTML=`<div class="cal-jogo-subcard cal-jogo-manual-card"><button class="cal-jogo-sub-close" aria-label="Fechar" onclick="calJogoCloseModal('cal-jogo-manual-modal')">×</button><h3>Selecionar convocados manualmente</h3><p>A lista mostra atletas desta categoria, incluindo extras no ano de origem/representação. Use + Atletas para convocar alguém de outra categoria; a mesma identidade é gravada uma única vez.</p><input id="cal-jogo-busca-manual" class="cal-jogo-search" placeholder="Buscar atleta..." oninput="calJogoFiltrarManual()"><div class="cal-jogo-manual-tools"><button type="button" onclick="calJogoManualMarcarVisiveis(true)">Selecionar visíveis</button><button type="button" onclick="calJogoManualMarcarVisiveis(false)">Limpar visíveis</button><button type="button" onclick="calJogoAbrirAtletasTodosCT()">+ Atletas</button><strong id="cal-jogo-manual-count"></strong></div><div class="cal-jogo-manual-list">${conteudo||'<p>Nenhum atleta desta categoria. Use “+ Atletas” para convocar alguém de outra categoria.</p>'}</div><div id="cal-jogo-manual-warning" class="cal-jogo-warning"></div><div class="cal-jogo-sub-actions"><button type="button" class="primary" onclick="calJogoSalvarSelecaoManual()">Salvar convocados</button><button type="button" onclick="calJogoCloseModal('cal-jogo-manual-modal')">Cancelar</button></div></div>`;
+ calJogoManualSync();
+}
+function calJogoFiltrarManual(){
+ const q=String(document.getElementById('cal-jogo-busca-manual')?.value||'').trim().toLocaleLowerCase('pt-BR');
+ document.querySelectorAll('#cal-jogo-manual-modal .cal-jogo-manual-row').forEach(row=>{row.hidden=!!q&&!row.dataset.search.includes(q);});
+ document.querySelectorAll('#cal-jogo-manual-modal .cal-jogo-year-group').forEach(g=>{g.hidden=!g.querySelector('.cal-jogo-manual-row:not([hidden])');});
+}
+function calJogoManualToggle(i,checked){const s=calJogoEditorState,x=s?.manualEntries?.[i];if(!s||!x)return;if(checked)s.manualSelected.add(x.identityKey);else s.manualSelected.delete(x.identityKey);calJogoManualSync();}
+function calJogoManualSync(){
+ const s=calJogoEditorState;if(!s)return;
+ document.querySelectorAll('#cal-jogo-manual-modal input[data-entry-index]').forEach(el=>{const a=s.manualEntries[Number(el.dataset.entryIndex)];if(a)el.checked=s.manualSelected.has(a.identityKey);});
+ const visiveis=new Set((s.manualEntries||[]).map(x=>x.identityKey)),outras=[...s.manualSelected].filter(k=>!visiveis.has(k)).length;
+ const count=document.getElementById('cal-jogo-manual-count');if(count)count.textContent=`Selecionados: ${s.manualSelected.size}${outras?` (${outras} de outras categorias; veja + Atletas)`:''}`;
+ const fora=(s.convocados||[]).filter(a=>!s.manualMap.has(calJogoIdentidadeKey(a))).length;const aviso=document.getElementById('cal-jogo-manual-warning');if(aviso)aviso.textContent=fora?`${fora} convocado(s) salvo(s) não estão no cadastro atual e serão removidos ao salvar manualmente.`:'';
+ calJogoTodosCTSync();
+}
+async function calJogoAbrirAtletasTodosCT(){
+ const s=calJogoEditorState;if(!s||s.busy)return;
+ try{if(!AE.estado.ready)await AE.load(true);}catch(e){alert(AE.estado.error||'Não foi possível sincronizar Atletas Extras.');return;}
+ s.manualTodosEntries=calJogoListaTodosCT();if(!s.manualTodosEntries.length)return alert('Não há atletas cadastrados no CT para selecionar.');
+ for(const [key,atleta] of calJogoIdentidadesUnicas(s.manualTodosEntries))if(!s.manualMap.has(key))s.manualMap.set(key,atleta);
+ s.manualAnoFiltro='todos';s.manualBuscaTodos='';
+ const m=calJogoEnsureOverlay('cal-jogo-ct-atletas-modal','cal-jogo-suboverlay cal-jogo-ct-overlay',()=>calJogoCloseModal('cal-jogo-ct-atletas-modal'));
+ calJogoRenderTodosCT();m.style.display='flex';calJogoManualSync();
+}
+function calJogoRenderTodosCT(){
+ const s=calJogoEditorState,m=document.getElementById('cal-jogo-ct-atletas-modal');if(!s||!m)return;
+ const entries=s.manualTodosEntries||[],anos=[...new Set(entries.map(x=>String(x.anoExibicao||'')))].sort((a,b)=>Number(a)-Number(b));
+ const opcoes=anos.map(a=>{const valor=a||'__sem_ano__';return `<option value="${calJogoEsc(valor)}" ${s.manualAnoFiltro===valor?'selected':''}>${a?calJogoEsc(a):'Ano não informado'}</option>`;}).join('');
+ const grupos=[...new Set(entries.map(x=>String(x.anoExibicao||'')))].sort((a,b)=>Number(a)-Number(b));
+ const conteudo=grupos.map(ano=>{const itens=entries.map((x,i)=>({x,i})).filter(y=>String(y.x.anoExibicao||'')===ano);return `<section class="cal-jogo-year-group" data-year-group="${calJogoEsc(ano)}"><h4>${ano?'Ano '+calJogoEsc(ano):'Ano não informado'}</h4>${itens.map(({x,i})=>{const cat=CAL_TREINO_CATS.find(c=>c.id===x.categoria)?.label||'Categoria não mapeada';return `<label class="cal-jogo-manual-row" data-year="${calJogoEsc(ano)}" data-search="${calJogoEsc([x.apelido,x.nomeCompleto,x.anoExibicao,x.tipoAparicao,cat].join(' ').toLocaleLowerCase('pt-BR'))}"><input type="checkbox" data-todos-ct-index="${i}" ${s.manualSelected.has(x.identityKey)?'checked':''} onchange="calJogoTodosCTToggle(${i},this.checked)"><span><strong>${calJogoEsc(x.apelido||x.nomeCompleto)}</strong><small>${calJogoEsc(x.tipoAparicao)} ${ano?calJogoEsc(ano):'sem ano'} · ${calJogoEsc(cat)}${x.apelido&&x.nomeCompleto&&x.apelido!==x.nomeCompleto?' · '+calJogoEsc(x.nomeCompleto):''}</small></span></label>`;}).join('')}</section>`;}).join('');
+ m.innerHTML=`<div class="cal-jogo-subcard cal-jogo-manual-card cal-jogo-ct-card"><button class="cal-jogo-sub-close" aria-label="Fechar" onclick="calJogoCloseModal('cal-jogo-ct-atletas-modal')">×</button><h3>+ Atletas — todo o CT</h3><p>Marque atletas de qualquer ano/categoria para incluí-los na convocação deste Jogo. As aparições do mesmo Atleta Extra ficam sincronizadas e cada identidade é gravada uma única vez.</p><div class="cal-jogo-ct-filters"><label>Filtrar por ano<select id="cal-jogo-ct-ano" onchange="calJogoFiltrarTodosCT()"><option value="todos" ${s.manualAnoFiltro==='todos'?'selected':''}>Todos os anos</option>${opcoes}</select></label><input id="cal-jogo-busca-todos-ct" class="cal-jogo-search" aria-label="Buscar atleta em todo o CT" placeholder="Buscar atleta..." value="${calJogoEsc(s.manualBuscaTodos||'')}" oninput="calJogoFiltrarTodosCT()"></div><div class="cal-jogo-manual-tools"><button type="button" onclick="calJogoTodosCTMarcarVisiveis(true)">Selecionar visíveis</button><button type="button" onclick="calJogoTodosCTMarcarVisiveis(false)">Limpar visíveis</button><strong id="cal-jogo-ct-count"></strong></div><div class="cal-jogo-manual-list cal-jogo-ct-list">${conteudo||'<p>Nenhum atleta encontrado.</p>'}</div><div class="cal-jogo-sub-actions"><button type="button" class="primary" onclick="calJogoCloseModal(\'cal-jogo-ct-atletas-modal\')">Concluir seleção</button></div></div>`;
+ calJogoFiltrarTodosCT();calJogoTodosCTSync();
+}
+function calJogoFiltrarTodosCT(){
+ const s=calJogoEditorState;if(!s)return;
+ const filtroAno=document.getElementById('cal-jogo-ct-ano')?.value;s.manualAnoFiltro=filtroAno===undefined?'todos':(filtroAno||'todos');s.manualBuscaTodos=String(document.getElementById('cal-jogo-busca-todos-ct')?.value||'').trim().toLocaleLowerCase('pt-BR');
+ const anoSelecionado=s.manualAnoFiltro==='__sem_ano__'?'':s.manualAnoFiltro;
+ document.querySelectorAll('#cal-jogo-ct-atletas-modal .cal-jogo-manual-row').forEach(row=>{const anoOK=s.manualAnoFiltro==='todos'||row.dataset.year===anoSelecionado;row.hidden=!anoOK||!!s.manualBuscaTodos&&!row.dataset.search.includes(s.manualBuscaTodos);});
+ document.querySelectorAll('#cal-jogo-ct-atletas-modal .cal-jogo-year-group').forEach(g=>{g.hidden=!g.querySelector('.cal-jogo-manual-row:not([hidden])');});
+ calJogoTodosCTSync();
+}
+function calJogoTodosCTToggle(i,checked){const s=calJogoEditorState,x=s?.manualTodosEntries?.[i];if(!s||!x)return;if(checked){s.manualSelected.add(x.identityKey);s.manualMap.set(x.identityKey,{nomeCompleto:x.nomeCompleto,nascimento:x.nascimento});}else s.manualSelected.delete(x.identityKey);calJogoManualSync();}
+function calJogoTodosCTSync(){
+ const s=calJogoEditorState;if(!s)return;
+ document.querySelectorAll('#cal-jogo-ct-atletas-modal input[data-todos-ct-index]').forEach(el=>{const x=s.manualTodosEntries[Number(el.dataset.todosCtIndex)];if(x)el.checked=s.manualSelected.has(x.identityKey);});
+ const count=document.getElementById('cal-jogo-ct-count');if(count)count.textContent=`Selecionados no total: ${s.manualSelected.size}`;
+}
+function calJogoTodosCTMarcarVisiveis(marcar){
+ const s=calJogoEditorState;if(!s)return;
+ document.querySelectorAll('#cal-jogo-ct-atletas-modal .cal-jogo-manual-row:not([hidden]) input[data-todos-ct-index]').forEach(el=>{const x=s.manualTodosEntries[Number(el.dataset.todosCtIndex)];if(!x)return;if(marcar){s.manualSelected.add(x.identityKey);s.manualMap.set(x.identityKey,{nomeCompleto:x.nomeCompleto,nascimento:x.nascimento});}else s.manualSelected.delete(x.identityKey);});calJogoManualSync();
+}
+function calJogoManualMarcarVisiveis(marcar){
+ const s=calJogoEditorState;if(!s)return;
+ document.querySelectorAll('#cal-jogo-manual-modal .cal-jogo-manual-row:not([hidden]) input[data-entry-index]').forEach(el=>{const a=s.manualEntries[Number(el.dataset.entryIndex)];if(!a)return;if(marcar)s.manualSelected.add(a.identityKey);else s.manualSelected.delete(a.identityKey);});calJogoManualSync();
+}
+async function calJogoSalvarSelecaoManual(){
+ const s=calJogoEditorState;if(!s||s.busy)return;const lista=[...s.manualSelected].map(k=>s.manualMap.get(k)).filter(Boolean);
+ if(!lista.length&&!confirm('A lista ficará sem convocados. Confirmar que a convocação foi importada e não há atleta convocado?'))return;
+ const fora=(s.convocados||[]).filter(a=>!s.manualMap.has(calJogoIdentidadeKey(a))).length;if(fora&&!confirm(`${fora} convocado(s) atualmente salvo(s) não estão no cadastro/lista elegível e serão removidos. Continuar?`))return;
+ if(await calJogoImportarConvocados(lista))calJogoCloseModal('cal-jogo-manual-modal');
+}
+async function calJogoImportarConvocados(lista){
+ const s=calJogoEditorState;if(!s||s.busy)return false;
+ const unicos=new Map();(lista||[]).forEach(x=>{const k=calJogoIdentidadeKey(x);if(k&&!unicos.has(k))unicos.set(k,{nomeCompleto:x.nomeCompleto||x.nome_completo||'',nascimento:x.nascimento||''});});
+ const payload=[...unicos.values()].filter(x=>x.nomeCompleto&&x.nascimento).map(x=>({nome_completo:x.nomeCompleto,nascimento:x.nascimento}));
+ s.busy=true;s.error='';s.notice='Importando convocação…';calJogoAtualizarStatusEditor();calJogoMensagemEditor(s.notice);
+ try{
+  const {data,error}=await _supabase.rpc('portal_jogo_convocacao_importar',{p_data:s.data,p_categoria:s.categoria,p_convocados:payload});if(error)throw error;
+  let r=data;if(typeof r==='string')r=JSON.parse(r);if(r?.convocacao_importada!==true)throw new Error('O Supabase não confirmou a importação.');
+  s.convocados=payload.map(x=>({nomeCompleto:x.nome_completo,nascimento:x.nascimento}));s.rosterLoaded=true;s.rosterError='';s.config={...s.config,convocacao_importada:true,atualizado_em:new Date().toISOString()};s.notice=`Convocação importada: ${payload.length} atleta(s).`;calJogoAtualizarCache(s.config);renderCalendarioTreino();calJogoMensagemEditor(s.notice,'ok');return true;
+ }catch(e){console.warn('Importação da convocação do jogo:',e);s.error='Não foi possível importar a convocação. Confira o SQL e tente novamente.';s.notice='';calJogoMensagemEditor(s.error,'error');return false;}
+ finally{s.busy=false;calJogoAtualizarStatusEditor();calJogoRenderListaConvocados();const b=document.querySelector('#cal-jogo-editor-modal .cal-jogo-actions button:nth-child(2)');if(b)b.disabled=s.config.convocacao_importada===true&&!s.rosterLoaded;const save=document.querySelector('#cal-jogo-editor-modal .cal-jogo-save');if(save)save.disabled=false;}
+}
 function renderCalendarioTreino(){
  const m=document.getElementById('calendario-treino-modal');if(!m)return;
- const ano=calTreinoState.ano,mes=calTreinoState.mes,titulo=new Date(ano,mes,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
- const start=(new Date(ano,mes,1).getDay()+6)%7,days=new Date(ano,mes+1,0).getDate(),hoje=calTreinoISO(new Date()),cells=[];
+ const ano=calTreinoState.ano,mes=calTreinoState.mes,titulo=new Date(ano,mes,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}),start=(new Date(ano,mes,1).getDay()+6)%7,days=new Date(ano,mes+1,0).getDate(),hoje=calTreinoISO(new Date()),cells=[];
  for(let i=0;i<start;i++)cells.push('<div class="cal-treino-empty"></div>');
  for(let day=1;day<=days;day++){
-  const d=new Date(ano,mes,day),iso=calTreinoISO(d),wk=[0,6].includes(d.getDay()),nPSR=CAL_TREINO_CATS.filter(c=>calTreinoTem(iso,c.id,'psr')).length,nPSE=CAL_TREINO_CATS.filter(c=>calTreinoTem(iso,c.id,'pse')).length;
-  cells.push(`<button type="button" class="cal-treino-day${calTreinoState.sel===iso?' sel':''}${iso===hoje?' hoje':''}${wk?' wk':''}${calTreinoState.ready&&(nPSR||nPSE)?' ok':''}" data-cal-data="${iso}" onclick="calTreinoSel('${iso}')"><b>${day}</b><i>PSR ${calTreinoState.ready?nPSR+'/4':'—'}</i><i>PSE ${calTreinoState.ready?nPSE+'/4':'—'}</i></button>`);
+  const d=new Date(ano,mes,day),iso=calTreinoISO(d),wk=[0,6].includes(d.getDay()),nPSR=CAL_TREINO_CATS.filter(c=>calTreinoTem(iso,c.id,'psr')).length,nPSE=CAL_TREINO_CATS.filter(c=>calTreinoTem(iso,c.id,'pse')).length,nJogo=CAL_TREINO_CATS.filter(c=>calTreinoJogoAtivo(iso,c.id)).length;
+  cells.push(`<button type="button" class="cal-treino-day${calTreinoState.sel===iso?' sel':''}${iso===hoje?' hoje':''}${wk?' wk':''}${calTreinoState.ready&&(nPSR||nPSE||nJogo)?' ok':''}${nJogo?' has-game':''}" data-cal-data="${iso}" onclick="calTreinoSel('${iso}')"><b>${day}</b><i>PSR ${calTreinoState.ready?nPSR+'/4':'—'}</i><i>PSE ${calTreinoState.ready?nPSE+'/4':'—'}</i><i>Jogo ${calTreinoState.gameReady?nJogo+'/4':'—'}</i></button>`);
  }
- const disabled=!calTreinoState.ready||calTreinoState.carregando||calTreinoState.salvando;
- const checks=CAL_TREINO_CATS.map(c=>`<div class="cal-questionario-row"><strong>${c.label}</strong>${['psr','pse'].map(tipo=>{const on=calTreinoTem(calTreinoState.sel,c.id,tipo),pad=calTreinoPadrao(c.id,calTreinoParse(calTreinoState.sel));return `<label class="${on&&calTreinoState.ready?'on':''}"><input type="checkbox" data-cal-cat="${c.id}" data-cal-tipo="${tipo}" aria-label="${c.label} — ${tipo.toUpperCase()}" ${on&&calTreinoState.ready?'checked':''} ${disabled?'disabled':''} onchange="calTreinoToggle('${c.id}','${tipo}',this.checked)"><span>${tipo.toUpperCase()}</span>${calTreinoState.ready&&on!==pad?'<em>alterado</em>':''}</label>`;}).join('')}</div>`).join('');
- m.innerHTML=`<div class="cal-treino-card"><button class="cal-treino-close" onclick="closeCalendarioTreino()">×</button><h2>Calendário — PSR e PSE</h2><div class="cal-treino-nav"><button type="button" onclick="calTreinoMes(-1)">‹</button><strong>${titulo}</strong><button type="button" onclick="calTreinoMes(1)">›</button></div><div class="cal-treino-week"><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span><span>Dom</span></div><div class="cal-treino-grid">${cells.join('')}</div>${calTreinoState.error?'<div class="cal-treino-error" role="alert">'+calTreinoState.error+'</div>':''}${calTreinoState.carregando?'<p class="cal-treino-load">Carregando...</p>':''}${calTreinoState.salvando?'<p class="cal-treino-load" role="status">Salvando...</p>':''}<div class="cal-treino-dia"><h3>${calTreinoParse(calTreinoState.sel).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</h3><div class="cal-questionarios">${checks}</div></div><button type="button" class="cal-treino-refresh" ${calTreinoState.salvando?'disabled':''} onclick="carregarCalendarioTreino()">Atualizar calendário</button></div>`;
+ const disabled=!calTreinoState.ready||calTreinoState.carregando||calTreinoState.salvando,gameDisabled=!calTreinoState.gameReady||calTreinoState.carregando||calTreinoState.salvando;
+ const checks=CAL_TREINO_CATS.map(c=>{
+  const jogo=calTreinoJogoAtivo(calTreinoState.sel,c.id);
+  const q=['psr','pse'].map(tipo=>{const on=calTreinoTem(calTreinoState.sel,c.id,tipo),pad=calTreinoPadrao(c.id,calTreinoParse(calTreinoState.sel));return `<label class="${on&&calTreinoState.ready?'on':''}"><input type="checkbox" data-cal-cat="${c.id}" data-cal-tipo="${tipo}" aria-label="${c.label} — ${tipo.toUpperCase()}" ${on&&calTreinoState.ready?'checked':''} ${disabled?'disabled':''} onchange="calTreinoToggle('${c.id}','${tipo}',this.checked)"><span>${tipo.toUpperCase()}</span>${calTreinoState.ready&&on!==pad?'<em>alterado</em>':''}</label>`;}).join('');
+  return `<div class="cal-questionario-row"><strong>${c.label}</strong>${q}<div class="cal-jogo-control">${jogo?`<button type="button" class="cal-jogo-edit" title="Editar configuração do Jogo" aria-label="Editar configuração do Jogo — ${c.label}" ${gameDisabled?'disabled':''} onclick="calTreinoEditarJogo('${c.id}')">✏️</button>`:''}<label class="cal-jogo-toggle${jogo?' on':''}${gameDisabled?' disabled':''}"><input type="checkbox" aria-label="${c.label} — Jogo" ${jogo?'checked':''} ${gameDisabled?'disabled':''} onchange="calTreinoToggleJogo('${c.id}',this.checked)"><span>Jogo</span></label></div></div>`;
+ }).join('');
+ m.innerHTML=`<div class="cal-treino-card"><button class="cal-treino-close" onclick="closeCalendarioTreino()">×</button><h2>Calendário — PSR, PSE e Jogo</h2><p class="cal-treino-help">Jogo é uma configuração por data e categoria. Atletas só veem Pré/Pós depois da importação da convocação; coordenação mantém o acesso de conferência.</p><div class="cal-treino-nav"><button type="button" onclick="calTreinoMes(-1)" ${calTreinoState.salvando?'disabled':''}>‹</button><strong>${titulo}</strong><button type="button" onclick="calTreinoMes(1)" ${calTreinoState.salvando?'disabled':''}>›</button></div><div class="cal-treino-week"><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span><span>Dom</span></div><div class="cal-treino-grid">${cells.join('')}</div>${calTreinoState.error?'<div class="cal-treino-error" role="alert">'+calJogoEsc(calTreinoState.error)+'</div>':''}${calTreinoState.jogoError?'<div class="cal-treino-error cal-jogo-calendar-error" role="alert">'+calJogoEsc(calTreinoState.jogoError)+'</div>':''}${calTreinoState.carregando?'<p class="cal-treino-load">Carregando...</p>':''}${calTreinoState.salvando?'<p class="cal-treino-load" role="status">Salvando...</p>':''}<div class="cal-treino-dia"><h3>${calTreinoParse(calTreinoState.sel).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</h3><div class="cal-questionarios">${checks}</div></div><button type="button" class="cal-treino-refresh" ${calTreinoState.salvando?'disabled':''} onclick="carregarCalendarioTreino()">Atualizar calendário</button></div>`;
 }
 
 const MONITORAMENTO_CARGA_VIEW = 'vw_monitoramento_carga_psr_pse';
+
 let monitorCargaState = { lista: [], carregando: false, data: '', ano: 'todos', zona: 'todas', busca: '', somenteAlertas: false, regraOuro: false };
 
 function mcEscape(valor){return typeof escapeHtmlJogos==='function'?escapeHtmlJogos(valor):String(valor??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));}
@@ -4953,10 +5172,31 @@ function rppSortHeader(key,label){
  return `<th class="${active?'rpp-sort-active':''}"><button type="button" onclick="sortRelatorioPsrPse('${key}')">${rppEscape(label)}${arrow}</button></th>`;
 }
 function rppCompareNome(a,b){return String(a.id.apelido||a.id.nomeCompleto||'').localeCompare(String(b.id.apelido||b.id.nomeCompleto||''),'pt-BR');}
+function rppAtletaEhGoleiro(atleta){
+ const id=atleta?.id||{};
+ const row=atleta?.row||(Number.isInteger(atleta?.index)?(excelData||[])[atleta.index]:{});
+ const posicao=typeof goleiroPosicao==='function'?goleiroPosicao(row):'';
+ const texto=[posicao,atleta?.posicao,atleta?.position,id.posicao,id.position].filter(v=>v!==undefined&&v!==null).join(' ');
+ const normalizado=texto.normalize?texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase():texto.toLowerCase();
+ return normalizado.includes('goleir');
+}
+function rppOrdenarAtletasNome(atletas){
+ return [...(atletas||[])].sort((a,b)=>{
+  if(relatorioPsrPseState.tipo==='pse'){
+   const grupo=Number(rppAtletaEhGoleiro(b))-Number(rppAtletaEhGoleiro(a));
+   if(grupo)return grupo;
+  }
+  return rppCompareNome(a,b);
+ });
+}
 function rppOrdenarAtletas(atletas){
  const sort=relatorioPsrPseState.sort||{key:'nome',dir:'asc'};const key=sort.key;const dir=sort.dir==='desc'?-1:1;
  const numericKeys=['nota_psr','sono','fadiga','dor_muscular','estresse_mental','motivacao','pse_valor','respondeu','total'];
  return [...atletas].sort((a,b)=>{
+  if(relatorioPsrPseState.tipo==='pse'){
+   const grupo=Number(rppAtletaEhGoleiro(b))-Number(rppAtletaEhGoleiro(a));
+   if(grupo)return grupo;
+  }
   if(key==='nome')return dir*rppCompareNome(a,b);
   if(key==='ano'){const r=String(a.id.ano||'').localeCompare(String(b.id.ano||''),'pt-BR',{numeric:true});return r?dir*r:rppCompareNome(a,b);}
   if(key==='descricao'){
@@ -4992,22 +5232,23 @@ function rppRenderTabelaNotas(atletas){
   : [{k:'nome',l:'Nome'},{k:'ano',l:'Ano'},{k:'pse_valor',l:'PSE'},{k:'descricao',l:'Descrição'}];
  const rows=rppOrdenarAtletas(atletas).map(a=>{
   const row=rppRespostaAtletaData(a,relatorioPsrPseState.data);const obj=rppObjResposta(row,tipo);
+  const classeGoleiro=tipo==='pse'&&rppAtletaEhGoleiro(a)?' class="rpp-goleiro-row"':'';
   if(tipo==='psr'){
    const nota=rppNotaPsrNum(row);
    return `<tr><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td><td><strong>${nota==null?'—':rppMediaBR(nota)}</strong></td><td>${rppValorHTML(obj.sono)}</td><td>${rppValorHTML(obj.fadiga)}</td><td>${rppValorHTML(obj.estresse_mental)}</td><td>${rppValorHTML(obj.motivacao)}</td><td>${rppValorHTML(obj.dor_muscular)}</td><td class="rpp-desc">${rppValorHTML(obj.dor_descricao)}</td></tr>`;
   }
-  return `<tr><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td><td>${rppValorHTML(obj.valor)}</td><td class="rpp-desc">${rppValorHTML(obj.descricao)}</td></tr>`;
+  return `<tr${classeGoleiro}><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td><td>${rppValorHTML(obj.valor)}</td><td class="rpp-desc">${rppValorHTML(obj.descricao)}</td></tr>`;
  }).join('')||`<tr><td colspan="${cols.length}" class="rpp-empty">Nenhum atleta nas categorias selecionadas.</td></tr>`;
  return `<table class="rpp-table"><thead><tr>${cols.map(c=>rppSortHeader(c.k,c.l)).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function rppNomeAnoAtleta(atleta){return (atleta?.id?.apelido||atleta?.id?.nomeCompleto||'')+' - '+String(atleta?.id?.ano||'');}
 function rppDiaSemanaTexto(valor){return rppParseData(valor).toLocaleDateString('pt-BR',{weekday:'long'}).replace(/^./,c=>c.toUpperCase());}
 function rppRenderListaPresencaDiaria(atletas){
- const ordenados=[...(atletas||[])].sort(rppCompareNome);
+ const ordenados=rppOrdenarAtletasNome(atletas);
  if(!ordenados.length)return `<div class="rpp-list-report"><div class="rpp-empty">Selecione uma categoria para visualizar o relatório.</div></div>`;
  const respondidos=[];const ausentes=[];
  ordenados.forEach(a=>{(rppRespondido(rppRespostaAtletaData(a,relatorioPsrPseState.data))?respondidos:ausentes).push(a);});
- const lista=(arr,ok)=>arr.length?arr.map(a=>`<li class="${ok?'ok':'no'}"><span>${ok?'✓':'×'}</span>${rppEscape(rppNomeAnoAtleta(a))}</li>`).join(''):'<li class="empty">Nenhum atleta.</li>';
+ const lista=(arr,ok)=>arr.length?arr.map(a=>{const goleiro=relatorioPsrPseState.tipo==='pse'&&rppAtletaEhGoleiro(a);return `<li class="${ok?'ok':'no'}${goleiro?' rpp-goleiro-item':''}"><span>${ok?'✓':'×'}</span>${rppEscape(rppNomeAnoAtleta(a))}</li>`;}).join(''):'<li class="empty">Nenhum atleta.</li>';
  return `<div class="rpp-list-report"><div class="rpp-list-date">📅 ${rppBR(relatorioPsrPseState.data,true)} — ${rppEscape(rppDiaSemanaTexto(relatorioPsrPseState.data))}</div><div class="rpp-list-obs"><strong>Observações:</strong> -</div><div class="rpp-list-cols"><section class="rpp-list-col ok"><h3>Respondido (${respondidos.length})</h3><ul>${lista(respondidos,true)}</ul></section><section class="rpp-list-col no"><h3>Ausentes (${ausentes.length})</h3><ul>${lista(ausentes,false)}</ul></section></div></div>`;
 }
 function rppRenderTabelaResumo(atletas){
@@ -5022,7 +5263,8 @@ function rppRenderTabelaResumo(atletas){
   let total=0;
   const cells=dias.map(d=>{const ok=rppRespondido(rppRespostaAtletaData(a,d));if(ok)total++;return `<td>${rppVX(ok)}</td>`;}).join('');
   const pct=dias.length?Math.round((total/dias.length)*100):0;
-  return `<tr><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td>${cells}<td><strong>${total}/${dias.length}</strong></td><td>${pct}%</td></tr>`;
+  const classeGoleiro=relatorioPsrPseState.tipo==='pse'&&rppAtletaEhGoleiro(a)?' class="rpp-goleiro-row"':'';
+  return `<tr${classeGoleiro}><td class="rpp-nome">${rppEscape(a.id.apelido||a.id.nomeCompleto)}</td><td>${rppEscape(a.id.ano||'')}</td>${cells}<td><strong>${total}/${dias.length}</strong></td><td>${pct}%</td></tr>`;
  }).join('')||`<tr><td colspan="${dias.length+4}" class="rpp-empty">Nenhum atleta nas categorias selecionadas.</td></tr>`;
  return `<table class="rpp-table rpp-table-resumo"><thead><tr>${rppSortHeader('nome','Nome')}${rppSortHeader('ano','Ano')}${headDias}${totalHead}${pctHead}</tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -5134,8 +5376,13 @@ function rppChaveExtraAtleta(extra,item){
  return rppKeyExtra(extra);
 }
 function rppAtletasCategoriaTodas(catId){return aeAtletasCat(catId,relatorioPsrPseState.tipo);}
-function rppMediaCatDia(catId, iso){
- const atletas=rppAtletasCategoriaTodas(catId);
+function rppAtletaNoGrupoMediaPse(atleta,grupo){
+ if(relatorioPsrPseState.tipo!=='pse'||!grupo)return true;
+ const goleiro=rppAtletaEhGoleiro(atleta);
+ return grupo==='goleiros'?goleiro:!goleiro;
+}
+function rppMediaCatDia(catId, iso, grupo){
+ const atletas=rppAtletasCategoriaTodas(catId).filter(a=>rppAtletaNoGrupoMediaPse(a,grupo));
  const vals=[];
  const visto=new Set();
  atletas.forEach(a=>{
@@ -5150,9 +5397,9 @@ function rppMediaCatDia(catId, iso){
  if(!vals.length) return null;
  return vals.reduce((s,v)=>s+v,0)/vals.length;
 }
-function rppMediaCatPeriodo(catId, dias){
+function rppMediaCatPeriodo(catId, dias, grupo){
  const vals=[];
- const atletas=rppAtletasCategoriaTodas(catId);
+ const atletas=rppAtletasCategoriaTodas(catId).filter(a=>rppAtletaNoGrupoMediaPse(a,grupo));
  dias.forEach(iso=>{
   atletas.forEach(a=>{
    const n=rppNotaParaMedia(rppRespostaAtletaData(a, iso));
@@ -5170,17 +5417,27 @@ function rppLinhaCats(mediasMap){
 }
 function rppMediasTabela(rows){
  const cats=rppCatIds();
- const head='<th>Dia</th>'+cats.map(id=>'<th>'+rppEscape((rppCats()[id]&&rppCats()[id].label)||id)+'</th>').join('');
+ const separarPse=relatorioPsrPseState.tipo==='pse';
+ const head=separarPse
+  ? '<th rowspan="2">Dia</th>'+cats.map(id=>'<th colspan="2">'+rppEscape((rppCats()[id]&&rppCats()[id].label)||id)+'</th>').join('')
+  : '<th>Dia</th>'+cats.map(id=>'<th>'+rppEscape((rppCats()[id]&&rppCats()[id].label)||id)+'</th>').join('');
+ const subHead=separarPse?'<tr>'+cats.map(()=>'<th>Linha</th><th class="rpp-med-sub-goleiros">Goleiros</th>').join('')+'</tr>':'';
  const body=rows.map(r=>{
   const tds=cats.map(id=>{
+   const nomeCat=(rppCats()[id]&&rppCats()[id].label)||id;
+   if(separarPse){
+    const med=r.map[id]||{};
+    const botao=grupo=>r.geral?` <button type="button" class="rpp-chart-btn rpp-no-print" title="Gráfico ${rppEscape(nomeCat)} — ${grupo==='linha'?'Linha':'Goleiros'}" onclick="rppAbrirGraficoMedias('${id}','${grupo}')">${rppChartIcon()}</button>`:'';
+    return `<td class="rpp-med-linha">${rppMediaBR(med.linha)}${botao('linha')}</td><td class="rpp-med-goleiros">${rppMediaBR(med.goleiros)}${botao('goleiros')}</td>`;
+   }
    const med=rppMediaBR(r.map[id]);
    if(!r.geral) return '<td>'+med+'</td>';
-   return '<td>'+med+' <button type="button" class="rpp-chart-btn rpp-no-print" title="Gráfico '+rppEscape((rppCats()[id]&&rppCats()[id].label)||id)+'" onclick="rppAbrirGraficoMedias(\''+id+'\')">'+rppChartIcon()+'</button></td>';
+   return '<td>'+med+' <button type="button" class="rpp-chart-btn rpp-no-print" title="Gráfico '+rppEscape(nomeCat)+'" onclick="rppAbrirGraficoMedias(\''+id+'\')">'+rppChartIcon()+'</button></td>';
   }).join('');
   const lab=r.geral?(rppEscape(r.label)+' <button type="button" class="rpp-chart-btn rpp-no-print" title="Gráficos" onclick="rppAbrirGraficoMedias()">'+rppChartIcon()+'</button>'):rppEscape(r.label);
   return `<tr class="${r.geral?'rpp-med-geral-row':''}"><td class="rpp-nome">${lab}</td>${tds}</tr>`;
  }).join('');
- return `<table class="rpp-table rpp-med-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+ return `<table class="rpp-table rpp-med-table${separarPse?' rpp-med-table-split':''}"><thead><tr>${head}</tr>${subHead}</thead><tbody>${body}</tbody></table>`;
 }
 function rppChartIcon(){
  return '<svg class="rpp-chart-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><polyline fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="6 16 10 11 13 13 18 7"/><circle cx="6" cy="16" r="1.4" fill="currentColor"/><circle cx="10" cy="11" r="1.4" fill="currentColor"/><circle cx="13" cy="13" r="1.4" fill="currentColor"/><circle cx="18" cy="7" r="1.4" fill="currentColor"/></svg>';
@@ -5255,10 +5512,10 @@ function rppSvgSerie(pts, modo){
  }).join('');
  return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">'+bands+grid+line+dots+labs+'</svg>';
 }
-function rppPtsGrafico(catId, dias, modo){
+function rppPtsGrafico(catId, dias, modo, grupo){
  if(modo==='semanal'){
   return dias.map(function(iso){
-   const v=rppMediaCatDia(catId, iso);
+   const v=rppMediaCatDia(catId, iso, grupo);
    const d=String(iso).slice(8,10)+'/'+String(iso).slice(5,7);
    return {l:d, v:v, wk:iso, weekend:false};
   });
@@ -5276,24 +5533,29 @@ function rppPtsGrafico(catId, dias, modo){
   const wlab=dd(ini)+' a '+dd(fim);
   out.push({
    iso:iso, weekend:weekend, wk:rppDataISO(ini), wlab:wlab,
-   v: weekend?null:rppMediaCatDia(catId, iso),
+   v: weekend?null:rppMediaCatDia(catId, iso, grupo),
    l: weekend?'':dd(d)
   });
  }
  return out;
 }
-function rppAbrirGraficoMedias(catId){
+function rppAbrirGraficoMedias(catId,grupo){
  const modo=relatorioPsrPseState.mediasModo||'diaria';
  if(modo==='diaria') return;
  const periodo=rppPeriodoAtual();
  const dias=periodo.dias||[];
  if(!dias.length){ alert('Sem dias neste período.'); return; }
  const cats=catId?[catId]:rppCatIds();
+ const grupos=relatorioPsrPseState.tipo==='pse'?(grupo?[grupo]:['linha','goleiros']):[null];
  const tit=modo==='semanal'?'semana':modo==='mensal'?'mês':'período';
  const blocos=cats.map(function(id){
   const lab=(rppCats()[id]&&rppCats()[id].label)||id;
-  const pts=rppPtsGrafico(id, dias, modo);
-  return '<div class="rpp-graf-cat"><h3>'+rppEscape(lab)+'</h3>'+rppSvgSerie(pts, modo)+'</div>';
+  return grupos.map(function(g){
+   const nomeGrupo=g==='linha'?'Linha':g==='goleiros'?'Goleiros':'';
+   const tituloSerie=nomeGrupo?lab+' — '+nomeGrupo:lab;
+   const pts=rppPtsGrafico(id, dias, modo, g||undefined);
+   return '<div class="rpp-graf-cat"><h3>'+rppEscape(tituloSerie)+'</h3>'+rppSvgSerie(pts, modo)+'</div>';
+  }).join('');
  }).join('');
  let m=document.getElementById('rpp-graf-modal');
  if(!m){ m=document.createElement('div'); m.id='rpp-graf-modal'; document.body.appendChild(m); }
@@ -5455,6 +5717,13 @@ function setRppMediasModo(modo){
 }
 function setRppMediasDe(v){ relatorioPsrPseState.mediasDe=v; if(relatorioPsrPseState.mediasModo==='periodo') carregarRespostasRelatorioPsrPse(); }
 function setRppMediasAte(v){ relatorioPsrPseState.mediasAte=v; if(relatorioPsrPseState.mediasModo==='periodo') carregarRespostasRelatorioPsrPse(); }
+function rppMediaCategoria(catId,dias,modo,iso){
+ if(relatorioPsrPseState.tipo==='pse'){
+  if(modo==='diaria')return {linha:rppMediaCatDia(catId,iso,'linha'),goleiros:rppMediaCatDia(catId,iso,'goleiros')};
+  return {linha:rppMediaCatPeriodo(catId,dias,'linha'),goleiros:rppMediaCatPeriodo(catId,dias,'goleiros')};
+ }
+ return modo==='diaria'?rppMediaCatDia(catId,iso):rppMediaCatPeriodo(catId,dias);
+}
 function rppRenderMedias(){
  const modo=relatorioPsrPseState.mediasModo||'diaria';
  const periodo=rppPeriodoAtual();
@@ -5468,13 +5737,13 @@ function rppRenderMedias(){
  </div><p class="rpp-med-nota rpp-no-print">Quem não respondeu não entra na média. Todas as categorias, independente do filtro acima.</p>`;
  if(modo==='diaria'){
   const dia=relatorioPsrPseState.data;
-  const map={}; cats.forEach(id=>map[id]=rppMediaCatDia(id,dia));
+  const map={}; cats.forEach(id=>map[id]=rppMediaCategoria(id,[dia],'diaria',dia));
   return filtros+rppMediasTabela([{label:'Data '+rppBR(dia,true), map}]);
  }
- const mapG={}; cats.forEach(id=>mapG[id]=rppMediaCatPeriodo(id,periodo.dias));
+ const mapG={}; cats.forEach(id=>mapG[id]=rppMediaCategoria(id,periodo.dias,'periodo'));
  const tit=modo==='semanal'?'Média geral da semana':modo==='mensal'?'Média geral do mês':'Média geral do período';
  const rows=[{label:tit, map:mapG, geral:true}].concat(periodo.dias.map(iso=>{
-  const map={}; cats.forEach(id=>map[id]=rppMediaCatDia(id,iso));
+  const map={}; cats.forEach(id=>map[id]=rppMediaCategoria(id,[iso],'diaria',iso));
   return {label:rppNomeDia(iso)+' '+rppBR(iso,true), map};
  }));
  return filtros+rppMediasTabela(rows);
@@ -5580,7 +5849,7 @@ function imprimirRelatorioPsrPse(){
  const area=document.getElementById('rpp-print-area');if(!area)return;
  const titulo=rppTituloView();const paisagem=relatorioPsrPseState.view==='mensal'||relatorioPsrPseState.view==='semanal'||relatorioPsrPseState.view==='medias';
  const w=window.open('','_blank','width=1200,height=850');
- w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${rppEscape(titulo)}</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:12px;color:#111}.rpp-print-title{display:flex!important;align-items:center;justify-content:center;gap:18px;margin-bottom:12px}.rpp-print-title img{width:58px;height:58px;object-fit:contain}.rpp-print-title h2{margin:0;text-align:center;color:#58111a;font-size:22px}.rpp-print-title p{margin:3px 0 0;text-align:center;font-weight:bold}.rpp-table{width:100%;border-collapse:collapse;font-size:11px}.rpp-table th{background:#58111a;color:#f9c614}.rpp-table th,.rpp-table td{border:1px solid #999;padding:5px;text-align:center}.rpp-table th button{border:0;background:transparent;color:inherit;font:inherit;font-weight:bold}.rpp-table td.rpp-nome{text-align:left;font-weight:bold}.rpp-desc{text-align:left!important}.rpp-v{color:#009b49;font-weight:900;font-size:15px}.rpp-x{color:#d63031;font-weight:900;font-size:15px}.rpp-muted{color:#999}.rpp-table-wrap{overflow:visible}.rpp-no-print,.rpp-med-filtros,.rpp-med-nota{display:none!important}.rpp-med-table{min-width:0!important;font-size:14px!important}.rpp-med-table th,.rpp-med-table td{padding:10px 12px!important}.rpp-med-geral-row td{background:#58111a!important;color:#fff!important;font-weight:900}.rpp-med-geral-row td:first-child{color:#f9c614!important}.rpp-list-report{border:1px solid #d8e8c4;background:#fbfff7;padding:10px}.rpp-list-date{font-size:17px;color:#5c8a2a;font-weight:bold;border-bottom:1px solid #e5eadf;padding:6px}.rpp-list-obs{font-size:13px;margin:8px 0}.rpp-list-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}.rpp-list-col h3{font-size:14px;margin:6px 0}.rpp-list-col.ok h3,.rpp-list-col.ok li{color:#078c49}.rpp-list-col.no h3,.rpp-list-col.no li{color:#c00000}.rpp-list-col ul{list-style:none;padding:0;margin:0}.rpp-list-col li{font-size:12px;line-height:1.35;margin:2px 0}.rpp-list-col li.empty{color:#777}.rpp-legenda-pse{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 18px;margin:0 0 12px;padding:8px 12px;background:#f6f3ea;border:1px solid #ead9a8;border-radius:8px;font-size:13px}.rpp-legenda-pse b{color:#58111a}@page{size:${paisagem?'landscape':'portrait'};margin:8mm}</style></head><body>${area.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${rppEscape(titulo)}</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:12px;color:#111}.rpp-print-title{display:flex!important;align-items:center;justify-content:center;gap:18px;margin-bottom:12px}.rpp-print-title img{width:58px;height:58px;object-fit:contain}.rpp-print-title h2{margin:0;text-align:center;color:#58111a;font-size:22px}.rpp-print-title p{margin:3px 0 0;text-align:center;font-weight:bold}.rpp-table{width:100%;border-collapse:collapse;font-size:11px}.rpp-table th{background:#58111a;color:#f9c614}.rpp-table th,.rpp-table td{border:1px solid #999;padding:5px;text-align:center}.rpp-table th button{border:0;background:transparent;color:inherit;font:inherit;font-weight:bold}.rpp-table td.rpp-nome{text-align:left;font-weight:bold}.rpp-goleiro-row td{background:#e3f1fc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.rpp-desc{text-align:left!important}.rpp-v{color:#009b49;font-weight:900;font-size:15px}.rpp-x{color:#d63031;font-weight:900;font-size:15px}.rpp-muted{color:#999}.rpp-table-wrap{overflow:visible}.rpp-no-print,.rpp-med-filtros,.rpp-med-nota{display:none!important}.rpp-med-table,.rpp-med-table-split{min-width:0!important;font-size:14px!important}.rpp-med-table th,.rpp-med-table td{padding:10px 12px!important}.rpp-med-sub-goleiros,.rpp-med-goleiros{background:#e3f1fc!important}.rpp-med-sub-goleiros{color:#1e3a8a!important}.rpp-med-geral-row td{background:#58111a!important;color:#fff!important;font-weight:900}.rpp-med-geral-row td.rpp-med-goleiros{background:#73313a!important}.rpp-med-geral-row td:first-child{color:#f9c614!important}.rpp-list-report{border:1px solid #d8e8c4;background:#fbfff7;padding:10px}.rpp-list-date{font-size:17px;color:#5c8a2a;font-weight:bold;border-bottom:1px solid #e5eadf;padding:6px}.rpp-list-obs{font-size:13px;margin:8px 0}.rpp-list-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}.rpp-list-col h3{font-size:14px;margin:6px 0}.rpp-list-col.ok h3,.rpp-list-col.ok li{color:#078c49}.rpp-list-col.no h3,.rpp-list-col.no li{color:#c00000}.rpp-list-col ul{list-style:none;padding:0;margin:0}.rpp-list-col li{font-size:12px;line-height:1.35;margin:2px 0}.rpp-list-col li.empty{color:#777}.rpp-legenda-pse{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 18px;margin:0 0 12px;padding:8px 12px;background:#f6f3ea;border:1px solid #ead9a8;border-radius:8px;font-size:13px}.rpp-legenda-pse b{color:#58111a}@page{size:${paisagem?'landscape':'portrait'};margin:8mm}</style></head><body>${area.outerHTML}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);
  w.document.close();
 }
 
@@ -10905,10 +11174,33 @@ function anoControlePesoAtleta(id){
  const m=String(id?.nascimento||'').match(/(\d{4})$/);
  return m?m[1]:'';
 }
+function formatarAlturaControlePeso(valor){
+ const texto=String(valor??'').trim().replace(/\s*m$/i,'').trim().replace(',','.');
+ const numero=Number(texto);
+ if(!Number.isFinite(numero)||numero<=0)return '';
+ return `${numero.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} m`;
+}
+function ultimaAlturaAvaliacaoPeso(row){
+ let maiorAvaliacao=-1,altura='';
+ Object.entries(row||{}).forEach(([chave,valor])=>{
+  const m=String(chave).toLowerCase().match(/^altura_?(\d+)$/);
+  const numeroAvaliacao=m?Number(m[1]):-1;
+  if(numeroAvaliacao>maiorAvaliacao&&formatarAlturaControlePeso(valor)){maiorAvaliacao=numeroAvaliacao;altura=valor;}
+ });
+ if(altura)return altura;
+ const direta=valorColunaExata(row||{},'Altura');
+ return formatarAlturaControlePeso(direta)?direta:'';
+}
+function alturaAtualControlePeso(id){
+ const index=localizarAtletaPeso(id);
+ if(index<0)return '';
+ return formatarAlturaControlePeso(ultimaAlturaAvaliacaoPeso(excelData[index]||{}));
+}
 function nomeControlePesoLinha(id){
  const nome=id?.apelido||id?.nomeCompleto||'Atleta';
  const ano=anoControlePesoAtleta(id);
- return ano?`${nome} - ${ano}`:nome;
+ const altura=alturaAtualControlePeso(id)||'Altura não informada';
+ return [nome,ano,altura].filter(Boolean).join(' - ');
 }
 function ehDataPesoKey(k){return k && String(k)!==CONTROLE_PESO_IDEAL_KEY && !String(k).startsWith('__');}
 function datasControlePesoOrdenadas(datas){
