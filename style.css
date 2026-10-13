@@ -5345,3 +5345,74 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
 .rpp-med-table-split thead tr:nth-child(2) th.rpp-med-sub-goleiros{background:rgba(59,130,246,.18)!important;color:#1e3a8a!important;}
 .rpp-med-table-split td.rpp-med-goleiros{background:rgba(59,130,246,.13)!important;}
 .rpp-med-table-split tr.rpp-med-geral-row td.rpp-med-goleiros{background:#73313a!important;}
+
+
+/* ===== CONVOCAÇÃO MANUAL — interface e campo independentes ===== */
+.manual-convocacao-overlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(12,18,28,.72);}
+.manual-convocacao-card{box-sizing:border-box;display:flex;flex-direction:column;width:min(940px,96vw);max-height:92vh;max-height:92dvh;overflow:hidden;background:#fff;border:1px solid #d9e0ea;border-radius:12px;box-shadow:0 15px 45px #0008;color:#253142;}
+.manual-convocacao-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:17px 20px;background:#58111a;color:#f9c614;}
+.manual-convocacao-header h2{margin:0;font-size:20px;font-weight:800;letter-spacing:.3px;}
+.manual-convocacao-header p{margin:5px 0 0;color:#fff;font-size:12px;line-height:1.45;}
+.manual-convocacao-close{flex:0 0 auto;width:36px;height:36px;padding:0;border:0;border-radius:7px;background:rgba(255,255,255,.12);color:#fff;font-size:28px;line-height:1;cursor:pointer;}
+.manual-convocacao-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid #e2e6eb;background:#f7f8fa;}
+.manual-convocacao-toolbar button,.manual-convocacao-add-row button{min-height:38px;padding:8px 12px;border:1px solid #cbd2da;border-radius:7px;background:#fff;color:#58111a;font-size:12px;font-weight:800;cursor:pointer;}
+.manual-convocacao-toolbar button:hover,.manual-convocacao-add-row button:hover{background:#fff8e6;}
+.manual-convocacao-toolbar .manual-convocacao-delete{border-color:#e2baba;color:#a52424;}
+.manual-convocacao-toolbar .manual-convocacao-clear{border-color:#d8c994;color:#6d5612;}
+.manual-convocacao-saved-label{margin-left:auto;color:#647084;font-size:11px;font-weight:700;overflow-wrap:anywhere;}
+.manual-convocacao-table-head,.manual-convocacao-row{display:grid;grid-template-columns:minmax(0,1fr) 160px 42px;align-items:center;gap:10px;}
+.manual-convocacao-table-head{padding:8px 18px 5px;color:#667085;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;}
+.manual-convocacao-table-head span:nth-child(2){text-align:center;}
+.manual-convocacao-list{min-height:80px;max-height:54vh;max-height:54dvh;overflow:auto;padding:0 14px 6px;}
+.manual-convocacao-row{padding:8px 4px;border-bottom:1px solid #edf0f3;}
+.manual-convocacao-row:nth-child(even){background:#f8fafc;}
+.manual-convocacao-row label{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.manual-convocacao-mobile-label{display:none;color:#667085;font-size:10px;font-weight:800;text-transform:uppercase;}
+.manual-convocacao-name,.manual-convocacao-number{box-sizing:border-box;width:100%;min-height:40px;padding:8px 10px;border:1px solid #c7ced8;border-radius:7px;background:#fff;color:#202939;font:inherit;font-size:13px;}
+.manual-convocacao-number{text-align:center;font-weight:800;}
+.manual-convocacao-name:focus,.manual-convocacao-number:focus{outline:2px solid rgba(9,132,227,.25);border-color:#0984e3;}
+.manual-convocacao-remove{width:34px;height:34px;padding:0;border:1px solid #edc5c5;border-radius:7px;background:#fff5f5;color:#a52424;font-size:22px;line-height:1;cursor:pointer;}
+.manual-convocacao-empty{padding:24px 10px;text-align:center;color:#697586;font-size:13px;}
+.manual-convocacao-add-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 18px 12px;color:#566174;font-size:12px;}
+.manual-convocacao-add-row button{border-color:#cbd9e8;color:#17609b;}
+.manual-convocacao-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 18px;border-top:1px solid #dfe4e9;background:#f5f7f9;color:#596579;font-size:11px;}
+.manual-convocacao-footer .manual-convocacao-confirm{min-height:42px;padding:10px 19px;border:0;border-radius:7px;background:#20a65a;color:#fff;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 2px 5px #0002;}
+.manual-convocacao-picker-card{width:min(500px,92vw);}
+#manual-convocacao-salvar-modal,#manual-convocacao-carregar-modal,#manual-convocacao-excluir-modal{z-index:15050!important;}
+#campo-convocacao-manual-modal .campo-acoes{position:fixed!important;right:18px!important;left:auto!important;bottom:18px!important;transform:none!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;z-index:16000!important;background:rgba(0,0,0,.55);padding:8px;border-radius:8px;gap:6px;}
+#campo-convocacao-manual-modal .campo-acoes button{display:block!important;width:170px!important;min-height:32px!important;background:#0984e3!important;color:#fff!important;border:1px solid rgba(255,255,255,.6)!important;border-radius:3px!important;font-size:12px!important;font-weight:bold!important;opacity:1!important;visibility:visible!important;}
+#campo-convocacao-manual-modal .campo-acoes button:nth-child(2){background:#20a65a!important;}
+#campo-convocacao-manual-modal .campo-acoes button:nth-child(3){background:#8e44ad!important;}
+#campo-convocacao-manual-modal .campo-acoes button:nth-child(4){background:#e67e22!important;}
+#campo-convocacao-manual-modal .campo-acoes button:nth-child(5){background:#34495e!important;}
+#campo-convocacao-manual-modal .campo-acoes .campo-fechar{position:fixed!important;right:18px!important;top:18px!important;width:auto!important;min-height:0!important;background:transparent!important;border:0!important;color:#fff!important;font-size:26px!important;z-index:16001!important;}
+@media screen and (min-width:701px){
+ #campo-convocacao-manual-modal .campo-futebol .jogador-campo,#campo-convocacao-manual-modal .campo-futebol .jogador-campo span{font-size:12.31px!important;font-weight:bold!important;}
+ #campo-convocacao-manual-modal .campo-futebol .jogador-campo img{width:42.75px!important;}
+}
+@media screen and (max-width:700px){
+ #campo-convocacao-manual-modal .campo-acoes{right:10px!important;bottom:10px!important;transform:scale(.86);transform-origin:right bottom;}
+ #campo-convocacao-manual-modal .campo-acoes button{width:150px!important;min-height:30px!important;font-size:11px!important;}
+ #campo-convocacao-manual-modal .campo-futebol .jogador-campo,#campo-convocacao-manual-modal .campo-futebol .jogador-campo span{font-size:9.6px!important;font-weight:bold!important;}
+ #campo-convocacao-manual-modal .campo-futebol .jogador-campo img{width:38px!important;}
+ .manual-convocacao-card{width:98vw;max-height:94vh;max-height:94dvh;border-radius:9px;}
+ .manual-convocacao-header{padding:12px 13px;gap:8px;}
+ .manual-convocacao-header h2{font-size:16px;}
+ .manual-convocacao-header p{font-size:11px;}
+ .manual-convocacao-toolbar{gap:6px;padding:9px;}
+ .manual-convocacao-toolbar button{min-height:36px;padding:7px 9px;font-size:11px;}
+ .manual-convocacao-saved-label{flex:1 0 100%;margin-left:0;}
+ .manual-convocacao-table-head{display:none;}
+ .manual-convocacao-row{grid-template-columns:minmax(0,1fr) 76px 34px;gap:6px;padding:8px 2px;}
+ .manual-convocacao-mobile-label{display:block;}
+ .manual-convocacao-name,.manual-convocacao-number{min-height:39px;padding:7px;font-size:12px;}
+ .manual-convocacao-add-row{padding:7px 10px 10px;}
+ .manual-convocacao-footer{align-items:stretch;flex-direction:column;padding:10px;}
+ .manual-convocacao-footer .manual-convocacao-confirm{width:100%;}
+}
+@media(max-width:380px){
+ .manual-convocacao-toolbar button{font-size:10px;padding:6px 7px;}
+ .manual-convocacao-row{grid-template-columns:minmax(0,1fr) 66px 32px;gap:4px;}
+ .manual-convocacao-number{padding:5px;}
+}
+@media print{#campo-convocacao-manual-modal .campo-acoes{display:none!important;}}

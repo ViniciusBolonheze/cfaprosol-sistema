@@ -11897,6 +11897,7 @@ function modernV3EnsureMenu(){
   <button class="modern-v3-group-title" onclick="modernV3ToggleGroup('mv3-campo')"><span>Campo e Jogos</span><b>▾</b></button>
   <div class="modern-v3-group" id="mv3-campo">
    <button class="nav-btn" onclick="modernV3Navigate('convocacao',event)"><span class="mv3-ico">📋</span><span>Convocação</span></button>
+   <button class="nav-btn" onclick="modernV3Navigate('convocacao-manual',event)"><span class="mv3-ico">✍️</span><span>Convocação Manual</span></button>
    <button class="nav-btn" onclick="modernV3Navigate('jogos',event)"><span class="mv3-ico">⚽</span><span>Jogos</span></button>
    <button class="nav-btn" onclick="modernV3Navigate('prancheta',event)"><span class="mv3-ico">📐</span><span>Prancheta Virtual</span></button>
    
@@ -11956,9 +11957,10 @@ function modernV3Navigate(screenId,event){
  if(typeof limparSelecaoAtletaCadastro==='function') limparSelecaoAtletaCadastro(false); else esconderTooltipAtletaCadastro();
  document.body.classList.add('app-v3-mode');modernV3EnsureMenu();modernV3SetActive(event&&event.currentTarget);
  // Módulos em modal: mantém a tela inicial ativa por trás e evita tela vazia ao fechar/cancelar.
- if(['convocacao','jogos','prancheta','relatorios'].includes(screenId)){
+ if(['convocacao','convocacao-manual','jogos','prancheta','relatorios'].includes(screenId)){
   modernV3PrepareHome();
   if(screenId==='convocacao') openConvocacaoModal();
+  else if(screenId==='convocacao-manual') manualConvocacaoAbrir();
   else if(screenId==='jogos') openJogosProfessorModal();
   else if(screenId==='prancheta') openPranchetaModal();
   else if(screenId==='relatorios') openRelatoriosMenuModal();
@@ -12460,7 +12462,7 @@ function modernV3BuildHome(){
 }
 
 function modernV3AnyModalOpen(){
- const selectors=['#ae-modal','.escalacao-overlay','.relatorios-menu-overlay','.trabalho-diario-overlay','.trabalho-atletas-overlay','.relatorio-visualizacao-overlay','.rpp-overlay','.rpp-extra-overlay','.vba-modal-overlay','#convocacao-modal','#prancheta-modal','#jogos-professor-modal','#relatorios-modal','#trabalho-diario-modal','#planejamento-semanal-modal','#fotos-atletas-modal'];
+ const selectors=['#ae-modal','.escalacao-overlay','.relatorios-menu-overlay','.trabalho-diario-overlay','.trabalho-atletas-overlay','.relatorio-visualizacao-overlay','.rpp-overlay','.rpp-extra-overlay','.vba-modal-overlay','#convocacao-modal','#convocacao-manual-modal','#campo-convocacao-manual-modal','#prancheta-modal','#jogos-professor-modal','#relatorios-modal','#trabalho-diario-modal','#planejamento-semanal-modal','#fotos-atletas-modal'];
  return selectors.some(sel=>Array.from(document.querySelectorAll(sel)).some(el=>{
   const st=getComputedStyle(el);
   return st.display!=='none' && st.visibility!=='hidden' && st.opacity!=='0';
@@ -12474,7 +12476,7 @@ function modernV3RestoreSidebarIfHomeFree(){
 document.addEventListener('click',modernV3RestoreSidebarIfHomeFree,true);
 
 function modernV3FecharModaisAbertos(){
- const ids=['ae-modal','jogos-professor-modal','prancheta-modal','convocacao-modal','relatorios-modal','relatorios-menu-modal','trabalho-diario-modal','planejamento-semanal-modal','fotos-atletas-modal','detalhes-jogo-salvo-modal','novo-jogo-modal','atletas-ativos-jogos-modal','carregar-jogo-salvo-modal','campo-convocacao-modal','add-athlete-modal','modal-anotacoes','fichaModal','controle-peso-modal','relatorio-psrpse-modal','relatorio-visualizacao-modal'];
+ const ids=['ae-modal','jogos-professor-modal','prancheta-modal','convocacao-modal','convocacao-manual-modal','escalacao-convocacao-manual-modal','campo-convocacao-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal','relatorios-modal','relatorios-menu-modal','trabalho-diario-modal','planejamento-semanal-modal','fotos-atletas-modal','detalhes-jogo-salvo-modal','novo-jogo-modal','atletas-ativos-jogos-modal','carregar-jogo-salvo-modal','add-athlete-modal','modal-anotacoes','fichaModal','controle-peso-modal','relatorio-psrpse-modal','relatorio-visualizacao-modal'];
  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
  document.querySelectorAll('.escalacao-overlay,.vba-modal-overlay,.mini-prancheta-overlay,.fotos-overlay').forEach(el=>{el.style.display='none';});
 }
@@ -12661,4 +12663,404 @@ function avdRelSetTipo(tipo){
  avdRelState.tipo=tipo;
  if(avdRelState.cat)return carregarAvdRelatorio();
  renderAvdRelatorio();
+}
+
+/* === CONVOCAÇÃO MANUAL — fluxo independente da convocação original ===
+   Estado local e tabela Supabase exclusivos; não usa selectedConvocados,
+   STORAGE_CONVOCACAO_KEY, prosol_cfa_escalacao_v1 ou a tabela convocacoes. */
+const MANUAL_CONVOCACAO_STORAGE_KEY = 'prosol_cfa_convocacao_manual_draft_v1';
+const MANUAL_CONVOCACAO_TABLE = 'convocacoes_manuais';
+let manualConvocacaoState = null;
+let manualConvocacaoIdCounter = 0;
+
+function manualConvocacaoNovoId(){
+ manualConvocacaoIdCounter += 1;
+ return 'mc_' + Date.now().toString(36) + '_' + manualConvocacaoIdCounter.toString(36) + '_' + Math.random().toString(36).slice(2,7);
+}
+function manualConvocacaoEscapar(valor){
+ return String(valor ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function manualConvocacaoCoord(valor){
+ const n=parseFloat(String(valor ?? '').replace('%',''));
+ return Number.isFinite(n) && n>=2 && n<=98 ? n+'%' : '';
+}
+function manualConvocacaoNormalizarEstado(raw){
+ const src=raw && typeof raw==='object' ? raw : {};
+ const seen=new Set();
+ const atletas=(Array.isArray(src.atletas)?src.atletas:[]).map(a=>{
+  const item=a && typeof a==='object'?a:{};
+  let id=String(item.id||manualConvocacaoNovoId());
+  if(seen.has(id)) id=manualConvocacaoNovoId();
+  seen.add(id);
+  return {
+   id,
+   nome:String(item.nome ?? item.name ?? '').trim().slice(0,120),
+   numero:String(item.numero ?? item.number ?? '').trim().slice(0,3),
+   status:item.status==='titular'?'titular':'reserva',
+   left:manualConvocacaoCoord(item.left),
+   top:manualConvocacaoCoord(item.top)
+  };
+ });
+ const j=src.jogo && typeof src.jogo==='object' ? src.jogo : {};
+ const c=Array.isArray(src.comissao)?src.comissao:[];
+ return {
+  salvoComo:String(src.salvoComo ?? src.nome ?? '').trim(),
+  atletas,
+  jogo:{
+   horario:String(j.horario||''), local:String(j.local||''), data:String(j.data||''),
+   adversario:String(j.adversario||''), apresentacao:String(j.apresentacao||''),
+   prelecao:String(j.prelecao||''), aquecimento:String(j.aquecimento||'')
+  },
+  comissao:[0,1,2,3].map(i=>String(c[i]||''))
+ };
+}
+function manualConvocacaoEstadoInicial(){
+ return manualConvocacaoNormalizarEstado({atletas:[{id:manualConvocacaoNovoId(),nome:'',numero:'',status:'reserva'}]});
+}
+function manualConvocacaoObterEstado(){
+ if(manualConvocacaoState)return manualConvocacaoState;
+ try{
+  const salvo=JSON.parse(localStorage.getItem(MANUAL_CONVOCACAO_STORAGE_KEY)||'null');
+  if(salvo && typeof salvo==='object'){
+   manualConvocacaoState=manualConvocacaoNormalizarEstado(salvo);
+   return manualConvocacaoState;
+  }
+ }catch(e){console.warn('Rascunho da convocação manual não pôde ser lido:',e);}
+ manualConvocacaoState=manualConvocacaoEstadoInicial();
+ return manualConvocacaoState;
+}
+function manualConvocacaoSalvarRascunho(){
+ if(!manualConvocacaoState)return;
+ try{localStorage.setItem(MANUAL_CONVOCACAO_STORAGE_KEY,JSON.stringify(manualConvocacaoState));}
+ catch(e){console.warn('Rascunho da convocação manual não pôde ser salvo:',e);}
+}
+function manualConvocacaoAbrir(){
+ manualConvocacaoObterEstado();
+ let modal=document.getElementById('convocacao-manual-modal');
+ if(!modal){
+  modal=document.createElement('div');
+  modal.id='convocacao-manual-modal';
+  modal.className='manual-convocacao-overlay';
+  modal.setAttribute('role','dialog');
+  modal.setAttribute('aria-modal','true');
+  modal.setAttribute('aria-label','Convocação Manual');
+  modal.addEventListener('click',e=>{if(e.target===modal)manualConvocacaoFechar();});
+  document.body.appendChild(modal);
+ }
+ manualConvocacaoRenderizarLista();
+ modal.style.display='flex';
+}
+function manualConvocacaoFechar(){
+ manualConvocacaoCapturarCampo();
+ ['convocacao-manual-modal','escalacao-convocacao-manual-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+}
+function manualConvocacaoRenderizarLista(){
+ const modal=document.getElementById('convocacao-manual-modal');
+ if(!modal)return;
+ const st=manualConvocacaoObterEstado();
+ const rows=st.atletas.map((a,i)=>`<div class="manual-convocacao-row" data-manual-row="${manualConvocacaoEscapar(a.id)}">
+  <label class="manual-convocacao-name-label"><span class="manual-convocacao-mobile-label">Nome do atleta</span><input class="manual-convocacao-name" type="text" maxlength="120" autocomplete="off" placeholder="Nome completo do atleta" aria-label="Nome do atleta ${i+1}" data-manual-id="${manualConvocacaoEscapar(a.id)}" value="${manualConvocacaoEscapar(a.nome)}"></label>
+  <label class="manual-convocacao-number-label"><span class="manual-convocacao-mobile-label">Nº da camiseta</span><input class="manual-convocacao-number" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="#" aria-label="Número da camiseta do atleta ${i+1}" data-manual-id="${manualConvocacaoEscapar(a.id)}" value="${manualConvocacaoEscapar(a.numero)}"></label>
+  <button type="button" class="manual-convocacao-remove" data-manual-remove="${manualConvocacaoEscapar(a.id)}" aria-label="Remover atleta ${i+1}" title="Remover atleta">×</button>
+ </div>`).join('');
+ const total=st.atletas.filter(a=>a.nome.trim()||a.numero.trim()).length;
+ modal.innerHTML=`<div class="manual-convocacao-card">
+  <header class="manual-convocacao-header"><div><h2>CONVOCAÇÃO MANUAL</h2><p>Digite o nome e o número da camiseta de cada atleta. A lista é independente da convocação normal.</p></div><button type="button" class="manual-convocacao-close" aria-label="Fechar" onclick="manualConvocacaoFechar()">×</button></header>
+  <div class="manual-convocacao-toolbar"><button type="button" onclick="manualConvocacaoAbrirCarregar()">📂 Carregar</button><button type="button" class="manual-convocacao-delete" onclick="manualConvocacaoAbrirExcluir()">🗑 Excluir Convocação</button><button type="button" class="manual-convocacao-clear" onclick="manualConvocacaoLimpar()">Limpar Convocação</button><span class="manual-convocacao-saved-label">${st.salvoComo?'Salva como: '+manualConvocacaoEscapar(st.salvoComo):'Rascunho manual'}</span></div>
+  <div class="manual-convocacao-table-head"><span>Nome do atleta</span><span>Nº da camiseta</span><span></span></div>
+  <div class="manual-convocacao-list" id="manual-convocacao-list">${rows||'<div class="manual-convocacao-empty">Nenhum atleta informado. Use “Adicionar atleta” para começar.</div>'}</div>
+  <div class="manual-convocacao-add-row"><button type="button" onclick="manualConvocacaoAdicionarAtleta()">＋ Adicionar atleta</button><span>Atletas preenchidos: <b id="manual-convocacao-count">${total}</b></span></div>
+  <footer class="manual-convocacao-footer"><span>Confira nomes e números antes de confirmar.</span><button type="button" class="manual-convocacao-confirm" onclick="manualConvocacaoConfirmar()">Confirmar Convocação</button></footer>
+ </div>`;
+ modal.querySelectorAll('.manual-convocacao-name').forEach(input=>input.addEventListener('input',()=>manualConvocacaoAtualizarCampoLista(input.dataset.manualId,'nome',input.value)));
+ modal.querySelectorAll('.manual-convocacao-number').forEach(input=>input.addEventListener('input',()=>manualConvocacaoAtualizarCampoLista(input.dataset.manualId,'numero',input.value)));
+ modal.querySelectorAll('[data-manual-remove]').forEach(btn=>btn.addEventListener('click',()=>manualConvocacaoRemoverAtleta(btn.dataset.manualRemove)));
+}
+function manualConvocacaoAtualizarCampoLista(id,campo,valor){
+ const st=manualConvocacaoObterEstado();
+ const atleta=st.atletas.find(a=>a.id===id);
+ if(!atleta || !['nome','numero'].includes(campo))return;
+ atleta[campo]=String(valor||'').trimStart();
+ manualConvocacaoSalvarRascunho();
+ const count=document.getElementById('manual-convocacao-count');
+ if(count)count.textContent=String(st.atletas.filter(a=>a.nome.trim()||a.numero.trim()).length);
+}
+function manualConvocacaoAdicionarAtleta(){
+ const st=manualConvocacaoObterEstado();
+ const atleta={id:manualConvocacaoNovoId(),nome:'',numero:'',status:'reserva',left:'',top:''};
+ st.atletas.push(atleta);manualConvocacaoSalvarRascunho();manualConvocacaoRenderizarLista();
+ const inputs=document.querySelectorAll('#convocacao-manual-modal .manual-convocacao-name');
+ inputs[inputs.length-1]?.focus();
+}
+function manualConvocacaoRemoverAtleta(id){
+ const st=manualConvocacaoObterEstado();
+ st.atletas=st.atletas.filter(a=>a.id!==id);
+ manualConvocacaoSalvarRascunho();manualConvocacaoRenderizarLista();
+}
+function manualConvocacaoLimpar(){
+ if(!confirm('Limpar todos os nomes e números desta convocação manual? As convocações salvas não serão excluídas.'))return;
+ manualConvocacaoState=manualConvocacaoEstadoInicial();
+ manualConvocacaoSalvarRascunho();manualConvocacaoRenderizarLista();
+}
+function manualConvocacaoConfirmar(){
+ const st=manualConvocacaoObterEstado();
+ const informados=st.atletas.filter(a=>a.nome.trim()||a.numero.trim());
+ if(!informados.length){alert('Digite pelo menos um nome e número de camiseta.');return;}
+ const incompleto=informados.find(a=>!a.nome.trim()||!a.numero.trim());
+ if(incompleto){alert('Preencha o nome e o número da camiseta de cada atleta informado.');return;}
+ const invalido=informados.find(a=>!/^\d{1,2}$/.test(a.numero)||Number(a.numero)<1||Number(a.numero)>99);
+ if(invalido){alert('O número da camiseta deve estar entre 1 e 99.');return;}
+ st.atletas=informados.map(a=>({...a,nome:a.nome.trim(),numero:String(Number(a.numero)),status:a.status==='titular'?'titular':'reserva'}));
+ manualConvocacaoSalvarRascunho();
+ manualConvocacaoAbrirEscalacao();
+}
+function manualConvocacaoAbrirEscalacao(){
+ const st=manualConvocacaoObterEstado();
+ let modal=document.getElementById('escalacao-convocacao-manual-modal');
+ if(!modal){modal=document.createElement('div');modal.id='escalacao-convocacao-manual-modal';modal.className='escalacao-overlay';document.body.appendChild(modal);}
+ const rows=st.atletas.map((a,i)=>`<div class="escalacao-row posicao-99" data-manual-id="${manualConvocacaoEscapar(a.id)}"><span class="escalacao-name">${manualConvocacaoEscapar(a.nome)}</span><input class="escalacao-numero" data-manual-number="${manualConvocacaoEscapar(a.id)}" value="${manualConvocacaoEscapar(a.numero)}" placeholder="#" type="number" min="1" max="99"><label><input type="radio" name="manual-status-${manualConvocacaoEscapar(a.id)}" value="titular" ${a.status==='titular'?'checked':''}> Titular</label><label><input type="radio" name="manual-status-${manualConvocacaoEscapar(a.id)}" value="reserva" ${a.status!=='titular'?'checked':''}> Reserva</label></div>`).join('');
+ modal.innerHTML=`<div class="escalacao-card"><div class="escalacao-header"><span>ESCALAÇÃO DA CONVOCAÇÃO MANUAL</span><button type="button" aria-label="Fechar" onclick="manualConvocacaoFecharEscalacao()">×</button></div><p class="escalacao-help">Defina o número da camiseta e indique quem será titular ou reserva. A numeração também posiciona os titulares no campo.</p><div class="escalacao-list">${rows}</div><div class="escalacao-footer"><span id="manual-escalacao-status"></span><button type="button" class="escalacao-field" onclick="manualConvocacaoConfirmarEabrirCampo()">Confirmar e abrir campo</button></div></div>`;
+ modal.style.display='flex';
+ modal.querySelectorAll('input[type="radio"]').forEach(r=>r.addEventListener('change',manualConvocacaoAtualizarStatusEscalacao));
+ modal.querySelectorAll('.escalacao-numero').forEach(n=>n.addEventListener('input',()=>manualConvocacaoSalvarEscalacao(false)));
+ manualConvocacaoAtualizarStatusEscalacao();
+}
+function manualConvocacaoAtualizarStatusEscalacao(){
+ const modal=document.getElementById('escalacao-convocacao-manual-modal');
+ const label=document.getElementById('manual-escalacao-status');
+ if(!modal||!label)return;
+ const rows=[...modal.querySelectorAll('.escalacao-row')];
+ const titulares=rows.filter(r=>r.querySelector('input[type="radio"]:checked')?.value==='titular').length;
+ label.textContent=`Titulares: ${titulares} | Reservas: ${rows.length-titulares}`;
+ manualConvocacaoSalvarEscalacao(false);
+}
+function manualConvocacaoSalvarEscalacao(avisar=false){
+ const modal=document.getElementById('escalacao-convocacao-manual-modal');
+ const st=manualConvocacaoObterEstado();
+ if(!modal)return;
+ modal.querySelectorAll('.escalacao-row').forEach(row=>{
+  const id=row.dataset.manualId;
+  const atleta=st.atletas.find(a=>a.id===id);
+  if(!atleta)return;
+  const num=row.querySelector('.escalacao-numero');
+  const status=row.querySelector('input[type="radio"]:checked');
+  if(num)atleta.numero=String(num.value||'').trim();
+  atleta.status=status?.value==='titular'?'titular':'reserva';
+ });
+ manualConvocacaoSalvarRascunho();
+ if(avisar)alert('Escalação manual salva neste dispositivo.');
+}
+function manualConvocacaoFecharEscalacao(){
+ manualConvocacaoSalvarEscalacao(false);
+ const modal=document.getElementById('escalacao-convocacao-manual-modal');if(modal)modal.style.display='none';
+}
+function manualConvocacaoConfirmarEabrirCampo(){
+ manualConvocacaoSalvarEscalacao(false);
+ const st=manualConvocacaoObterEstado();
+ const invalido=st.atletas.find(a=>!/^\d{1,2}$/.test(a.numero)||Number(a.numero)<1||Number(a.numero)>99);
+ if(invalido){alert('Confira os números das camisetas: use valores entre 1 e 99.');return;}
+ manualConvocacaoAbrirCampo();
+}
+function manualConvocacaoAbrirCampo(){
+ const st=manualConvocacaoObterEstado();
+ manualConvocacaoCapturarCampo();
+ let modal=document.getElementById('campo-convocacao-manual-modal');
+ if(!modal){modal=document.createElement('div');modal.id='campo-convocacao-manual-modal';modal.className='campo-overlay';document.body.appendChild(modal);}
+ const titulares=st.atletas.filter(a=>a.status==='titular');
+ const reservas=st.atletas.filter(a=>a.status!=='titular').sort((a,b)=>(Number(a.numero)||999)-(Number(b.numero)||999));
+ const titularMarkup=titulares.map((a,i)=>{
+  const base=typeof posicaoInicialCampo==='function'?posicaoInicialCampo(a.numero,i):[50,50];
+  const left=manualConvocacaoCoord(a.left)||base[0]+'%';
+  const top=manualConvocacaoCoord(a.top)||base[1]+'%';
+  const camisa=Number(a.numero)===1?'camiseta_goleiro.png':'camiseta_linha.png';
+  return `<div class="jogador-campo" data-manual-player="${manualConvocacaoEscapar(a.id)}" style="left:${left};top:${top}" aria-label="${manualConvocacaoEscapar(a.numero+' '+a.nome)}"><img src="${camisa}" alt=""><span>${manualConvocacaoEscapar(a.numero)} ${manualConvocacaoEscapar(a.nome)}</span></div>`;
+ }).join('');
+ const reservaMarkup=reservas.map(a=>`<div class="reserva-item"><span>${manualConvocacaoEscapar(a.numero)} - ${manualConvocacaoEscapar(a.nome)}</span><span class="reserva-data"></span></div>`).join('');
+ const comissaoLabels=['Técnico:','Aux. Técnico:','Prep. Físico:','Trein. Goleiros:'];
+ const comissaoMarkup=comissaoLabels.map((label,i)=>`<label class="comissao-label">${label}<input class="campo-edit" data-manual-commission="${i}" placeholder="" value="${manualConvocacaoEscapar(st.comissao[i]||'')}"></label>`).join('');
+ const jogo=st.jogo;
+ modal.innerHTML=`<div class="campo-card"><div class="campo-top"><b>CONVOCAÇÃO MANUAL — ESCALAÇÃO</b><div class="campo-acoes"><button type="button" onclick="manualConvocacaoAbrirSalvar()">💾 Salvar Convocação</button><button type="button" onclick="manualConvocacaoImprimirCampo()">🖨 Imprimir</button><button type="button" onclick="manualConvocacaoAbrirMinutagem()">⏱ Minutagem</button><button type="button" onclick="manualConvocacaoAbrirArbitragem()">⚖ Arbitragem</button><button type="button" class="campo-fechar" aria-label="Fechar campo" onclick="manualConvocacaoFecharCampo()">×</button></div></div><div class="campo-layout"><aside><h3>SUPLENTES</h3><div class="campo-reservas">${reservaMarkup}</div><h3>COMISSÃO TÉCNICA</h3>${comissaoMarkup}</aside><main><div class="campo-futebol"><div class="linha-meio"></div><div class="circulo-meio"></div>${titularMarkup}</div><div class="campo-detalhes"><div class="campo-faixa"><input data-manual-game="horario" placeholder="Horário" value="${manualConvocacaoEscapar(jogo.horario)}"><span> - </span><input data-manual-game="local" placeholder="Local" value="${manualConvocacaoEscapar(jogo.local)}"><span> - </span><input data-manual-game="data" placeholder="Data" value="${manualConvocacaoEscapar(jogo.data)}"></div><div class="campo-info-jogo"><div class="campo-adversario"><img src="logo.png" alt="CFA Prosol"><b>×</b><input data-manual-game="adversario" placeholder="Nome do adversário" value="${manualConvocacaoEscapar(jogo.adversario)}"></div><div class="campo-horarios"><label>Apresentação: <input data-manual-game="apresentacao" placeholder="" value="${manualConvocacaoEscapar(jogo.apresentacao)}"></label><label>Preleção: <input data-manual-game="prelecao" placeholder="" value="${manualConvocacaoEscapar(jogo.prelecao)}"></label><label>Aquecimento: <input data-manual-game="aquecimento" placeholder="" value="${manualConvocacaoEscapar(jogo.aquecimento)}"></label></div></div></div></main></div></div>`;
+ modal.style.display='flex';
+ modal.querySelectorAll('.jogador-campo').forEach(el=>{
+  if(typeof makeCampoDraggable==='function')makeCampoDraggable(el);
+  el.addEventListener('pointerup',manualConvocacaoCapturarCampo);
+  el.addEventListener('pointercancel',manualConvocacaoCapturarCampo);
+ });
+ modal.querySelectorAll('[data-manual-game],[data-manual-commission]').forEach(el=>el.addEventListener('input',manualConvocacaoCapturarCampo));
+ manualConvocacaoSalvarRascunho();
+}
+function manualConvocacaoCapturarCampo(){
+ const modal=document.getElementById('campo-convocacao-manual-modal');
+ const card=modal?.querySelector('.campo-card');
+ const st=manualConvocacaoState;
+ if(!card||!st)return;
+ const game={};
+ card.querySelectorAll('[data-manual-game]').forEach(el=>{game[el.dataset.manualGame]=el.value;});
+ st.jogo={
+  horario:game.horario||'',local:game.local||'',data:game.data||'',adversario:game.adversario||'',
+  apresentacao:game.apresentacao||'',prelecao:game.prelecao||'',aquecimento:game.aquecimento||''
+ };
+ card.querySelectorAll('[data-manual-commission]').forEach(el=>{const i=Number(el.dataset.manualCommission);if(i>=0&&i<4)st.comissao[i]=el.value;});
+ card.querySelectorAll('.jogador-campo[data-manual-player]').forEach(el=>{
+  const atleta=st.atletas.find(a=>a.id===el.dataset.manualPlayer);
+  if(atleta){atleta.left=manualConvocacaoCoord(el.style.left);atleta.top=manualConvocacaoCoord(el.style.top);}
+ });
+ manualConvocacaoSalvarRascunho();
+}
+function manualConvocacaoFecharCampo(){
+ manualConvocacaoCapturarCampo();
+ const modal=document.getElementById('campo-convocacao-manual-modal');if(modal)modal.style.display='none';
+}
+function manualConvocacaoImprimirCampo(){
+ const modal=document.getElementById('campo-convocacao-manual-modal');
+ const card=modal?.querySelector('.campo-card');
+ if(!modal||!card)return;
+ manualConvocacaoCapturarCampo();
+ if(typeof prosolIsMobile==='function'&&prosolIsMobile()&&typeof prosolCompartilharOuSalvarPDF==='function'){
+  prosolCompartilharOuSalvarPDF(card,'convocacao_manual_cfa_prosol','landscape','convocacao-campo','Convocação Manual CFA Prosol');
+  return;
+ }
+ const layout=document.createElement('div');layout.id='print-convocacao-layout';
+ layout.innerHTML='<img class="print-base" src="BASE limpa .png"><div class="print-title">CONVOCAÇÃO MANUAL — ESCALAÇÃO</div><div class="print-side"></div><div class="print-bottom"></div><div class="print-players"></div>';
+ const side=layout.querySelector('.print-side');
+ const aside=card.querySelector('aside');
+ if(aside){
+  side.innerHTML=aside.innerHTML;
+  const origem=[...aside.querySelectorAll('input')],destino=[...side.querySelectorAll('input')];
+  origem.forEach((x,i)=>{if(destino[i])destino[i].value=x.value;});
+ }
+ const bottom=layout.querySelector('.print-bottom');
+ const details=card.querySelector('.campo-detalhes');
+ if(details){
+  bottom.innerHTML=details.innerHTML;
+  const origem=[...details.querySelectorAll('input')],destino=[...bottom.querySelectorAll('input')];
+  origem.forEach((x,i)=>{if(destino[i])destino[i].value=x.value;});
+ }
+ const campo=card.querySelector('.campo-futebol');
+ if(!campo)return;
+ const rc=campo.getBoundingClientRect(),rCard=card.getBoundingClientRect();
+ card.querySelectorAll('.jogador-campo').forEach(p=>{
+  const q=p.cloneNode(true),r=p.getBoundingClientRect();
+  q.style.left=(((r.left+r.width/2-rCard.left)/rCard.width)*100)+'%';
+  q.style.top=(((r.top+r.height/2-rCard.top)/rCard.height)*100)+'%';
+  layout.querySelector('.print-players').appendChild(q);
+ });
+ document.body.appendChild(layout);document.body.classList.add('printing-dedicated-convocacao');
+ const clean=()=>{document.body.classList.remove('printing-dedicated-convocacao');layout.remove();window.removeEventListener('afterprint',clean);};
+ window.addEventListener('afterprint',clean);window.print();setTimeout(clean,1500);
+}
+function manualConvocacaoMensagemTabela(error,acao){
+ const msg=String(error?.message||error||'');
+ if(/42P01|does not exist|not found|schema cache|could not find the table/i.test(msg)){
+  alert(`A tabela exclusiva da Convocação Manual ainda não está configurada. Execute uma vez o arquivo convocacoes_manuais.sql no Supabase e tente ${acao} novamente.`);
+ }else{
+  alert(`Não foi possível ${acao} a convocação manual. Confira a conexão e as permissões da tabela convocacoes_manuais.`);
+ }
+ console.error(`Convocação manual — erro ao ${acao}:`,error);
+}
+async function manualConvocacaoAbrirCarregar(){
+ try{
+  const {data,error}=await _supabase.from(MANUAL_CONVOCACAO_TABLE).select('nome').order('nome',{ascending:true});
+  if(error){manualConvocacaoMensagemTabela(error,'consultar');return;}
+  if(!data||!data.length){alert('Nenhuma convocação manual salva.');return;}
+  let modal=document.getElementById('manual-convocacao-carregar-modal');
+  if(!modal){modal=document.createElement('div');modal.id='manual-convocacao-carregar-modal';modal.className='escalacao-overlay';document.body.appendChild(modal);}
+  const options=data.map(x=>`<option value="${manualConvocacaoEscapar(x.nome)}">${manualConvocacaoEscapar(x.nome)}</option>`).join('');
+  modal.innerHTML=`<div class="excluir-card manual-convocacao-picker-card"><h3>Carregar convocação manual</h3><p>Selecione uma lista manual salva:</p><select id="manual-convocacao-para-carregar" size="9">${options}</select><div><button type="button" class="carregar-btn" onclick="manualConvocacaoConfirmarCarregamento()">Carregar</button><button type="button" onclick="document.getElementById('manual-convocacao-carregar-modal').style.display='none'">Cancelar</button></div></div>`;
+  modal.style.display='flex';
+ }catch(error){manualConvocacaoMensagemTabela(error,'consultar');}
+}
+async function manualConvocacaoConfirmarCarregamento(){
+ const select=document.getElementById('manual-convocacao-para-carregar');
+ if(!select?.value){alert('Selecione uma convocação manual.');return;}
+ try{
+  const {data,error}=await _supabase.from(MANUAL_CONVOCACAO_TABLE).select('nome,dados').eq('nome',select.value).single();
+  if(error||!data){manualConvocacaoMensagemTabela(error||'Registro não encontrado','carregar');return;}
+  let payload=data.dados||{};
+  if(typeof payload==='string'){try{payload=JSON.parse(payload);}catch(e){payload={};}}
+  const loaded=manualConvocacaoNormalizarEstado({...payload,salvoComo:data.nome});
+  if(!loaded.atletas.length){alert('A convocação salva não contém atletas.');return;}
+  manualConvocacaoState=loaded;manualConvocacaoSalvarRascunho();
+  const modal=document.getElementById('manual-convocacao-carregar-modal');if(modal)modal.style.display='none';
+  manualConvocacaoRenderizarLista();manualConvocacaoAbrirEscalacao();
+ }catch(error){manualConvocacaoMensagemTabela(error,'carregar');}
+}
+async function manualConvocacaoAbrirExcluir(){
+ try{
+  const {data,error}=await _supabase.from(MANUAL_CONVOCACAO_TABLE).select('nome').order('nome',{ascending:true});
+  if(error){manualConvocacaoMensagemTabela(error,'consultar');return;}
+  if(!data||!data.length){alert('Nenhuma convocação manual salva para excluir.');return;}
+  let modal=document.getElementById('manual-convocacao-excluir-modal');
+  if(!modal){modal=document.createElement('div');modal.id='manual-convocacao-excluir-modal';modal.className='escalacao-overlay';document.body.appendChild(modal);}
+  const options=data.map(x=>`<option value="${manualConvocacaoEscapar(x.nome)}">${manualConvocacaoEscapar(x.nome)}</option>`).join('');
+  modal.innerHTML=`<div class="excluir-card manual-convocacao-picker-card"><h3>Excluir convocação manual</h3><p>Escolha a lista manual que deseja apagar permanentemente:</p><select id="manual-convocacao-para-excluir" size="9">${options}</select><div><button type="button" onclick="manualConvocacaoExcluirSelecionada()">Excluir</button><button type="button" onclick="document.getElementById('manual-convocacao-excluir-modal').style.display='none'">Cancelar</button></div></div>`;
+  modal.style.display='flex';
+ }catch(error){manualConvocacaoMensagemTabela(error,'consultar');}
+}
+async function manualConvocacaoExcluirSelecionada(){
+ const select=document.getElementById('manual-convocacao-para-excluir');
+ if(!select?.value){alert('Selecione uma convocação manual.');return;}
+ const nome=select.value;
+ if(!confirm(`Excluir “${nome}” permanentemente? Esta ação só afeta as convocações manuais.`))return;
+ try{
+  const {error}=await _supabase.from(MANUAL_CONVOCACAO_TABLE).delete().eq('nome',nome);
+  if(error){manualConvocacaoMensagemTabela(error,'excluir');return;}
+  if(manualConvocacaoState?.salvoComo===nome){manualConvocacaoState.salvoComo='';manualConvocacaoSalvarRascunho();manualConvocacaoRenderizarLista();}
+  const modal=document.getElementById('manual-convocacao-excluir-modal');if(modal)modal.style.display='none';
+  alert('Convocação manual excluída.');
+ }catch(error){manualConvocacaoMensagemTabela(error,'excluir');}
+}
+async function manualConvocacaoAbrirSalvar(){
+ manualConvocacaoCapturarCampo();
+ try{
+  const {data,error}=await _supabase.from(MANUAL_CONVOCACAO_TABLE).select('nome').order('nome',{ascending:true});
+  if(error){manualConvocacaoMensagemTabela(error,'consultar');return;}
+  let modal=document.getElementById('manual-convocacao-salvar-modal');
+  if(!modal){modal=document.createElement('div');modal.id='manual-convocacao-salvar-modal';modal.className='escalacao-overlay';document.body.appendChild(modal);}
+  const options=(data||[]).map(x=>`<option value="${manualConvocacaoEscapar(x.nome)}">${manualConvocacaoEscapar(x.nome)}</option>`).join('');
+  modal.innerHTML=`<div class="excluir-card salvar-card manual-convocacao-picker-card"><h3>Salvar convocação manual</h3><p>Digite um nome novo ou selecione uma convocação manual para substituir.</p><input id="manual-nome-nova-convocacao" class="nome-convocacao-input" maxlength="120" placeholder="Nome da convocação" value="${manualConvocacaoEscapar(manualConvocacaoState?.salvoComo||'')}"><select id="manual-convocacao-para-substituir" size="7"><option value="">— Nova convocação —</option>${options}</select><div><button type="button" class="carregar-btn" onclick="manualConvocacaoConfirmarSalvar()">Salvar</button><button type="button" onclick="document.getElementById('manual-convocacao-salvar-modal').style.display='none'">Cancelar</button></div></div>`;
+  const select=modal.querySelector('#manual-convocacao-para-substituir');
+  select?.addEventListener('change',()=>{if(select.value)modal.querySelector('#manual-nome-nova-convocacao').value=select.value;});
+  modal.style.display='flex';
+ }catch(error){manualConvocacaoMensagemTabela(error,'consultar');}
+}
+async function manualConvocacaoConfirmarSalvar(){
+ const input=document.getElementById('manual-nome-nova-convocacao');
+ const nome=String(input?.value||'').trim();
+ if(!nome){alert('Digite um nome para esta convocação manual.');return;}
+ manualConvocacaoCapturarCampo();
+ const st=manualConvocacaoObterEstado();
+ const dados={
+  tipo:'manual',versao:1,salvoComo:nome,
+  atletas:st.atletas.map(a=>({id:a.id,nome:a.nome,numero:a.numero,status:a.status,left:a.left||'',top:a.top||''})),
+  jogo:{...st.jogo},comissao:[...st.comissao]
+ };
+ try{
+  const {error}=await _supabase.from(MANUAL_CONVOCACAO_TABLE).upsert({nome,dados,atualizado_em:new Date().toISOString()},{onConflict:'nome'});
+  if(error){manualConvocacaoMensagemTabela(error,'salvar');return;}
+  st.salvoComo=nome;manualConvocacaoSalvarRascunho();
+  const modal=document.getElementById('manual-convocacao-salvar-modal');if(modal)modal.style.display='none';
+  manualConvocacaoRenderizarLista();
+  alert('Convocação manual salva com sucesso.');
+ }catch(error){manualConvocacaoMensagemTabela(error,'salvar');}
+}
+function manualConvocacaoAbrirArbitragem(){
+ const st=manualConvocacaoObterEstado();manualConvocacaoCapturarCampo();
+ const lista=[...st.atletas].sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt-BR'));
+ const w=window.open('','_blank','width=800,height=800');if(!w){alert('Permita pop-ups para imprimir a ficha de arbitragem.');return;}
+ const linhas=lista.map(a=>`<tr><td>${manualConvocacaoEscapar(a.numero)}</td><td>${manualConvocacaoEscapar(a.nome)}</td><td></td><td></td></tr>`).join('');
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Arbitragem — Convocação Manual</title><style>@page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}body{font-family:Arial;margin:0}.ficha{border:1px solid #111;min-height:0;height:auto}.cab{height:38mm;border-bottom:1px solid #111;display:flex;align-items:center;padding:8px 20px;gap:100px}.cab img{width:32mm;height:32mm;object-fit:contain}.cab h1{font-size:25px;margin:0}.tab{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}.tab th{text-align:left;border-bottom:1px solid #111;padding:4px}.tab td{height:15px;border-bottom:1px dotted #111;border-right:1px dotted #111;padding:2px 4px}.tab th:nth-child(1),.tab td:nth-child(1){width:11%;font-weight:bold}.tab th:nth-child(2),.tab td:nth-child(2){width:46%;font-weight:bold}.tab th:nth-child(3),.tab td:nth-child(3){width:23%}.tab th:nth-child(4),.tab td:nth-child(4){width:20%}</style></head><body><div class="ficha"><div class="cab"><img src="logo.png"><h1>CFA Prosol — Convocação Manual</h1></div><table class="tab"><thead><tr><th>Número</th><th>Nome Completo</th><th>Apelido</th><th>Data Nasc.</th></tr></thead><tbody>${linhas}</tbody></table></div><script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);
+ w.document.close();
+}
+function manualConvocacaoAbrirMinutagem(){
+ const st=manualConvocacaoObterEstado();manualConvocacaoCapturarCampo();
+ const adv=st.jogo.adversario||'';const data=st.jogo.data||'';
+ const arr=st.atletas.map(a=>({n:a.numero||'',nome:a.nome||'',res:a.status==='reserva'}));
+ const titulares=arr.filter(x=>!x.res).sort((a,b)=>(Number(a.n)||999)-(Number(b.n)||999));
+ const suplentes=arr.filter(x=>x.res).sort((a,b)=>(Number(a.n)||999)-(Number(b.n)||999));
+ const linha=x=>`<tr><td>${manualConvocacaoEscapar(x.n)}</td><td>${manualConvocacaoEscapar(x.nome)}</td><td></td><td class="box"></td><td class="box"></td><td class="tempo-box"></td><td class="minuto"></td><td class="tempo-box"></td><td></td><td></td><td class="box"></td><td class="box"></td></tr>`;
+ const supl=suplentes.map(x=>`<tr><td>${manualConvocacaoEscapar(x.n)}</td><td>${manualConvocacaoEscapar(x.nome)}</td></tr>`).join('');
+ const w=window.open('','_blank','width=1100,height=800');if(!w){alert('Permita pop-ups para imprimir a minutagem.');return;}
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Minutagem — Convocação Manual</title><style>@page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}body{font-family:Arial;margin:0;font-size:12px}.head{height:92px;display:flex;align-items:center;justify-content:center;gap:35px}.head img{width:82px}.sq{width:64px;height:38px;border:3px solid #111}.x{font-size:34px;font-weight:bold}.adv{font-size:22px;font-weight:bold}.tbl{width:100%;border-collapse:collapse;table-layout:fixed}.tbl th{text-align:center;height:23px}.tbl td{height:18px;border:1px solid #111;padding:1px 4px}.tbl td:nth-child(1){width:52px;text-align:center;border-right:0}.tbl td:nth-child(2){width:180px;text-align:left}.tbl td:nth-child(3){width:55px}.tbl td:nth-child(4),.tbl td:nth-child(5),.tbl td:nth-child(9),.tbl td:nth-child(10){width:62px}.tbl td.box,.tbl td.tempo-box,.tbl td.minuto{border:1px solid #111!important;background:#fff;height:16px}.tbl th:nth-child(1),.tbl td:nth-child(1){font-size:10px!important;width:32px!important;min-width:32px!important;max-width:32px!important;text-align:center!important}.tbl td:nth-child(7),.tbl th:nth-child(7){text-align:center!important}.tbl th:nth-child(3),.tbl td:nth-child(3),.tbl th:nth-child(10),.tbl td:nth-child(10){width:42px!important;min-width:42px!important;max-width:42px!important;padding:1px!important;text-align:center!important;white-space:nowrap}.tbl th:nth-child(4),.tbl td:nth-child(4),.tbl th:nth-child(5),.tbl td:nth-child(5),.tbl th:nth-child(11),.tbl td:nth-child(11),.tbl th:nth-child(12),.tbl td:nth-child(12){width:40px!important;min-width:40px!important;max-width:40px!important;padding:1px!important;text-align:center!important;white-space:nowrap}.tbl th:nth-child(6),.tbl td:nth-child(6),.tbl th:nth-child(8),.tbl td:nth-child(8){width:32px!important;min-width:32px!important;max-width:32px!important;padding:1px!important;text-align:center!important;white-space:nowrap}.tbl th:nth-child(7),.tbl td:nth-child(7){width:58px!important;min-width:58px!important;max-width:58px!important;text-align:center!important}.ca{background:#ff0}.cv{color:red}.bar{background:#c00;color:#fff;text-align:center;font-weight:bold;height:18px}.bottom{display:grid;grid-template-columns:240px 1fr;gap:60px}.sup td{height:15px;border-bottom:1px solid #111;border-right:2px dotted #111}.info{margin-top:15px;font-size:20px;text-align:center}.check{display:inline-block;width:36px;height:34px;border:2px solid #e33;vertical-align:middle;margin:8px 15px}.notes{border:3px solid #111;height:90px;margin-top:0;padding:4px;font-size:12px}</style></head><body><div class="head"><img src="logo.png"><span class="sq"></span><span class="x">X</span><span class="sq"></span><span class="adv">${manualConvocacaoEscapar(adv||'Adversário')}</span></div><table class="tbl"><thead><tr><th>Número</th><th>Titulares</th><th>Gols</th><th class="ca">C.A.</th><th class="cv">C.V.</th><th>1º</th><th>Minuto</th><th>2º</th><th>Suplentes</th><th>Gols</th><th class="ca">C.A.</th><th class="cv">C.V.</th></tr></thead><tbody>${titulares.map(linha).join('')}<tr><td colspan="12" class="bar">Suplentes</td></tr></tbody></table><div class="bottom"><table class="sup"><tbody>${supl}</tbody></table><div><div class="info"><b>Data:</b> ${manualConvocacaoEscapar(data||'____/____/______')}<br><span class="check"></span> Casa <span class="check"></span> Fora</div><div class="notes">Informações adicionais</div></div></div><script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);
+ w.document.close();
 }
