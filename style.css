@@ -5416,3 +5416,82 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
  .manual-convocacao-number{padding:5px;}
 }
 @media print{#campo-convocacao-manual-modal .campo-acoes{display:none!important;}}
+
+
+/* Convocação Manual v2: lista compacta com escalação na primeira tela. */
+.manual-convocacao-header{padding:12px 16px;}
+.manual-convocacao-header h2{font-size:18px;}
+.manual-convocacao-header p{font-size:11px;}
+.manual-convocacao-close{width:32px;height:32px;font-size:24px;}
+.manual-convocacao-toolbar{gap:7px;padding:7px 12px;}
+.manual-convocacao-toolbar button{min-height:33px;padding:6px 10px;font-size:11px;}
+.manual-convocacao-table-head,.manual-convocacao-row{grid-template-columns:minmax(120px,1fr) 90px 76px 76px 32px;gap:6px;}
+.manual-convocacao-table-head{padding:4px 18px 3px;font-size:9px;}
+.manual-convocacao-table-head span:nth-child(2),.manual-convocacao-table-head span:nth-child(3),.manual-convocacao-table-head span:nth-child(4){text-align:center;}
+.manual-convocacao-list{max-height:56vh;max-height:56dvh;padding:0 14px 4px;}
+.manual-convocacao-row{min-height:33px;padding:2px 4px;}
+.manual-convocacao-row .manual-convocacao-name-label,.manual-convocacao-row .manual-convocacao-number-label{display:block;margin:0;}
+.manual-convocacao-row .manual-convocacao-status-option{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:4px;min-height:29px;margin:0;white-space:nowrap;color:#273444;font-size:10px;font-weight:600;cursor:pointer;}
+.manual-convocacao-status-option input{flex:0 0 14px;width:14px;height:14px;margin:0;accent-color:#0984e3;}
+.manual-convocacao-mobile-label{display:none;}
+.manual-convocacao-name,.manual-convocacao-number{height:29px;min-height:29px;padding:4px 8px;font-size:12px;}
+.manual-convocacao-remove{width:29px;height:29px;font-size:19px;}
+.manual-convocacao-add-row{padding:5px 14px 7px;font-size:11px;}
+.manual-convocacao-add-row button{min-height:31px;padding:5px 10px;font-size:11px;}
+.manual-convocacao-footer{gap:10px;padding:8px 14px;font-size:10px;}
+.manual-convocacao-footer .manual-convocacao-confirm{min-height:36px;padding:8px 15px;font-size:12px;}
+@media(max-width:700px){
+ .manual-convocacao-table-head{display:none;}
+ .manual-convocacao-row{grid-template-columns:minmax(88px,1fr) 58px 62px 62px 30px;gap:3px;padding:3px 2px;}
+ .manual-convocacao-row .manual-convocacao-name-label,.manual-convocacao-row .manual-convocacao-number-label{display:block;}
+ .manual-convocacao-mobile-label{display:none;}
+ .manual-convocacao-name,.manual-convocacao-number{height:29px;min-height:29px;padding:4px 6px;font-size:11px;}
+ .manual-convocacao-row .manual-convocacao-status-option{gap:3px;font-size:9px;}
+ .manual-convocacao-status-option input{flex-basis:13px;width:13px;height:13px;}
+ .manual-convocacao-remove{width:27px;height:27px;}
+ .manual-convocacao-footer{align-items:stretch;flex-direction:column;padding:8px 10px;}
+ .manual-convocacao-footer .manual-convocacao-confirm{width:100%;}
+}
+@media(max-width:380px){
+ .manual-convocacao-row{grid-template-columns:minmax(60px,1fr) 48px 55px 58px 26px;gap:2px;}
+ .manual-convocacao-name,.manual-convocacao-number{padding:3px 4px;font-size:10px;}
+ .manual-convocacao-row .manual-convocacao-status-option{gap:2px;font-size:8px;}
+ .manual-convocacao-status-option input{flex-basis:12px;width:12px;height:12px;}
+ .manual-convocacao-remove{width:24px;height:24px;font-size:17px;}
+}
+
+
+/* Seletor de uniforme da Convocação Manual, ao lado de Confirmar. */
+.manual-convocacao-confirm-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;}
+.manual-convocacao-uniforme-label{display:flex;align-items:center;gap:6px;min-height:36px;color:#58111a;font-size:10px;font-weight:800;white-space:nowrap;}
+.manual-convocacao-uniforme-label select{box-sizing:border-box;min-width:152px;width:152px;height:36px;padding:5px 26px 5px 9px;border:1px solid #c7ced8;border-radius:7px;background:#fff;color:#273444;font:inherit;font-size:11px;font-weight:700;cursor:pointer;}
+.manual-convocacao-uniforme-label select:focus{outline:2px solid rgba(9,132,227,.25);border-color:#0984e3;}
+@media(max-width:700px){
+ .manual-convocacao-confirm-tools{display:grid;grid-template-columns:minmax(118px,.75fr) minmax(0,1fr);width:100%;gap:7px;}
+ .manual-convocacao-uniforme-label{justify-content:space-between;min-width:0;}
+ .manual-convocacao-uniforme-label select{min-width:0;width:100%;}
+}
+@media(max-width:380px){
+ .manual-convocacao-confirm-tools{grid-template-columns:minmax(105px,.72fr) minmax(0,1fr);gap:5px;}
+ .manual-convocacao-uniforme-label{gap:4px;font-size:9px;}
+ .manual-convocacao-uniforme-label select{height:33px;padding-left:5px;padding-right:17px;font-size:10px;}
+}
+
+
+@media(max-width:480px){
+ .manual-convocacao-confirm-tools{grid-template-columns:minmax(0,1fr);}
+ .manual-convocacao-uniforme-label{width:100%;justify-content:space-between;}
+ .manual-convocacao-uniforme-label select{min-width:160px;width:68vw;max-width:220px;}
+}
+
+
+/* Seletor dos quatro uniformes também no fluxo normal da convocação. */
+#convocacao-modal .convocacao-confirm-controls{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
+#convocacao-modal .convocacao-uniforme-label{display:flex;align-items:center;gap:7px;white-space:nowrap;color:#58111a;font-size:12px;font-weight:700;}
+#convocacao-modal .convocacao-uniforme-label select{box-sizing:border-box;min-width:155px;height:38px;padding:6px 26px 6px 9px;border:1px solid #b2bec3;border-radius:5px;background:#fff;color:#273444;font:inherit;font-size:12px;font-weight:600;cursor:pointer;}
+#convocacao-modal .convocacao-uniforme-label select:focus{outline:2px solid rgba(9,132,227,.25);border-color:#0984e3;}
+@media(max-width:900px){
+ #convocacao-modal .convocacao-confirm-controls{gap:7px;}
+ #convocacao-modal .convocacao-uniforme-label{font-size:11px;}
+ #convocacao-modal .convocacao-uniforme-label select{min-width:145px;height:36px;}
+}

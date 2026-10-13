@@ -24,6 +24,7 @@ const AE = criarRegistroAtletasExtras(_supabase);
 let quantidadeGruposAtivos = 6;
 
 const STORAGE_CONVOCACAO_KEY = 'prosol_cfa_convocacao_v1';
+const STORAGE_CONVOCACAO_UNIFORME_KEY = 'prosol_cfa_convocacao_uniforme_v1';
 let criterioOrdenacaoAtual = 'nome';
 let direcaoOrdenacaoAtual = 'asc'; // 'asc' (menor para maior / A-Z) ou 'desc' (maior para menor / Z-A)
 let defaultColumns = [
@@ -2469,7 +2470,8 @@ function ensureConvocacaoModalDom() {
                         <button onclick="excluirAtletasSelecionadosConvocacao()" style="padding: 8px 15px; border: 1px solid #d32f2f; background: #ff5252; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">Excluir Atletas Selecionados</button>
                     </div>
                     <div id="convocacao-contador" style="font-weight: bold; font-size: 14px; color: #111; padding: 0 15px; white-space: nowrap;">Atletas convocados: 0</div>
-                    <div>
+                    <div class="convocacao-confirm-controls">
+                        <label class="convocacao-uniforme-label" for="convocacao-uniforme"><span>Uniforme</span><select id="convocacao-uniforme" aria-label="Uniforme da convocação normal"><option value="base_vermelha">Base Vermelha</option><option value="base_branca">Base Branca</option><option value="base_preta_branca">Base Preta/Branca</option><option value="academy">Academy</option></select></label>
                         <button onclick="confirmarConvocacao()" style="padding: 10px 25px; border: none; background: #2ed573; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">Confirmar Convocação</button>
                     </div>
                 </div>
@@ -2477,6 +2479,35 @@ function ensureConvocacaoModalDom() {
         `;
         document.body.appendChild(modal);
     }
+    const uniformeSelect=modal.querySelector('#convocacao-uniforme');
+    if(uniformeSelect){
+        uniformeSelect.value=obterUniformeConvocacaoNormal();
+        if(uniformeSelect.dataset.uniformeReady!=='1'){
+            uniformeSelect.dataset.uniformeReady='1';
+            uniformeSelect.addEventListener('change',()=>definirUniformeConvocacaoNormal(uniformeSelect.value));
+        }
+    }
+}
+function normalizarUniformeConvocacaoNormal(valor){
+    const uniforme=String(valor||'').trim().toLowerCase();
+    if(uniforme==='base'||uniforme==='base_vermelha')return 'base_vermelha';
+    return ['base_branca','base_preta_branca','academy'].includes(uniforme)?uniforme:'base_vermelha';
+}
+function obterUniformeConvocacaoNormal(){
+    try{
+        const salvo=localStorage.getItem(STORAGE_CONVOCACAO_UNIFORME_KEY);
+        if(salvo)return normalizarUniformeConvocacaoNormal(salvo);
+    }catch(e){}
+    const select=document.getElementById('convocacao-uniforme');
+    if(select&&select.value)return normalizarUniformeConvocacaoNormal(select.value);
+    return 'base_vermelha';
+}
+function definirUniformeConvocacaoNormal(valor){
+    const uniforme=normalizarUniformeConvocacaoNormal(valor);
+    try{localStorage.setItem(STORAGE_CONVOCACAO_UNIFORME_KEY,uniforme);}catch(e){}
+    const select=document.getElementById('convocacao-uniforme');
+    if(select&&select.value!==uniforme)select.value=uniforme;
+    return uniforme;
 }
 function openConvocacaoModal() { document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active-screen');s.style.display='';}); document.getElementById('home-screen')?.classList.add('active-screen'); if(!convocacaoSessaoAtiva){selectedConvocados.clear();localStorage.removeItem(STORAGE_CONVOCACAO_KEY);localStorage.removeItem('prosol_cfa_escalacao_v1');convocacaoCarregadaNaSessao=false;} convocacaoSessaoAtiva=true; ensureConvocacaoModalDom(); renderConvocacaoScreen(); document.getElementById('convocacao-modal').style.display = 'flex'; }
 function closeConvocacaoModal() { document.getElementById('convocacao-modal').style.display = 'none'; }
@@ -2808,10 +2839,13 @@ function posicaoInicialCampo(numero, indice) {
 function abrirCampoConvocacao(){
  const salvo=JSON.parse(localStorage.getItem('prosol_cfa_escalacao_v1')||'{}');
  let modal=document.getElementById('campo-convocacao-modal'); if(!modal){modal=document.createElement('div');modal.id='campo-convocacao-modal';modal.className='campo-overlay';document.body.appendChild(modal);}
+ const uniforme=obterUniformeConvocacaoNormal();
+ const camisaGoleiro=uniforme==='academy'?'camiseta_goleiro_academy.png':'camiseta_goleiro.png';
+ const camisaLinha={base_vermelha:'camiseta_linha.png',base_branca:'camiseta_linha_2.png',base_preta_branca:'camiseta_linha_3.png',academy:'camiseta_linha_academy.png'}[uniforme]||'camiseta_linha.png';
  const titulares=Object.keys(salvo).filter(i=>salvo[i].status!=='reserva').map(i=>{const r=excelData[i]||{};const nk=Object.keys(r).find(k=>k.toLowerCase().includes('apelido'))||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));const pk=Object.keys(r).find(k=>k.toLowerCase().includes('posição')||k.toLowerCase().includes('posicao'));const pos=String(pk?r[pk]:'').toLowerCase();const dataKey=Object.keys(r).find(k=>k.toLowerCase().includes('nascimento')); const nascimento=dataKey?convertExcelDate(r[dataKey]):''; return {nome:nk&&r[nk]||'Sem Nome',num:salvo[i].numero||'',pos,nascimento};});
  const ordem=['goleiro','zagueiro','lateral','volante','meia','atacante','extremo'];titulares.sort((a,b)=>ordem.findIndex(x=>a.pos.includes(x))-ordem.findIndex(x=>b.pos.includes(x)));
  const reservas=Object.keys(salvo).filter(i=>salvo[i].status==='reserva').sort((a,b)=>(Number(salvo[a].numero)||999)-(Number(salvo[b].numero)||999));
- modal.innerHTML=`<div class="campo-card"><div class="campo-top"><b>CONVOCAÇÃO — ESCALAÇÃO</b><div class="campo-acoes"><button onclick="salvarConvocacaoNuvem()">💾 Salvar Convocação</button><button onclick="imprimirConvocacaoCampo()">🖨 Imprimir</button><button onclick="abrirMinutagemConvocacao()">⏱ Minutagem</button><button onclick="abrirArbitragemConvocacao()">⚖ Arbitragem</button><button class="campo-fechar" onclick="fecharCampoConvocacao()">×</button></div></div><div class="campo-layout"><aside><h3>SUPLENTES</h3><div class="campo-reservas">${reservas.map(i=>{const r=excelData[i]||{};const nk=Object.keys(r).find(k=>k.toLowerCase().includes('apelido'))||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));const dataKey=Object.keys(r).find(k=>k.toLowerCase().includes('nascimento')); const nascimento=dataKey?convertExcelDate(r[dataKey]):''; return `<div class="reserva-item"><span>${salvo[i].numero||''} - ${nk&&r[nk]||'Sem Nome'}</span><span class="reserva-data">${nascimento}</span></div>`}).join('')}</div><h3>COMISSÃO TÉCNICA</h3><label class="comissao-label">Técnico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Aux. Técnico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Prep. Físico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Trein. Goleiros:<input class="campo-edit" placeholder=""></label></aside><main><div class="campo-futebol"><div class="linha-meio"></div><div class="circulo-meio"></div>${titulares.map((a,i)=>`<div class="jogador-campo" style="left:${posicaoInicialCampo(a.num,i)[0]}%;top:${posicaoInicialCampo(a.num,i)[1]}%" data-x=""><img src="${a.pos.includes('goleiro')?'camiseta_goleiro.png':'camiseta_linha.png'}"><span>${a.num} ${a.nome}<small>${a.nascimento}</small></span></div>`).join('')}</div><div class="campo-detalhes"><div class="campo-faixa"><input placeholder="Horário"><span> - </span><input placeholder="Local"><span> - </span><input placeholder="Data"></div><div class="campo-info-jogo"><div class="campo-adversario"><img src="logo.png"><b>×</b><input placeholder="Nome do adversário"></div><div class="campo-horarios"><label>Apresentação: <input placeholder=""></label><label>Preleção: <input placeholder=""></label><label>Aquecimento: <input placeholder=""></label></div></div></div></main></div></div>`;
+ modal.innerHTML=`<div class="campo-card"><div class="campo-top"><b>CONVOCAÇÃO — ESCALAÇÃO</b><div class="campo-acoes"><button onclick="salvarConvocacaoNuvem()">💾 Salvar Convocação</button><button onclick="imprimirConvocacaoCampo()">🖨 Imprimir</button><button onclick="abrirMinutagemConvocacao()">⏱ Minutagem</button><button onclick="abrirArbitragemConvocacao()">⚖ Arbitragem</button><button class="campo-fechar" onclick="fecharCampoConvocacao()">×</button></div></div><div class="campo-layout"><aside><h3>SUPLENTES</h3><div class="campo-reservas">${reservas.map(i=>{const r=excelData[i]||{};const nk=Object.keys(r).find(k=>k.toLowerCase().includes('apelido'))||Object.keys(r).find(k=>k.toLowerCase().includes('nome'));const dataKey=Object.keys(r).find(k=>k.toLowerCase().includes('nascimento')); const nascimento=dataKey?convertExcelDate(r[dataKey]):''; return `<div class="reserva-item"><span>${salvo[i].numero||''} - ${nk&&r[nk]||'Sem Nome'}</span><span class="reserva-data">${nascimento}</span></div>`}).join('')}</div><h3>COMISSÃO TÉCNICA</h3><label class="comissao-label">Técnico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Aux. Técnico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Prep. Físico:<input class="campo-edit" placeholder=""></label><label class="comissao-label">Trein. Goleiros:<input class="campo-edit" placeholder=""></label></aside><main><div class="campo-futebol"><div class="linha-meio"></div><div class="circulo-meio"></div>${titulares.map((a,i)=>`<div class="jogador-campo" style="left:${posicaoInicialCampo(a.num,i)[0]}%;top:${posicaoInicialCampo(a.num,i)[1]}%" data-x=""><img src="${a.pos.includes('goleiro')?camisaGoleiro:camisaLinha}"><span>${a.num} ${a.nome}<small>${a.nascimento}</small></span></div>`).join('')}</div><div class="campo-detalhes"><div class="campo-faixa"><input placeholder="Horário"><span> - </span><input placeholder="Local"><span> - </span><input placeholder="Data"></div><div class="campo-info-jogo"><div class="campo-adversario"><img src="logo.png"><b>×</b><input placeholder="Nome do adversário"></div><div class="campo-horarios"><label>Apresentação: <input placeholder=""></label><label>Preleção: <input placeholder=""></label><label>Aquecimento: <input placeholder=""></label></div></div></div></main></div></div>`;
  modal.style.display='flex';
  const carregada=window.__convocacaoCarregada;if(carregada){const faixa=[...modal.querySelectorAll('.campo-faixa input')];[carregada.horario,carregada.local,carregada.data].forEach((v,i)=>{if(faixa[i])faixa[i].value=v||''});const adv=modal.querySelector('.campo-adversario input');if(adv)adv.value=carregada.adversario||'';const hs=[...modal.querySelectorAll('.campo-horarios input')];[carregada.apresentacao,carregada.prelecao,carregada.aquecimento].forEach((v,i)=>{if(hs[i])hs[i].value=v||''});const cs=[...modal.querySelectorAll('.comissao-label input')];(carregada.comissao||[]).forEach((v,i)=>{if(cs[i])cs[i].value=v});
   const ps=carregada.jogadores||[];modal.querySelectorAll('.jogador-campo').forEach(el=>{const t=el.querySelector('span')?.innerText||'';const p=ps.find(x=>x.texto===t);if(p){el.style.left=p.left;el.style.top=p.top}});
@@ -2899,7 +2933,7 @@ async function confirmarSalvarConvocacao(){
  const nome=document.getElementById('nome-nova-convocacao')?.value.trim();if(!nome)return alert('Digite ou selecione um nome.');
  const salvo=JSON.parse(localStorage.getItem('prosol_cfa_escalacao_v1')||'{}');const faixa=[...document.querySelectorAll('#campo-convocacao-modal .campo-faixa input')].map(x=>x.value);const horarios=[...document.querySelectorAll('#campo-convocacao-modal .campo-horarios input')].map(x=>x.value);const comissao=[...document.querySelectorAll('#campo-convocacao-modal .comissao-label input')].map(x=>x.value);const jogadores=[...document.querySelectorAll('#campo-convocacao-modal .jogador-campo')].map(el=>({texto:el.querySelector('span')?.innerText||'',left:el.style.left,top:el.style.top}));const anos=[...document.querySelectorAll('.conv-year-chk:checked')].map(x=>x.value);
  const selecionadosDetalhes=[...selectedConvocados].map(identidadeAtletaConvocacao).filter(id=>id.nomeCompleto&&id.nascimento);
- const dados={nome,anos,selecionadosDetalhes,escalacao:escalacaoPorIdentidadeConvocacao(salvo),jogadores,comissao,horario:faixa[0]||'',local:faixa[1]||'',data:faixa[2]||'',adversario:document.querySelector('#campo-convocacao-modal .campo-adversario input')?.value||'',apresentacao:horarios[0]||'',prelecao:horarios[1]||'',aquecimento:horarios[2]||''};
+ const dados={nome,anos,uniforme:obterUniformeConvocacaoNormal(),selecionadosDetalhes,escalacao:escalacaoPorIdentidadeConvocacao(salvo),jogadores,comissao,horario:faixa[0]||'',local:faixa[1]||'',data:faixa[2]||'',adversario:document.querySelector('#campo-convocacao-modal .campo-adversario input')?.value||'',apresentacao:horarios[0]||'',prelecao:horarios[1]||'',aquecimento:horarios[2]||''};
  const {error}=await _supabase.from('convocacoes').upsert({nome,dados,atualizado_em:new Date().toISOString()},{onConflict:'nome'});if(error){alert('Erro ao salvar convocação.');console.error(error);return;}document.getElementById('salvar-convocacao-modal').style.display='none';alert('Convocação salva com sucesso!');
 }
 
@@ -2908,7 +2942,7 @@ async function confirmarCarregamentoConvocacao(){
  const select=document.getElementById('convocacao-para-carregar');if(!select||!select.value)return alert('Selecione uma convocação.');
  const {data,error}=await _supabase.from('convocacoes').select('nome,dados').eq('nome',select.value).single();
  if(error||!data){alert('Não foi possível carregar a convocação.');return;}
- const d=data.dados||{};window.__convocacaoCarregada=d;convocacaoCarregadaNaSessao=true;const indices=(d.selecionadosDetalhes||[]).map(localizarAtletaPorIdentidadeConvocacao).filter(i=>i>=0);if(!indices.length){alert('Nenhum atleta desta convocação foi localizado pelo Nome Completo + Data de Nascimento.');return;}selectedConvocados=new Set(indices);localStorage.setItem(STORAGE_CONVOCACAO_KEY,JSON.stringify([...selectedConvocados]));localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(restaurarEscalacaoPorIndiceConvocacao(d.escalacao||{},indices)));
+ const d=data.dados||{};window.__convocacaoCarregada=d;convocacaoCarregadaNaSessao=true;const indices=(d.selecionadosDetalhes||[]).map(localizarAtletaPorIdentidadeConvocacao).filter(i=>i>=0);if(!indices.length){alert('Nenhum atleta desta convocação foi localizado pelo Nome Completo + Data de Nascimento.');return;}definirUniformeConvocacaoNormal(d.uniforme||'base_vermelha');selectedConvocados=new Set(indices);localStorage.setItem(STORAGE_CONVOCACAO_KEY,JSON.stringify([...selectedConvocados]));localStorage.setItem('prosol_cfa_escalacao_v1',JSON.stringify(restaurarEscalacaoPorIndiceConvocacao(d.escalacao||{},indices)));
  document.querySelectorAll('.conv-year-chk').forEach(c=>c.checked=(d.anos||[]).includes(c.value));renderConvocacaoLists();document.getElementById('carregar-convocacao-modal').style.display='none';abrirEscalacaoConvocacao();
 }
 
@@ -12476,7 +12510,7 @@ function modernV3RestoreSidebarIfHomeFree(){
 document.addEventListener('click',modernV3RestoreSidebarIfHomeFree,true);
 
 function modernV3FecharModaisAbertos(){
- const ids=['ae-modal','jogos-professor-modal','prancheta-modal','convocacao-modal','convocacao-manual-modal','escalacao-convocacao-manual-modal','campo-convocacao-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal','relatorios-modal','relatorios-menu-modal','trabalho-diario-modal','planejamento-semanal-modal','fotos-atletas-modal','detalhes-jogo-salvo-modal','novo-jogo-modal','atletas-ativos-jogos-modal','carregar-jogo-salvo-modal','add-athlete-modal','modal-anotacoes','fichaModal','controle-peso-modal','relatorio-psrpse-modal','relatorio-visualizacao-modal'];
+ const ids=['ae-modal','jogos-professor-modal','prancheta-modal','convocacao-modal','convocacao-manual-modal','campo-convocacao-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal','relatorios-modal','relatorios-menu-modal','trabalho-diario-modal','planejamento-semanal-modal','fotos-atletas-modal','detalhes-jogo-salvo-modal','novo-jogo-modal','atletas-ativos-jogos-modal','carregar-jogo-salvo-modal','add-athlete-modal','modal-anotacoes','fichaModal','controle-peso-modal','relatorio-psrpse-modal','relatorio-visualizacao-modal'];
  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
  document.querySelectorAll('.escalacao-overlay,.vba-modal-overlay,.mini-prancheta-overlay,.fotos-overlay').forEach(el=>{el.style.display='none';});
 }
@@ -12703,8 +12737,13 @@ function manualConvocacaoNormalizarEstado(raw){
  });
  const j=src.jogo && typeof src.jogo==='object' ? src.jogo : {};
  const c=Array.isArray(src.comissao)?src.comissao:[];
+ const uniformeRaw=String(src.uniforme||'base_vermelha').toLowerCase();
+ const uniforme=['base','base_vermelha','base_branca','base_preta_branca','academy'].includes(uniformeRaw)
+  ? (uniformeRaw==='base'?'base_vermelha':uniformeRaw)
+  : 'base_vermelha';
  return {
   salvoComo:String(src.salvoComo ?? src.nome ?? '').trim(),
+  uniforme,
   atletas,
   jogo:{
    horario:String(j.horario||''), local:String(j.local||''), data:String(j.data||''),
@@ -12751,39 +12790,56 @@ function manualConvocacaoAbrir(){
  modal.style.display='flex';
 }
 function manualConvocacaoFechar(){
- manualConvocacaoCapturarCampo();
- ['convocacao-manual-modal','escalacao-convocacao-manual-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+ const campo=document.getElementById('campo-convocacao-manual-modal');
+ if(campo && campo.style.display!=='none')manualConvocacaoCapturarCampo();
+ ['convocacao-manual-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
 }
 function manualConvocacaoRenderizarLista(){
  const modal=document.getElementById('convocacao-manual-modal');
  if(!modal)return;
  const st=manualConvocacaoObterEstado();
- const rows=st.atletas.map((a,i)=>`<div class="manual-convocacao-row" data-manual-row="${manualConvocacaoEscapar(a.id)}">
-  <label class="manual-convocacao-name-label"><span class="manual-convocacao-mobile-label">Nome do atleta</span><input class="manual-convocacao-name" type="text" maxlength="120" autocomplete="off" placeholder="Nome completo do atleta" aria-label="Nome do atleta ${i+1}" data-manual-id="${manualConvocacaoEscapar(a.id)}" value="${manualConvocacaoEscapar(a.nome)}"></label>
-  <label class="manual-convocacao-number-label"><span class="manual-convocacao-mobile-label">Nº da camiseta</span><input class="manual-convocacao-number" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="#" aria-label="Número da camiseta do atleta ${i+1}" data-manual-id="${manualConvocacaoEscapar(a.id)}" value="${manualConvocacaoEscapar(a.numero)}"></label>
-  <button type="button" class="manual-convocacao-remove" data-manual-remove="${manualConvocacaoEscapar(a.id)}" aria-label="Remover atleta ${i+1}" title="Remover atleta">×</button>
- </div>`).join('');
+ const rows=st.atletas.map((a,i)=>{
+  const id=manualConvocacaoEscapar(a.id);
+  const radioName='manual-status-'+id;
+  return `<div class="manual-convocacao-row" data-manual-row="${id}">
+   <label class="manual-convocacao-name-label"><span class="manual-convocacao-mobile-label">Nome do atleta</span><input class="manual-convocacao-name" type="text" maxlength="120" autocomplete="off" placeholder="Nome do atleta" aria-label="Nome do atleta ${i+1}" data-manual-id="${id}" value="${manualConvocacaoEscapar(a.nome)}"></label>
+   <label class="manual-convocacao-number-label"><span class="manual-convocacao-mobile-label">Nº da camiseta</span><input class="manual-convocacao-number" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="#" aria-label="Número da camiseta do atleta ${i+1}" data-manual-id="${id}" value="${manualConvocacaoEscapar(a.numero)}"></label>
+   <label class="manual-convocacao-status-option" title="Definir ${manualConvocacaoEscapar(a.nome||'atleta '+(i+1))} como titular"><input class="manual-convocacao-status" type="radio" name="${radioName}" value="titular" data-manual-id="${id}" ${a.status==='titular'?'checked':''}><span>Titular</span></label>
+   <label class="manual-convocacao-status-option" title="Definir ${manualConvocacaoEscapar(a.nome||'atleta '+(i+1))} como reserva"><input class="manual-convocacao-status" type="radio" name="${radioName}" value="reserva" data-manual-id="${id}" ${a.status!=='titular'?'checked':''}><span>Reserva</span></label>
+   <button type="button" class="manual-convocacao-remove" data-manual-remove="${id}" aria-label="Remover atleta ${i+1}" title="Remover atleta">×</button>
+  </div>`;
+ }).join('');
  const total=st.atletas.filter(a=>a.nome.trim()||a.numero.trim()).length;
  modal.innerHTML=`<div class="manual-convocacao-card">
-  <header class="manual-convocacao-header"><div><h2>CONVOCAÇÃO MANUAL</h2><p>Digite o nome e o número da camiseta de cada atleta. A lista é independente da convocação normal.</p></div><button type="button" class="manual-convocacao-close" aria-label="Fechar" onclick="manualConvocacaoFechar()">×</button></header>
+  <header class="manual-convocacao-header"><div><h2>CONVOCAÇÃO MANUAL</h2><p>Digite nome e número e marque cada atleta como titular ou reserva. A lista é independente da convocação normal.</p></div><button type="button" class="manual-convocacao-close" aria-label="Fechar" onclick="manualConvocacaoFechar()">×</button></header>
   <div class="manual-convocacao-toolbar"><button type="button" onclick="manualConvocacaoAbrirCarregar()">📂 Carregar</button><button type="button" class="manual-convocacao-delete" onclick="manualConvocacaoAbrirExcluir()">🗑 Excluir Convocação</button><button type="button" class="manual-convocacao-clear" onclick="manualConvocacaoLimpar()">Limpar Convocação</button><span class="manual-convocacao-saved-label">${st.salvoComo?'Salva como: '+manualConvocacaoEscapar(st.salvoComo):'Rascunho manual'}</span></div>
-  <div class="manual-convocacao-table-head"><span>Nome do atleta</span><span>Nº da camiseta</span><span></span></div>
+  <div class="manual-convocacao-table-head"><span>Nome do atleta</span><span>Nº da camiseta</span><span>Titular</span><span>Reserva</span><span></span></div>
   <div class="manual-convocacao-list" id="manual-convocacao-list">${rows||'<div class="manual-convocacao-empty">Nenhum atleta informado. Use “Adicionar atleta” para começar.</div>'}</div>
   <div class="manual-convocacao-add-row"><button type="button" onclick="manualConvocacaoAdicionarAtleta()">＋ Adicionar atleta</button><span>Atletas preenchidos: <b id="manual-convocacao-count">${total}</b></span></div>
-  <footer class="manual-convocacao-footer"><span>Confira nomes e números antes de confirmar.</span><button type="button" class="manual-convocacao-confirm" onclick="manualConvocacaoConfirmar()">Confirmar Convocação</button></footer>
+  <footer class="manual-convocacao-footer"><span>Marque pelo menos um titular. Titulares vão ao campo; reservas ficam na lista lateral.</span><div class="manual-convocacao-confirm-tools"><label class="manual-convocacao-uniforme-label" for="manual-convocacao-uniforme"><span>Uniforme</span><select id="manual-convocacao-uniforme" aria-label="Escolher uniforme"><option value="base_vermelha" ${st.uniforme==='base_vermelha'?'selected':''}>Base Vermelha</option><option value="base_branca" ${st.uniforme==='base_branca'?'selected':''}>Base Branca</option><option value="base_preta_branca" ${st.uniforme==='base_preta_branca'?'selected':''}>Base Preta/Branca</option><option value="academy" ${st.uniforme==='academy'?'selected':''}>Academy</option></select></label><button type="button" class="manual-convocacao-confirm" onclick="manualConvocacaoConfirmar()">Confirmar Convocação</button></div></footer>
  </div>`;
  modal.querySelectorAll('.manual-convocacao-name').forEach(input=>input.addEventListener('input',()=>manualConvocacaoAtualizarCampoLista(input.dataset.manualId,'nome',input.value)));
  modal.querySelectorAll('.manual-convocacao-number').forEach(input=>input.addEventListener('input',()=>manualConvocacaoAtualizarCampoLista(input.dataset.manualId,'numero',input.value)));
+ modal.querySelectorAll('.manual-convocacao-status').forEach(input=>input.addEventListener('change',()=>manualConvocacaoAtualizarCampoLista(input.dataset.manualId,'status',input.value)));
+ const uniformeSelect=modal.querySelector('#manual-convocacao-uniforme');
+ uniformeSelect?.addEventListener('change',()=>manualConvocacaoAtualizarUniforme(uniformeSelect.value));
  modal.querySelectorAll('[data-manual-remove]').forEach(btn=>btn.addEventListener('click',()=>manualConvocacaoRemoverAtleta(btn.dataset.manualRemove)));
 }
 function manualConvocacaoAtualizarCampoLista(id,campo,valor){
  const st=manualConvocacaoObterEstado();
  const atleta=st.atletas.find(a=>a.id===id);
- if(!atleta || !['nome','numero'].includes(campo))return;
- atleta[campo]=String(valor||'').trimStart();
+ if(!atleta || !['nome','numero','status'].includes(campo))return;
+ if(campo==='status')atleta.status=valor==='titular'?'titular':'reserva';
+ else atleta[campo]=String(valor||'').trimStart();
  manualConvocacaoSalvarRascunho();
  const count=document.getElementById('manual-convocacao-count');
  if(count)count.textContent=String(st.atletas.filter(a=>a.nome.trim()||a.numero.trim()).length);
+}
+function manualConvocacaoAtualizarUniforme(valor){
+ const st=manualConvocacaoObterEstado();
+ const permitido=['base_vermelha','base_branca','base_preta_branca','academy'];
+ st.uniforme=permitido.includes(String(valor||'').toLowerCase())?String(valor).toLowerCase():'base_vermelha';
+ manualConvocacaoSalvarRascunho();
 }
 function manualConvocacaoAdicionarAtleta(){
  const st=manualConvocacaoObterEstado();
@@ -12810,61 +12866,15 @@ function manualConvocacaoConfirmar(){
  if(incompleto){alert('Preencha o nome e o número da camiseta de cada atleta informado.');return;}
  const invalido=informados.find(a=>!/^\d{1,2}$/.test(a.numero)||Number(a.numero)<1||Number(a.numero)>99);
  if(invalido){alert('O número da camiseta deve estar entre 1 e 99.');return;}
+ if(!informados.some(a=>a.status==='titular')){alert('Marque pelo menos um atleta como titular para abrir o campo.');return;}
  st.atletas=informados.map(a=>({...a,nome:a.nome.trim(),numero:String(Number(a.numero)),status:a.status==='titular'?'titular':'reserva'}));
  manualConvocacaoSalvarRascunho();
- manualConvocacaoAbrirEscalacao();
-}
-function manualConvocacaoAbrirEscalacao(){
- const st=manualConvocacaoObterEstado();
- let modal=document.getElementById('escalacao-convocacao-manual-modal');
- if(!modal){modal=document.createElement('div');modal.id='escalacao-convocacao-manual-modal';modal.className='escalacao-overlay';document.body.appendChild(modal);}
- const rows=st.atletas.map((a,i)=>`<div class="escalacao-row posicao-99" data-manual-id="${manualConvocacaoEscapar(a.id)}"><span class="escalacao-name">${manualConvocacaoEscapar(a.nome)}</span><input class="escalacao-numero" data-manual-number="${manualConvocacaoEscapar(a.id)}" value="${manualConvocacaoEscapar(a.numero)}" placeholder="#" type="number" min="1" max="99"><label><input type="radio" name="manual-status-${manualConvocacaoEscapar(a.id)}" value="titular" ${a.status==='titular'?'checked':''}> Titular</label><label><input type="radio" name="manual-status-${manualConvocacaoEscapar(a.id)}" value="reserva" ${a.status!=='titular'?'checked':''}> Reserva</label></div>`).join('');
- modal.innerHTML=`<div class="escalacao-card"><div class="escalacao-header"><span>ESCALAÇÃO DA CONVOCAÇÃO MANUAL</span><button type="button" aria-label="Fechar" onclick="manualConvocacaoFecharEscalacao()">×</button></div><p class="escalacao-help">Defina o número da camiseta e indique quem será titular ou reserva. A numeração também posiciona os titulares no campo.</p><div class="escalacao-list">${rows}</div><div class="escalacao-footer"><span id="manual-escalacao-status"></span><button type="button" class="escalacao-field" onclick="manualConvocacaoConfirmarEabrirCampo()">Confirmar e abrir campo</button></div></div>`;
- modal.style.display='flex';
- modal.querySelectorAll('input[type="radio"]').forEach(r=>r.addEventListener('change',manualConvocacaoAtualizarStatusEscalacao));
- modal.querySelectorAll('.escalacao-numero').forEach(n=>n.addEventListener('input',()=>manualConvocacaoSalvarEscalacao(false)));
- manualConvocacaoAtualizarStatusEscalacao();
-}
-function manualConvocacaoAtualizarStatusEscalacao(){
- const modal=document.getElementById('escalacao-convocacao-manual-modal');
- const label=document.getElementById('manual-escalacao-status');
- if(!modal||!label)return;
- const rows=[...modal.querySelectorAll('.escalacao-row')];
- const titulares=rows.filter(r=>r.querySelector('input[type="radio"]:checked')?.value==='titular').length;
- label.textContent=`Titulares: ${titulares} | Reservas: ${rows.length-titulares}`;
- manualConvocacaoSalvarEscalacao(false);
-}
-function manualConvocacaoSalvarEscalacao(avisar=false){
- const modal=document.getElementById('escalacao-convocacao-manual-modal');
- const st=manualConvocacaoObterEstado();
- if(!modal)return;
- modal.querySelectorAll('.escalacao-row').forEach(row=>{
-  const id=row.dataset.manualId;
-  const atleta=st.atletas.find(a=>a.id===id);
-  if(!atleta)return;
-  const num=row.querySelector('.escalacao-numero');
-  const status=row.querySelector('input[type="radio"]:checked');
-  if(num)atleta.numero=String(num.value||'').trim();
-  atleta.status=status?.value==='titular'?'titular':'reserva';
- });
- manualConvocacaoSalvarRascunho();
- if(avisar)alert('Escalação manual salva neste dispositivo.');
-}
-function manualConvocacaoFecharEscalacao(){
- manualConvocacaoSalvarEscalacao(false);
- const modal=document.getElementById('escalacao-convocacao-manual-modal');if(modal)modal.style.display='none';
-}
-function manualConvocacaoConfirmarEabrirCampo(){
- manualConvocacaoSalvarEscalacao(false);
- const st=manualConvocacaoObterEstado();
- const invalido=st.atletas.find(a=>!/^\d{1,2}$/.test(a.numero)||Number(a.numero)<1||Number(a.numero)>99);
- if(invalido){alert('Confira os números das camisetas: use valores entre 1 e 99.');return;}
  manualConvocacaoAbrirCampo();
 }
 function manualConvocacaoAbrirCampo(){
- const st=manualConvocacaoObterEstado();
- manualConvocacaoCapturarCampo();
  let modal=document.getElementById('campo-convocacao-manual-modal');
+ if(modal && modal.style.display!=='none')manualConvocacaoCapturarCampo();
+ const st=manualConvocacaoObterEstado();
  if(!modal){modal=document.createElement('div');modal.id='campo-convocacao-manual-modal';modal.className='campo-overlay';document.body.appendChild(modal);}
  const titulares=st.atletas.filter(a=>a.status==='titular');
  const reservas=st.atletas.filter(a=>a.status!=='titular').sort((a,b)=>(Number(a.numero)||999)-(Number(b.numero)||999));
@@ -12872,7 +12882,15 @@ function manualConvocacaoAbrirCampo(){
   const base=typeof posicaoInicialCampo==='function'?posicaoInicialCampo(a.numero,i):[50,50];
   const left=manualConvocacaoCoord(a.left)||base[0]+'%';
   const top=manualConvocacaoCoord(a.top)||base[1]+'%';
-  const camisa=Number(a.numero)===1?'camiseta_goleiro.png':'camiseta_linha.png';
+  const uniforme=st.uniforme||'base_vermelha';
+  const camisaGoleiro=uniforme==='academy'?'camiseta_goleiro_academy.png':'camiseta_goleiro.png';
+  const camisaLinha={
+   base_vermelha:'camiseta_linha.png',
+   base_branca:'camiseta_linha_2.png',
+   base_preta_branca:'camiseta_linha_3.png',
+   academy:'camiseta_linha_academy.png'
+  }[uniforme]||'camiseta_linha.png';
+  const camisa=Number(a.numero)===1?camisaGoleiro:camisaLinha;
   return `<div class="jogador-campo" data-manual-player="${manualConvocacaoEscapar(a.id)}" style="left:${left};top:${top}" aria-label="${manualConvocacaoEscapar(a.numero+' '+a.nome)}"><img src="${camisa}" alt=""><span>${manualConvocacaoEscapar(a.numero)} ${manualConvocacaoEscapar(a.nome)}</span></div>`;
  }).join('');
  const reservaMarkup=reservas.map(a=>`<div class="reserva-item"><span>${manualConvocacaoEscapar(a.numero)} - ${manualConvocacaoEscapar(a.nome)}</span><span class="reserva-data"></span></div>`).join('');
@@ -12982,7 +13000,7 @@ async function manualConvocacaoConfirmarCarregamento(){
   if(!loaded.atletas.length){alert('A convocação salva não contém atletas.');return;}
   manualConvocacaoState=loaded;manualConvocacaoSalvarRascunho();
   const modal=document.getElementById('manual-convocacao-carregar-modal');if(modal)modal.style.display='none';
-  manualConvocacaoRenderizarLista();manualConvocacaoAbrirEscalacao();
+  manualConvocacaoRenderizarLista();
  }catch(error){manualConvocacaoMensagemTabela(error,'carregar');}
 }
 async function manualConvocacaoAbrirExcluir(){
@@ -13031,7 +13049,7 @@ async function manualConvocacaoConfirmarSalvar(){
  manualConvocacaoCapturarCampo();
  const st=manualConvocacaoObterEstado();
  const dados={
-  tipo:'manual',versao:1,salvoComo:nome,
+  tipo:'manual',versao:1,salvoComo:nome,uniforme:st.uniforme||'base',
   atletas:st.atletas.map(a=>({id:a.id,nome:a.nome,numero:a.numero,status:a.status,left:a.left||'',top:a.top||''})),
   jogo:{...st.jogo},comissao:[...st.comissao]
  };
