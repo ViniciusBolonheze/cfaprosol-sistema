@@ -5495,3 +5495,75 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
  #convocacao-modal .convocacao-uniforme-label{font-size:11px;}
  #convocacao-modal .convocacao-uniforme-label select{min-width:145px;height:36px;}
 }
+
+
+/* === Módulo lateral Pré/Pós jogo === */
+.pre-pos-jogo-overlay{display:none;position:fixed;inset:0;z-index:20000;align-items:center;justify-content:center;padding:clamp(12px,2vw,28px);background:rgba(17,24,39,.68);backdrop-filter:blur(3px);}
+.pre-pos-jogo-card{box-sizing:border-box;display:flex;flex-direction:column;width:min(1180px,96vw);max-height:92vh;overflow:hidden;border:1px solid #d4af37;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(0,0,0,.28);color:#253044;font-family:Arial,sans-serif;}
+.pre-pos-jogo-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 26px 18px;background:linear-gradient(120deg,#58111a,#781b28);color:#fff;}
+.pre-pos-jogo-header h2{margin:3px 0 5px;color:#f6d46b;font-size:clamp(22px,3vw,30px);line-height:1.15;}
+.pre-pos-jogo-header p{margin:0;color:rgba(255,255,255,.83);font-size:13px;line-height:1.5;}
+.pre-pos-jogo-eyebrow{font-size:10px;font-weight:800;letter-spacing:.16em;color:#e9c85e;}
+.pre-pos-jogo-fechar{flex:0 0 auto;width:38px;height:38px;border:1px solid rgba(255,255,255,.4);border-radius:50%;background:rgba(255,255,255,.1);color:#fff;font-size:27px;line-height:1;cursor:pointer;}
+.pre-pos-jogo-fechar:hover{background:rgba(255,255,255,.2);}
+.pre-pos-jogo-controles{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;padding:17px 24px;border-bottom:1px solid #e7e9ee;background:#fbfbfc;}
+.pre-pos-jogo-controles label{display:flex;flex-direction:column;gap:6px;min-width:190px;color:#58111a;font-size:12px;font-weight:800;}
+.pre-pos-jogo-controles select{box-sizing:border-box;width:100%;min-width:210px;height:42px;padding:8px 34px 8px 11px;border:1px solid #cbd0d9;border-radius:8px;background:#fff;color:#263247;font:600 14px Arial,sans-serif;}
+.pre-pos-jogo-controles select:focus{outline:3px solid rgba(212,175,55,.25);border-color:#a88012;}
+.pre-pos-jogo-controles select:disabled{background:#f0f1f3;color:#9299a5;cursor:not-allowed;}
+.pre-pos-jogo-atualizar{height:42px;padding:0 18px;border:0;border-radius:8px;background:#58111a;color:#f6d46b;font-weight:800;cursor:pointer;}
+.pre-pos-jogo-atualizar:hover:not(:disabled){background:#721927;}
+.pre-pos-jogo-atualizar:disabled{opacity:.48;cursor:not-allowed;}
+.pre-pos-jogo-conteudo{min-height:180px;overflow:auto;padding:20px 24px 24px;}
+.pre-pos-jogo-status{display:flex;align-items:center;justify-content:center;min-height:150px;padding:18px;border:1px dashed #cbd0d9;border-radius:12px;background:#fbfcfe;color:#596476;text-align:center;font-size:14px;line-height:1.6;}
+.pre-pos-jogo-status.erro{border-color:#e3a5a5;background:#fff6f6;color:#9b2626;}
+.pre-pos-jogo-resumo{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 14px;color:#4d5869;font-size:13px;}
+.pre-pos-jogo-resumo b{color:#58111a;font-size:15px;}
+.pre-pos-jogo-resumo span{padding:6px 10px;border-radius:999px;background:#f2f3f6;}
+.pre-pos-jogo-tabela-wrap{width:100%;overflow:auto;border:1px solid #e2e5eb;border-radius:11px;}
+.pre-pos-jogo-tabela{width:100%;min-width:760px;border-collapse:separate;border-spacing:0;background:#fff;font-size:13px;}
+.pre-pos-jogo-tabela th{padding:11px 12px;border-bottom:1px solid #dfe2e8;background:#f7f7f9;color:#4a5361;text-align:center;font-weight:800;white-space:nowrap;}
+.pre-pos-jogo-tabela thead tr:first-child th.pre-pos-jogo-grupo-pre{background:#fff5d7;color:#694f00;}
+.pre-pos-jogo-tabela thead tr:first-child th.pre-pos-jogo-grupo-pos{background:#f9e7e9;color:#58111a;}
+.pre-pos-jogo-tabela td{padding:10px 12px;border-bottom:1px solid #edf0f3;text-align:center;vertical-align:middle;}
+.pre-pos-jogo-tabela tbody tr:last-child td{border-bottom:0;}
+.pre-pos-jogo-tabela tbody tr:hover td{background:#fffdf7;}
+.pre-pos-jogo-tabela th:first-child,.pre-pos-jogo-tabela td:first-child{text-align:left;}
+.pre-pos-jogo-atleta{min-width:175px;}
+.pre-pos-jogo-atleta b{display:block;color:#263247;font-size:13px;}
+.pre-pos-jogo-atleta small{display:block;margin-top:3px;color:#7b8492;font-size:11px;font-weight:400;}
+.pre-pos-jogo-nota{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:88px;padding:5px 8px;border-radius:9px;background:#f2f4f7;color:#263247;}
+.pre-pos-jogo-nota b{font-size:16px;line-height:1;color:#58111a;}
+.pre-pos-jogo-nota small{font-size:11px;color:#596476;white-space:nowrap;}
+.pre-pos-jogo-nao-entrou{display:inline-block;padding:7px 10px;border:1px solid #d8dee8;border-radius:8px;background:#f5f6f8;color:#586174;font-size:12px;font-weight:700;white-space:nowrap;}
+.pre-pos-jogo-vazio{color:#a1a7b0;font-weight:600;}
+.pre-pos-jogo-sem-linhas{padding:26px!important;color:#707989;text-align:center!important;}
+@media(max-width:700px){
+ .pre-pos-jogo-overlay{align-items:flex-start;padding:8px;}
+ .pre-pos-jogo-card{width:100%;max-height:calc(100vh - 16px);border-radius:13px;}
+ .pre-pos-jogo-header{padding:17px 16px 14px;gap:10px;}
+ .pre-pos-jogo-header p{max-width:48ch;font-size:12px;}
+ .pre-pos-jogo-fechar{width:34px;height:34px;font-size:24px;}
+ .pre-pos-jogo-controles{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:13px 15px;}
+ .pre-pos-jogo-controles label{min-width:0;}
+ .pre-pos-jogo-controles select{min-width:0;height:40px;}
+ .pre-pos-jogo-atualizar{width:100%;height:40px;}
+ .pre-pos-jogo-conteudo{padding:14px 12px 18px;}
+ .pre-pos-jogo-resumo{font-size:12px;}
+ .pre-pos-jogo-tabela{min-width:720px;font-size:12px;}
+ .pre-pos-jogo-tabela th,.pre-pos-jogo-tabela td{padding:9px 8px;}
+}
+
+
+/* Ordenação clicável do relatório Pré/Pós jogo */
+.pre-pos-jogo-sort-botao{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:30px;padding:4px 6px;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;font-weight:800;line-height:1.2;white-space:nowrap;cursor:pointer;transition:background .15s ease,color .15s ease;}
+.pre-pos-jogo-sort-botao:hover{background:rgba(88,17,26,.08);color:#58111a;}
+.pre-pos-jogo-sort-botao:focus-visible{outline:3px solid rgba(212,175,55,.55);outline-offset:2px;}
+.pre-pos-jogo-sort-botao>span{font-size:11px;font-weight:900;opacity:.48;}
+.pre-pos-jogo-sort-botao.ativo>span{opacity:1;color:#8a6510;}
+.pre-pos-jogo-tabela th[aria-sort="ascending"] .pre-pos-jogo-sort-botao>span,
+.pre-pos-jogo-tabela th[aria-sort="descending"] .pre-pos-jogo-sort-botao>span{opacity:1;}
+.pre-pos-jogo-tabela th:first-child .pre-pos-jogo-sort-botao{justify-content:flex-start;}
+.pre-pos-jogo-tabela thead tr:first-child th.pre-pos-jogo-grupo-pos .pre-pos-jogo-sort-botao{color:#58111a;}
+.pre-pos-jogo-tabela thead tr:first-child th.pre-pos-jogo-grupo-pos .pre-pos-jogo-sort-botao:hover{background:rgba(88,17,26,.09);}
+@media(max-width:700px){.pre-pos-jogo-sort-botao{min-height:34px;padding:5px 4px;gap:5px;}}

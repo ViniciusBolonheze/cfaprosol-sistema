@@ -11899,6 +11899,235 @@ if (document.readyState === 'loading') {
 }
 
 
+/* === MÓDULO PRÉ/PÓS JOGO — consulta somente leitura === */
+const PRE_POS_JOGO_LEGENDA = {1:'Muito fraco',2:'Fraco',3:'Médio',4:'Bom',5:'Muito bom'};
+const PRE_POS_JOGO_COLUNAS = 'data,nome_completo,nascimento,pre_jogo,pos_jogo';
+let prePosJogoState = {categoria:'',data:'',rows:[],sort:{key:'nome',dir:'asc'},loading:false,loaded:false,error:'',request:0};
+
+function prePosJogoEscapar(valor){
+ return String(valor??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function prePosJogoISO(valor){
+ const s=String(valor||'');
+ if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+ return typeof AE!=='undefined'&&AE.data?AE.data(valor):'';
+}
+function prePosJogoDataBR(valor){
+ const iso=prePosJogoISO(valor),m=iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+ return m?`${m[3]}/${m[2]}/${m[1]}`:String(valor||'');
+}
+function prePosJogoObjeto(valor){
+ if(valor&&typeof valor==='object'&&!Array.isArray(valor))return valor;
+ if(typeof valor==='string'){try{const obj=JSON.parse(valor);return obj&&typeof obj==='object'&&!Array.isArray(obj)?obj:{};}catch(e){}}
+ return {};
+}
+function prePosJogoNotaValida(valor){
+ if(valor===null||valor===undefined||String(valor).trim()==='')return false;
+ const n=Number(valor);return Number.isInteger(n)&&n>=1&&n<=5;
+}
+function prePosJogoTemResposta(obj,tipo){
+ if(!obj||typeof obj!=='object')return false;
+ if(tipo==='pre_jogo')return prePosJogoNotaValida(obj.confianca)||prePosJogoNotaValida(obj.nervosismo)||!!obj.preenchido_em;
+ return obj.status==='nao_entrou'||prePosJogoNotaValida(obj.valor)||!!obj.preenchido_em;
+}
+function prePosJogoCategoriaId(valor){
+ const raw=String(valor||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+ const id=raw.startsWith('sub')?raw:('sub'+raw);
+ return Array.isArray(CAL_TREINO_CATS)&&CAL_TREINO_CATS.some(c=>c.id===id)?id:'';
+}
+function prePosJogoMapaCadastro(){
+ const mapa=new Map();
+ (excelData||[]).forEach(row=>{
+  const id=typeof aeIdRow==='function'?aeIdRow(row):{};
+  const key=AE.key(id);
+  if(key)mapa.set(key,{row,id});
+ });
+ return mapa;
+}
+function prePosJogoCategoriaLegada(row,mapaCadastro){
+ const identidade={nomeCompleto:row?.nome_completo||row?.nomeCompleto||'',nascimento:row?.nascimento||row?.data_nascimento||''};
+ const key=AE.key(identidade),base=mapaCadastro.get(key);
+ if(base){
+  if(AE.estado?.ready){const categoria=AE.categoria(base.id,'calendario');if(categoria)return categoria;}
+  return AE.categoriaAno(base.id.ano);
+ }
+ const nascISO=AE.data(identidade.nascimento),ano=nascISO?nascISO.slice(0,4):'';
+ return ano?AE.categoriaAno(ano):'';
+}
+function prePosJogoChaveResposta(row){
+ const data=prePosJogoISO(row?.data);
+ const atletaKey=AE.key({nomeCompleto:row?.nome_completo||row?.nomeCompleto||'',nascimento:row?.nascimento||row?.data_nascimento||''});
+ const fallback=[String(row?.nome_completo||row?.nomeCompleto||'').trim().toLowerCase(),AE.data(row?.nascimento||row?.data_nascimento||'')].join('||');
+ return data+'|'+(atletaKey||fallback);
+}
+async function prePosJogoBuscarRespostas(tipo){
+ const page=1000,maxRows=100000;
+ let from=0,all=[];
+ while(true){
+  const {data,error}=await _supabase.from('portal_respostas_diarias')
+   .select(PRE_POS_JOGO_COLUNAS)
+   .not(tipo,'eq','{}')
+   .order('data',{ascending:false})
+   .range(from,from+page-1);
+  if(error)throw error;
+  const lote=data||[];all.push(...lote);
+  if(lote.length<page)break;
+  from+=page;
+  if(from>=maxRows)throw new Error('O relatório excedeu o limite de leitura de 100.000 respostas.');
+ }
+ return all;
+}
+function prePosJogoDatasDisponiveis(rows){
+ return [...new Set((rows||[]).map(r=>prePosJogoISO(r.data)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+}
+async function prePosJogoCarregarCategoria(valor){
+ const categoria=prePosJogoCategoriaId(valor);
+ const request=++prePosJogoState.request;
+ prePosJogoState.categoria=categoria;prePosJogoState.data='';prePosJogoState.rows=[];prePosJogoState.sort={key:'nome',dir:'asc'};prePosJogoState.loaded=false;prePosJogoState.error='';prePosJogoState.loading=!!categoria;
+ prePosJogoRenderizar();
+ if(!categoria){prePosJogoState.loading=false;prePosJogoRenderizar();return;}
+ try{
+  // Carrega o mapa de Atletas Extras para resolver registros antigos sem categoria_jogo.
+  try{if(AE&&typeof AE.load==='function')await AE.load();}catch(e){console.warn('Atletas Extras indisponível; registros com categoria_jogo continuam consultáveis.',e);}
+  if(request!==prePosJogoState.request)return;
+  const [preRows,posRows]=await Promise.all([prePosJogoBuscarRespostas('pre_jogo'),prePosJogoBuscarRespostas('pos_jogo')]);
+  if(request!==prePosJogoState.request)return;
+  const porIdentidade=new Map();
+  const adicionar=(row,tipo)=>{
+   const obj=prePosJogoObjeto(row?.[tipo]);
+   if(!prePosJogoTemResposta(obj,tipo))return;
+   const data=prePosJogoISO(row?.data);if(!data)return;
+   const key=prePosJogoChaveResposta(row);
+   let item=porIdentidade.get(key);
+   if(!item){item={data,nome_completo:row.nome_completo||row.nomeCompleto||'',nascimento:row.nascimento||row.data_nascimento||'',pre_jogo:{},pos_jogo:{}};porIdentidade.set(key,item);}
+   item[tipo]=obj;
+  };
+  (preRows||[]).forEach(row=>adicionar(row,'pre_jogo'));
+  (posRows||[]).forEach(row=>adicionar(row,'pos_jogo'));
+  const mapaCadastro=prePosJogoMapaCadastro();
+  const filtrados=[];
+  porIdentidade.forEach(item=>{
+   const categoriaLegada=prePosJogoCategoriaLegada(item,mapaCadastro);
+   const pre=item.pre_jogo||{},pos=item.pos_jogo||{};
+   const preExiste=prePosJogoTemResposta(pre,'pre_jogo'),posExiste=prePosJogoTemResposta(pos,'pos_jogo');
+   const catPre=prePosJogoCategoriaId(pre.categoria_jogo),catPos=prePosJogoCategoriaId(pos.categoria_jogo);
+   const incluirPre=preExiste&&(catPre?catPre===categoria:categoriaLegada===categoria);
+   const incluirPos=posExiste&&(catPos?catPos===categoria:categoriaLegada===categoria);
+   if(!incluirPre&&!incluirPos)return;
+   filtrados.push({...item,pre_jogo:incluirPre?pre:{},pos_jogo:incluirPos?pos:{}});
+  });
+  filtrados.sort((a,b)=>a.data.localeCompare(b.data)||String(a.nome_completo).localeCompare(String(b.nome_completo),'pt-BR'));
+  prePosJogoState.rows=filtrados;
+  prePosJogoState.data=prePosJogoDatasDisponiveis(filtrados)[0]||'';
+  prePosJogoState.loaded=true;
+ }catch(error){
+  if(request!==prePosJogoState.request)return;
+  console.error('Erro ao consultar o relatório Pré/Pós jogo:',error);
+  prePosJogoState.rows=[];prePosJogoState.data='';prePosJogoState.loaded=false;
+  prePosJogoState.error='Não foi possível buscar os registros. Verifique a conexão e se as colunas pre_jogo e pos_jogo existem em portal_respostas_diarias.';
+ }finally{
+  if(request===prePosJogoState.request){prePosJogoState.loading=false;prePosJogoRenderizar();}
+ }
+}
+function prePosJogoSelecionarCategoria(valor){prePosJogoCarregarCategoria(valor);}
+function prePosJogoSelecionarData(valor){
+ prePosJogoState.data=prePosJogoDatasDisponiveis(prePosJogoState.rows).includes(valor)?valor:'';
+ prePosJogoRenderizar();
+}
+function prePosJogoAtualizar(){if(prePosJogoState.categoria)prePosJogoCarregarCategoria(prePosJogoState.categoria);}
+function prePosJogoNotaHTML(valor,descricao){
+ if(!prePosJogoNotaValida(valor))return '<span class="pre-pos-jogo-vazio">—</span>';
+ const numero=Number(valor),rotulo=descricao||PRE_POS_JOGO_LEGENDA[numero]||'';
+ return `<span class="pre-pos-jogo-nota"><b>${numero}</b><small>${prePosJogoEscapar(rotulo)}</small></span>`;
+}
+function prePosJogoPosHTML(obj){
+ if(obj?.status==='nao_entrou'||obj?.nao_entrou===true)return '<span class="pre-pos-jogo-nao-entrou">Não entrou</span>';
+ return prePosJogoNotaHTML(obj?.valor,obj?.descricao);
+}
+function prePosJogoOrdenar(key){
+ const permitidas=['nome','confianca','nervosismo','rendimento'];if(!permitidas.includes(key))return;
+ const atual=prePosJogoState.sort||{key:'nome',dir:'asc'};
+ if(atual.key===key)prePosJogoState.sort={key,dir:atual.dir==='asc'?'desc':'asc'};
+ else prePosJogoState.sort={key,dir:key==='nome'?'asc':'desc'};
+ prePosJogoRenderizar();
+}
+function prePosJogoSortAria(key){
+ const sort=prePosJogoState.sort||{key:'nome',dir:'asc'};
+ return sort.key===key?(sort.dir==='asc'?'ascending':'descending'):'none';
+}
+function prePosJogoSortBotao(key,label){
+ const sort=prePosJogoState.sort||{key:'nome',dir:'asc'},ativo=sort.key===key;
+ const proximaDirecao=ativo?(sort.dir==='asc'?'desc':'asc'):(key==='nome'?'asc':'desc');
+ const ordem=key==='nome'?(proximaDirecao==='asc'?'A a Z':'Z a A'):(proximaDirecao==='desc'?'maior para menor':'menor para maior');
+ const icone=ativo?(sort.dir==='asc'?'▲':'▼'):'↕';
+ return `<button type="button" class="pre-pos-jogo-sort-botao${ativo?' ativo':''}" onclick="prePosJogoOrdenar('${key}')" title="Ordenar ${prePosJogoEscapar(label)}: ${ordem}" aria-label="Ordenar ${prePosJogoEscapar(label)}: ${ordem}">${prePosJogoEscapar(label)}<span aria-hidden="true">${icone}</span></button>`;
+}
+function prePosJogoOrdenarLinhas(rows,mapaCadastro){
+ const sort=prePosJogoState.sort||{key:'nome',dir:'asc'},fator=sort.dir==='desc'?-1:1;
+ const nome=item=>String(mapaCadastro.get(AE.key({nomeCompleto:item.nome_completo,nascimento:item.nascimento}))?.id?.apelido||item.nome_completo||'').trim();
+ const valor=item=>{
+  if(sort.key==='confianca')return prePosJogoNotaValida(item.pre_jogo?.confianca)?Number(item.pre_jogo.confianca):null;
+  if(sort.key==='nervosismo')return prePosJogoNotaValida(item.pre_jogo?.nervosismo)?Number(item.pre_jogo.nervosismo):null;
+  if(sort.key==='rendimento')return prePosJogoNotaValida(item.pos_jogo?.valor)?Number(item.pos_jogo.valor):null;
+  return null;
+ };
+ return [...(rows||[])].sort((a,b)=>{
+  let comparacao=0;
+  if(sort.key==='nome')comparacao=nome(a).localeCompare(nome(b),'pt-BR',{sensitivity:'base'})*fator;
+  else{
+   const va=valor(a),vb=valor(b);
+   if(va===null&&vb!==null)return 1;
+   if(vb===null&&va!==null)return -1;
+   if(va!==null&&vb!==null&&va!==vb)comparacao=(va-vb)*fator;
+  }
+  if(comparacao)return comparacao;
+  comparacao=nome(a).localeCompare(nome(b),'pt-BR',{sensitivity:'base'});
+  return comparacao||String(a.nascimento||'').localeCompare(String(b.nascimento||''));
+ });
+}
+function prePosJogoRenderizarTabela(rows){
+ const mapaCadastro=prePosJogoMapaCadastro();
+ const linhas=(rows||[]).map(item=>{
+  const key=AE.key({nomeCompleto:item.nome_completo,nascimento:item.nascimento}),base=mapaCadastro.get(key);
+  const apelido=base?.id?.apelido||item.nome_completo||'Atleta';
+  const nomeCompleto=item.nome_completo||'';
+  const nascimento=prePosJogoDataBR(item.nascimento);
+  return `<tr><td class="pre-pos-jogo-atleta"><b>${prePosJogoEscapar(apelido)}</b>${nomeCompleto&&nomeCompleto!==apelido?`<small>${prePosJogoEscapar(nomeCompleto)}</small>`:''}</td><td>${prePosJogoEscapar(nascimento||'—')}</td><td>${prePosJogoNotaHTML(item.pre_jogo?.confianca,item.pre_jogo?.confianca_descricao)}</td><td>${prePosJogoNotaHTML(item.pre_jogo?.nervosismo,item.pre_jogo?.nervosismo_descricao)}</td><td>${prePosJogoPosHTML(item.pos_jogo||{})}</td></tr>`;
+ }).join('');
+ return `<div class="pre-pos-jogo-tabela-wrap"><table class="pre-pos-jogo-tabela"><thead><tr><th rowspan="2" aria-sort="${prePosJogoSortAria('nome')}">${prePosJogoSortBotao('nome','Atleta')}</th><th rowspan="2">Nascimento</th><th colspan="2" class="pre-pos-jogo-grupo-pre">Pré-jogo</th><th rowspan="2" class="pre-pos-jogo-grupo-pos" aria-sort="${prePosJogoSortAria('rendimento')}">${prePosJogoSortBotao('rendimento','Rendimento')}</th></tr><tr><th aria-sort="${prePosJogoSortAria('confianca')}">${prePosJogoSortBotao('confianca','Confiança')}</th><th aria-sort="${prePosJogoSortAria('nervosismo')}">${prePosJogoSortBotao('nervosismo','Nervosismo')}</th></tr></thead><tbody>${linhas||'<tr><td colspan="5" class="pre-pos-jogo-sem-linhas">Nenhum registro neste dia.</td></tr>'}</tbody></table></div>`;
+}
+function prePosJogoRenderizar(){
+ const modal=document.getElementById('pre-pos-jogo-modal');if(!modal)return;
+ const categorias=Array.isArray(CAL_TREINO_CATS)?CAL_TREINO_CATS:[];
+ const dias=prePosJogoDatasDisponiveis(prePosJogoState.rows);
+ if(prePosJogoState.data&&!dias.includes(prePosJogoState.data))prePosJogoState.data=dias[0]||'';
+ const categoriaLabel=categorias.find(c=>c.id===prePosJogoState.categoria)?.label||'';
+ const mapaCadastroRender=prePosJogoMapaCadastro();
+ const doDia=prePosJogoOrdenarLinhas(prePosJogoState.rows.filter(r=>r.data===prePosJogoState.data),mapaCadastroRender);
+ let conteudo='';
+ if(prePosJogoState.loading)conteudo='<div class="pre-pos-jogo-status" role="status">Buscando registros no banco de dados…</div>';
+ else if(prePosJogoState.error)conteudo=`<div class="pre-pos-jogo-status erro" role="alert">${prePosJogoEscapar(prePosJogoState.error)}</div>`;
+ else if(!prePosJogoState.categoria)conteudo='<div class="pre-pos-jogo-status">Selecione uma categoria para carregar os registros Pré/Pós jogo.</div>';
+ else if(!prePosJogoState.loaded)conteudo='<div class="pre-pos-jogo-status">Aguardando consulta…</div>';
+ else if(!dias.length)conteudo='<div class="pre-pos-jogo-status">Não há registros Pré/Pós jogo nesta categoria.</div>';
+ else conteudo=`<div class="pre-pos-jogo-resumo"><b>${prePosJogoEscapar(categoriaLabel)}</b><span>${prePosJogoEscapar(prePosJogoDataBR(prePosJogoState.data))}</span><span>${doDia.length} atleta(s) com registro</span></div>${prePosJogoRenderizarTabela(doDia)}`;
+ modal.innerHTML=`<section class="pre-pos-jogo-card" role="dialog" aria-modal="true" aria-labelledby="pre-pos-jogo-titulo"><header class="pre-pos-jogo-header"><div><span class="pre-pos-jogo-eyebrow">RELATÓRIO DE JOGO</span><h2 id="pre-pos-jogo-titulo">Pré/Pós jogo</h2><p>Notas de confiança e nervosismo antes do jogo, lado a lado com o desempenho após o jogo.</p></div><button type="button" class="pre-pos-jogo-fechar" onclick="closePrePosJogoModulo()" aria-label="Fechar">×</button></header><div class="pre-pos-jogo-controles"><label>Categoria<select id="pre-pos-jogo-categoria" onchange="prePosJogoSelecionarCategoria(this.value)"><option value="">Selecione a categoria</option>${categorias.map(c=>`<option value="${prePosJogoEscapar(c.id)}" ${prePosJogoState.categoria===c.id?'selected':''}>${prePosJogoEscapar(c.label)}</option>`).join('')}</select></label><label>Dia<select id="pre-pos-jogo-dia" ${!dias.length||prePosJogoState.loading?'disabled':''} onchange="prePosJogoSelecionarData(this.value)"><option value="">${prePosJogoState.loading?'Carregando dias…':dias.length?'Selecione o dia':prePosJogoState.categoria?'Sem dias com registros':'Escolha uma categoria primeiro'}</option>${dias.map(d=>`<option value="${d}" ${prePosJogoState.data===d?'selected':''}>${prePosJogoEscapar(prePosJogoDataBR(d))}</option>`).join('')}</select></label><button type="button" class="pre-pos-jogo-atualizar" onclick="prePosJogoAtualizar()" ${!prePosJogoState.categoria||prePosJogoState.loading?'disabled':''}>Atualizar</button></div><div class="pre-pos-jogo-conteudo" aria-live="polite">${conteudo}</div></section>`;
+}
+function openPrePosJogoModulo(){
+ let modal=document.getElementById('pre-pos-jogo-modal');
+ if(!modal){
+  modal=document.createElement('div');modal.id='pre-pos-jogo-modal';modal.className='pre-pos-jogo-overlay';
+  modal.addEventListener('click',event=>{if(event.target===modal)closePrePosJogoModulo();});
+  document.body.appendChild(modal);
+ }
+ prePosJogoState={categoria:'',data:'',rows:[],sort:{key:'nome',dir:'asc'},loading:false,loaded:false,error:'',request:prePosJogoState.request||0};
+ prePosJogoRenderizar();modal.style.display='flex';
+}
+function closePrePosJogoModulo(){
+ prePosJogoState.request++;prePosJogoState.loading=false;
+ const modal=document.getElementById('pre-pos-jogo-modal');if(modal)modal.style.display='none';
+}
+
 /* === TESTE MODERNO V3 SEGURO ===
    Casca visual dinâmica. Não altera banco, tabelas, Supabase ou regras internas. */
 let modernV3ManualSidebarClosed=false;
@@ -11933,6 +12162,7 @@ function modernV3EnsureMenu(){
    <button class="nav-btn" onclick="modernV3Navigate('convocacao',event)"><span class="mv3-ico">📋</span><span>Convocação</span></button>
    <button class="nav-btn" onclick="modernV3Navigate('convocacao-manual',event)"><span class="mv3-ico">✍️</span><span>Convocação Manual</span></button>
    <button class="nav-btn" onclick="modernV3Navigate('jogos',event)"><span class="mv3-ico">⚽</span><span>Jogos</span></button>
+   <button class="nav-btn" onclick="modernV3Action('pre-pos-jogo',event)"><span class="mv3-ico">📊</span><span>Pré/Pós jogo</span></button>
    <button class="nav-btn" onclick="modernV3Navigate('prancheta',event)"><span class="mv3-ico">📐</span><span>Prancheta Virtual</span></button>
    
   </div>
@@ -12466,6 +12696,7 @@ function modernV3Action(action,event){
   if(action==='preparacao-fisica'){openPreparacaoFisicaQueixasModal();return;}
   if(action==='monitoramento-carga'){openMonitoramentoCargaModal();return;}
   if(action==='calendario-treino'){openCalendarioTreino();return;}
+  if(action==='pre-pos-jogo'){openPrePosJogoModulo();return;}
   if(action==='criacao-treino'){openCriacaoTreino();return;}
  }catch(e){console.error(e);alert('Não foi possível abrir este módulo.');}
 }
@@ -12496,7 +12727,7 @@ function modernV3BuildHome(){
 }
 
 function modernV3AnyModalOpen(){
- const selectors=['#ae-modal','.escalacao-overlay','.relatorios-menu-overlay','.trabalho-diario-overlay','.trabalho-atletas-overlay','.relatorio-visualizacao-overlay','.rpp-overlay','.rpp-extra-overlay','.vba-modal-overlay','#convocacao-modal','#convocacao-manual-modal','#campo-convocacao-manual-modal','#prancheta-modal','#jogos-professor-modal','#relatorios-modal','#trabalho-diario-modal','#planejamento-semanal-modal','#fotos-atletas-modal'];
+ const selectors=['#ae-modal','.escalacao-overlay','.relatorios-menu-overlay','.trabalho-diario-overlay','.trabalho-atletas-overlay','.relatorio-visualizacao-overlay','.rpp-overlay','.rpp-extra-overlay','.vba-modal-overlay','#convocacao-modal','#convocacao-manual-modal','#campo-convocacao-manual-modal','#prancheta-modal','#jogos-professor-modal','#relatorios-modal','#trabalho-diario-modal','#planejamento-semanal-modal','#fotos-atletas-modal','#pre-pos-jogo-modal'];
  return selectors.some(sel=>Array.from(document.querySelectorAll(sel)).some(el=>{
   const st=getComputedStyle(el);
   return st.display!=='none' && st.visibility!=='hidden' && st.opacity!=='0';
@@ -12510,7 +12741,7 @@ function modernV3RestoreSidebarIfHomeFree(){
 document.addEventListener('click',modernV3RestoreSidebarIfHomeFree,true);
 
 function modernV3FecharModaisAbertos(){
- const ids=['ae-modal','jogos-professor-modal','prancheta-modal','convocacao-modal','convocacao-manual-modal','campo-convocacao-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal','relatorios-modal','relatorios-menu-modal','trabalho-diario-modal','planejamento-semanal-modal','fotos-atletas-modal','detalhes-jogo-salvo-modal','novo-jogo-modal','atletas-ativos-jogos-modal','carregar-jogo-salvo-modal','add-athlete-modal','modal-anotacoes','fichaModal','controle-peso-modal','relatorio-psrpse-modal','relatorio-visualizacao-modal'];
+ const ids=['ae-modal','jogos-professor-modal','prancheta-modal','convocacao-modal','convocacao-manual-modal','campo-convocacao-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal','relatorios-modal','relatorios-menu-modal','trabalho-diario-modal','planejamento-semanal-modal','fotos-atletas-modal','detalhes-jogo-salvo-modal','novo-jogo-modal','atletas-ativos-jogos-modal','carregar-jogo-salvo-modal','add-athlete-modal','modal-anotacoes','fichaModal','controle-peso-modal','relatorio-psrpse-modal','relatorio-visualizacao-modal','pre-pos-jogo-modal'];
  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
  document.querySelectorAll('.escalacao-overlay,.vba-modal-overlay,.mini-prancheta-overlay,.fotos-overlay').forEach(el=>{el.style.display='none';});
 }
