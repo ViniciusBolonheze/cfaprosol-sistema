@@ -11901,8 +11901,10 @@ if (document.readyState === 'loading') {
 
 /* === MÓDULO PRÉ/PÓS JOGO — consulta somente leitura === */
 const PRE_POS_JOGO_LEGENDA = {1:'Muito fraco',2:'Fraco',3:'Médio',4:'Bom',5:'Muito bom'};
-const PRE_POS_JOGO_COLUNAS = 'data,nome_completo,nascimento,pre_jogo,pos_jogo';
+const PRE_POS_JOGO_COLUNAS_BASE = 'data,nome_completo,nascimento';
 let prePosJogoState = {categoria:'',data:'',rows:[],sort:{key:'nome',dir:'asc'},loading:false,loaded:false,error:'',request:0};
+const PRE_POS_JOGO_CACHE_MS = 60000;
+let prePosJogoCachePorCategoria = new Map();
 
 function prePosJogoEscapar(valor){
  return String(valor??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -11944,29 +11946,20 @@ function prePosJogoMapaCadastro(){
  });
  return mapa;
 }
-function prePosJogoCategoriaLegada(row,mapaCadastro){
- const identidade={nomeCompleto:row?.nome_completo||row?.nomeCompleto||'',nascimento:row?.nascimento||row?.data_nascimento||''};
- const key=AE.key(identidade),base=mapaCadastro.get(key);
- if(base){
-  if(AE.estado?.ready){const categoria=AE.categoria(base.id,'calendario');if(categoria)return categoria;}
-  return AE.categoriaAno(base.id.ano);
- }
- const nascISO=AE.data(identidade.nascimento),ano=nascISO?nascISO.slice(0,4):'';
- return ano?AE.categoriaAno(ano):'';
-}
 function prePosJogoChaveResposta(row){
  const data=prePosJogoISO(row?.data);
  const atletaKey=AE.key({nomeCompleto:row?.nome_completo||row?.nomeCompleto||'',nascimento:row?.nascimento||row?.data_nascimento||''});
  const fallback=[String(row?.nome_completo||row?.nomeCompleto||'').trim().toLowerCase(),AE.data(row?.nascimento||row?.data_nascimento||'')].join('||');
  return data+'|'+(atletaKey||fallback);
 }
-async function prePosJogoBuscarRespostas(tipo){
+async function prePosJogoBuscarRespostas(tipo,categoria){
  const page=1000,maxRows=100000;
  let from=0,all=[];
+ const colunas=PRE_POS_JOGO_COLUNAS_BASE+','+tipo;
  while(true){
   const {data,error}=await _supabase.from('portal_respostas_diarias')
-   .select(PRE_POS_JOGO_COLUNAS)
-   .not(tipo,'eq','{}')
+   .select(colunas)
+   .eq(`${tipo}->>categoria_jogo`,categoria)
    .order('data',{ascending:false})
    .range(from,from+page-1);
   if(error)throw error;
@@ -11980,17 +11973,29 @@ async function prePosJogoBuscarRespostas(tipo){
 function prePosJogoDatasDisponiveis(rows){
  return [...new Set((rows||[]).map(r=>prePosJogoISO(r.data)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
 }
-async function prePosJogoCarregarCategoria(valor){
+async function prePosJogoCarregarCategoria(valor,forcar=false){
  const categoria=prePosJogoCategoriaId(valor);
+ const mesmaCategoria=prePosJogoState.categoria===categoria;
+ const dataAnterior=mesmaCategoria?prePosJogoState.data:'';
+ const ordenacaoAnterior=mesmaCategoria?(prePosJogoState.sort||{key:'nome',dir:'asc'}):{key:'nome',dir:'asc'};
  const request=++prePosJogoState.request;
- prePosJogoState.categoria=categoria;prePosJogoState.data='';prePosJogoState.rows=[];prePosJogoState.sort={key:'nome',dir:'asc'};prePosJogoState.loaded=false;prePosJogoState.error='';prePosJogoState.loading=!!categoria;
+ prePosJogoState.categoria=categoria;prePosJogoState.data=dataAnterior;prePosJogoState.rows=[];prePosJogoState.sort=ordenacaoAnterior;prePosJogoState.loaded=false;prePosJogoState.error='';prePosJogoState.loading=!!categoria;
  prePosJogoRenderizar();
  if(!categoria){prePosJogoState.loading=false;prePosJogoRenderizar();return;}
+ const cache=prePosJogoCachePorCategoria.get(categoria);
+ if(!forcar&&cache&&Date.now()-cache.carregadoEm<PRE_POS_JOGO_CACHE_MS){
+  prePosJogoState.rows=cache.rows;
+  const diasCache=prePosJogoDatasDisponiveis(cache.rows);
+  prePosJogoState.data=diasCache.includes(dataAnterior)?dataAnterior:(diasCache[0]||'');
+  prePosJogoState.loaded=true;prePosJogoState.loading=false;prePosJogoRenderizar();return;
+ }
  try{
-  // Carrega o mapa de Atletas Extras para resolver registros antigos sem categoria_jogo.
-  try{if(AE&&typeof AE.load==='function')await AE.load();}catch(e){console.warn('Atletas Extras indisponível; registros com categoria_jogo continuam consultáveis.',e);}
-  if(request!==prePosJogoState.request)return;
-  const [preRows,posRows]=await Promise.all([prePosJogoBuscarRespostas('pre_jogo'),prePosJogoBuscarRespostas('pos_jogo')]);
+  // Busca em paralelo e filtra no Supabase pela categoria salva no JSON da resposta.
+  // Só trafega as colunas do questionário consultado, em vez de baixar todos os jogos.
+  const [preRows,posRows]=await Promise.all([
+   prePosJogoBuscarRespostas('pre_jogo',categoria),
+   prePosJogoBuscarRespostas('pos_jogo',categoria)
+  ]);
   if(request!==prePosJogoState.request)return;
   const porIdentidade=new Map();
   const adicionar=(row,tipo)=>{
@@ -12004,22 +12009,20 @@ async function prePosJogoCarregarCategoria(valor){
   };
   (preRows||[]).forEach(row=>adicionar(row,'pre_jogo'));
   (posRows||[]).forEach(row=>adicionar(row,'pos_jogo'));
-  const mapaCadastro=prePosJogoMapaCadastro();
   const filtrados=[];
   porIdentidade.forEach(item=>{
-   const categoriaLegada=prePosJogoCategoriaLegada(item,mapaCadastro);
    const pre=item.pre_jogo||{},pos=item.pos_jogo||{};
-   const preExiste=prePosJogoTemResposta(pre,'pre_jogo'),posExiste=prePosJogoTemResposta(pos,'pos_jogo');
-   const catPre=prePosJogoCategoriaId(pre.categoria_jogo),catPos=prePosJogoCategoriaId(pos.categoria_jogo);
-   const incluirPre=preExiste&&(catPre?catPre===categoria:categoriaLegada===categoria);
-   const incluirPos=posExiste&&(catPos?catPos===categoria:categoriaLegada===categoria);
+   const incluirPre=prePosJogoTemResposta(pre,'pre_jogo')&&prePosJogoCategoriaId(pre.categoria_jogo)===categoria;
+   const incluirPos=prePosJogoTemResposta(pos,'pos_jogo')&&prePosJogoCategoriaId(pos.categoria_jogo)===categoria;
    if(!incluirPre&&!incluirPos)return;
    filtrados.push({...item,pre_jogo:incluirPre?pre:{},pos_jogo:incluirPos?pos:{}});
   });
   filtrados.sort((a,b)=>a.data.localeCompare(b.data)||String(a.nome_completo).localeCompare(String(b.nome_completo),'pt-BR'));
   prePosJogoState.rows=filtrados;
-  prePosJogoState.data=prePosJogoDatasDisponiveis(filtrados)[0]||'';
+  const dias=prePosJogoDatasDisponiveis(filtrados);
+  prePosJogoState.data=dias.includes(dataAnterior)?dataAnterior:(dias[0]||'');
   prePosJogoState.loaded=true;
+  prePosJogoCachePorCategoria.set(categoria,{rows:filtrados,carregadoEm:Date.now()});
  }catch(error){
   if(request!==prePosJogoState.request)return;
   console.error('Erro ao consultar o relatório Pré/Pós jogo:',error);
@@ -12034,7 +12037,7 @@ function prePosJogoSelecionarData(valor){
  prePosJogoState.data=prePosJogoDatasDisponiveis(prePosJogoState.rows).includes(valor)?valor:'';
  prePosJogoRenderizar();
 }
-function prePosJogoAtualizar(){if(prePosJogoState.categoria)prePosJogoCarregarCategoria(prePosJogoState.categoria);}
+function prePosJogoAtualizar(){if(prePosJogoState.categoria)prePosJogoCarregarCategoria(prePosJogoState.categoria,true);}
 function prePosJogoNotaHTML(valor,descricao){
  if(!prePosJogoNotaValida(valor))return '<span class="pre-pos-jogo-vazio">—</span>';
  const numero=Number(valor),rotulo=descricao||PRE_POS_JOGO_LEGENDA[numero]||'';
@@ -12094,7 +12097,7 @@ function prePosJogoRenderizarTabela(rows){
   const nascimento=prePosJogoDataBR(item.nascimento);
   return `<tr><td class="pre-pos-jogo-atleta"><b>${prePosJogoEscapar(apelido)}</b>${nomeCompleto&&nomeCompleto!==apelido?`<small>${prePosJogoEscapar(nomeCompleto)}</small>`:''}</td><td>${prePosJogoEscapar(nascimento||'—')}</td><td>${prePosJogoNotaHTML(item.pre_jogo?.confianca,item.pre_jogo?.confianca_descricao)}</td><td>${prePosJogoNotaHTML(item.pre_jogo?.nervosismo,item.pre_jogo?.nervosismo_descricao)}</td><td>${prePosJogoPosHTML(item.pos_jogo||{})}</td></tr>`;
  }).join('');
- return `<div class="pre-pos-jogo-tabela-wrap"><table class="pre-pos-jogo-tabela"><thead><tr><th rowspan="2" aria-sort="${prePosJogoSortAria('nome')}">${prePosJogoSortBotao('nome','Atleta')}</th><th rowspan="2">Nascimento</th><th colspan="2" class="pre-pos-jogo-grupo-pre">Pré-jogo</th><th rowspan="2" class="pre-pos-jogo-grupo-pos" aria-sort="${prePosJogoSortAria('rendimento')}">${prePosJogoSortBotao('rendimento','Rendimento')}</th></tr><tr><th aria-sort="${prePosJogoSortAria('confianca')}">${prePosJogoSortBotao('confianca','Confiança')}</th><th aria-sort="${prePosJogoSortAria('nervosismo')}">${prePosJogoSortBotao('nervosismo','Nervosismo')}</th></tr></thead><tbody>${linhas||'<tr><td colspan="5" class="pre-pos-jogo-sem-linhas">Nenhum registro neste dia.</td></tr>'}</tbody></table></div>`;
+ return `<div class="pre-pos-jogo-tabela-wrap"><table class="pre-pos-jogo-tabela"><thead><tr><th rowspan="2" aria-sort="${prePosJogoSortAria('nome')}">${prePosJogoSortBotao('nome','Atleta')}</th><th rowspan="2">Nascimento</th><th colspan="2" class="pre-pos-jogo-grupo-pre">Pré-jogo</th><th colspan="1" class="pre-pos-jogo-grupo-pos">Pós Jogo</th></tr><tr><th aria-sort="${prePosJogoSortAria('confianca')}">${prePosJogoSortBotao('confianca','Confiança')}</th><th aria-sort="${prePosJogoSortAria('nervosismo')}">${prePosJogoSortBotao('nervosismo','Nervosismo')}</th><th class="pre-pos-jogo-rendimento-sort" aria-sort="${prePosJogoSortAria('rendimento')}">${prePosJogoSortBotao('rendimento','Rendimento')}</th></tr></thead><tbody>${linhas||'<tr><td colspan="5" class="pre-pos-jogo-sem-linhas">Nenhum registro neste dia.</td></tr>'}</tbody></table></div>`;
 }
 function prePosJogoRenderizar(){
  const modal=document.getElementById('pre-pos-jogo-modal');if(!modal)return;
@@ -12111,7 +12114,8 @@ function prePosJogoRenderizar(){
  else if(!prePosJogoState.loaded)conteudo='<div class="pre-pos-jogo-status">Aguardando consulta…</div>';
  else if(!dias.length)conteudo='<div class="pre-pos-jogo-status">Não há registros Pré/Pós jogo nesta categoria.</div>';
  else conteudo=`<div class="pre-pos-jogo-resumo"><b>${prePosJogoEscapar(categoriaLabel)}</b><span>${prePosJogoEscapar(prePosJogoDataBR(prePosJogoState.data))}</span><span>${doDia.length} atleta(s) com registro</span></div>${prePosJogoRenderizarTabela(doDia)}`;
- modal.innerHTML=`<section class="pre-pos-jogo-card" role="dialog" aria-modal="true" aria-labelledby="pre-pos-jogo-titulo"><header class="pre-pos-jogo-header"><div><span class="pre-pos-jogo-eyebrow">RELATÓRIO DE JOGO</span><h2 id="pre-pos-jogo-titulo">Pré/Pós jogo</h2><p>Notas de confiança e nervosismo antes do jogo, lado a lado com o desempenho após o jogo.</p></div><button type="button" class="pre-pos-jogo-fechar" onclick="closePrePosJogoModulo()" aria-label="Fechar">×</button></header><div class="pre-pos-jogo-controles"><label>Categoria<select id="pre-pos-jogo-categoria" onchange="prePosJogoSelecionarCategoria(this.value)"><option value="">Selecione a categoria</option>${categorias.map(c=>`<option value="${prePosJogoEscapar(c.id)}" ${prePosJogoState.categoria===c.id?'selected':''}>${prePosJogoEscapar(c.label)}</option>`).join('')}</select></label><label>Dia<select id="pre-pos-jogo-dia" ${!dias.length||prePosJogoState.loading?'disabled':''} onchange="prePosJogoSelecionarData(this.value)"><option value="">${prePosJogoState.loading?'Carregando dias…':dias.length?'Selecione o dia':prePosJogoState.categoria?'Sem dias com registros':'Escolha uma categoria primeiro'}</option>${dias.map(d=>`<option value="${d}" ${prePosJogoState.data===d?'selected':''}>${prePosJogoEscapar(prePosJogoDataBR(d))}</option>`).join('')}</select></label><button type="button" class="pre-pos-jogo-atualizar" onclick="prePosJogoAtualizar()" ${!prePosJogoState.categoria||prePosJogoState.loading?'disabled':''}>Atualizar</button></div><div class="pre-pos-jogo-conteudo" aria-live="polite">${conteudo}</div></section>`;
+ const controles=`<div class="pre-pos-jogo-controles"><label>Categoria<select id="pre-pos-jogo-categoria" onchange="prePosJogoSelecionarCategoria(this.value)"><option value="">Selecione a categoria</option>${categorias.map(c=>`<option value="${prePosJogoEscapar(c.id)}" ${prePosJogoState.categoria===c.id?'selected':''}>${prePosJogoEscapar(c.label)}</option>`).join('')}</select></label><label>Dia<select id="pre-pos-jogo-dia" ${!dias.length||prePosJogoState.loading?'disabled':''} onchange="prePosJogoSelecionarData(this.value)"><option value="">${prePosJogoState.loading?'Carregando dias…':dias.length?'Selecione o dia':prePosJogoState.categoria?'Sem dias com registros':'Escolha uma categoria primeiro'}</option>${dias.map(d=>`<option value="${d}" ${prePosJogoState.data===d?'selected':''}>${prePosJogoEscapar(prePosJogoDataBR(d))}</option>`).join('')}</select></label><button type="button" class="pre-pos-jogo-atualizar" onclick="prePosJogoAtualizar()" ${!prePosJogoState.categoria||prePosJogoState.loading?'disabled':''}>Atualizar</button></div>`;
+ modal.innerHTML=`<section class="pre-pos-jogo-card" role="dialog" aria-modal="true" aria-labelledby="pre-pos-jogo-titulo"><header class="pre-pos-jogo-header"><div class="pre-pos-jogo-header-text"><span class="pre-pos-jogo-eyebrow">RELATÓRIO DE JOGO</span><h2 id="pre-pos-jogo-titulo">Pré/Pós jogo</h2><p>Confiança e nervosismo antes do jogo; rendimento depois.</p></div>${controles}<button type="button" class="pre-pos-jogo-fechar" onclick="closePrePosJogoModulo()" aria-label="Fechar">×</button></header><div class="pre-pos-jogo-conteudo" aria-live="polite">${conteudo}</div></section>`;
 }
 function openPrePosJogoModulo(){
  let modal=document.getElementById('pre-pos-jogo-modal');

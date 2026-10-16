@@ -5567,3 +5567,45 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
 .pre-pos-jogo-tabela thead tr:first-child th.pre-pos-jogo-grupo-pos .pre-pos-jogo-sort-botao{color:#58111a;}
 .pre-pos-jogo-tabela thead tr:first-child th.pre-pos-jogo-grupo-pos .pre-pos-jogo-sort-botao:hover{background:rgba(88,17,26,.09);}
 @media(max-width:700px){.pre-pos-jogo-sort-botao{min-height:34px;padding:5px 4px;gap:5px;}}
+
+
+/* Pré/Pós jogo — cabeçalho compacto com filtros na faixa vermelha */
+.pre-pos-jogo-header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:nowrap;padding:12px 18px;background:linear-gradient(120deg,#58111a,#781b28);}
+.pre-pos-jogo-header-text{flex:0 0 245px;min-width:210px;}
+.pre-pos-jogo-header h2{margin:2px 0 3px;font-size:clamp(19px,2vw,24px);line-height:1.08;}
+.pre-pos-jogo-header p{max-width:255px;font-size:10.5px;line-height:1.3;}
+.pre-pos-jogo-controles{display:flex;flex:1 1 auto;align-items:flex-end;justify-content:flex-end;gap:8px;flex-wrap:nowrap;min-width:0;margin:0;padding:0;border:0;background:transparent;}
+.pre-pos-jogo-controles label{flex:1 1 160px;min-width:130px;max-width:220px;gap:4px;color:#f6d46b;font-size:10px;}
+.pre-pos-jogo-controles select{width:100%;min-width:0;height:34px;padding:5px 26px 5px 9px;border-color:rgba(255,255,255,.62);border-radius:7px;background:#fff;color:#263247;font-size:12px;}
+.pre-pos-jogo-controles select:disabled{background:#f0f1f3;}
+.pre-pos-jogo-atualizar{flex:0 0 auto;height:34px;padding:0 12px;border:1px solid #f6d46b;background:#f6d46b;color:#58111a;font-size:11px;}
+.pre-pos-jogo-atualizar:hover:not(:disabled){background:#ffe58a;}
+.pre-pos-jogo-fechar{width:34px;height:34px;font-size:23px;}
+.pre-pos-jogo-conteudo{padding-top:15px;}
+@media(max-width:900px){
+ .pre-pos-jogo-header{gap:10px;padding:11px 14px;}
+ .pre-pos-jogo-header-text{flex-basis:205px;min-width:185px;}
+ .pre-pos-jogo-header p{max-width:220px;}
+ .pre-pos-jogo-controles{gap:6px;}
+ .pre-pos-jogo-controles label{min-width:112px;}
+ .pre-pos-jogo-atualizar{padding:0 9px;}
+}
+@media(max-width:700px){
+ .pre-pos-jogo-header{display:grid;grid-template-columns:minmax(0,1fr) 34px;align-items:start;gap:8px 10px;padding:12px 14px;}
+ .pre-pos-jogo-header-text{grid-column:1;grid-row:1;min-width:0;}
+ .pre-pos-jogo-header h2{font-size:20px;}
+ .pre-pos-jogo-header p{max-width:46ch;font-size:10px;}
+ .pre-pos-jogo-fechar{grid-column:2;grid-row:1;width:32px;height:32px;font-size:22px;}
+ .pre-pos-jogo-controles{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:7px;min-width:0;padding:0;}
+ .pre-pos-jogo-controles label{min-width:0;max-width:none;font-size:9px;}
+ .pre-pos-jogo-controles select{height:32px;padding:4px 20px 4px 7px;font-size:11px;}
+ .pre-pos-jogo-atualizar{height:32px;padding:0 9px;font-size:10px;}
+}
+@media(max-width:480px){
+ .pre-pos-jogo-header{padding:10px 11px;}
+ .pre-pos-jogo-controles{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+ .pre-pos-jogo-atualizar{grid-column:1/-1;width:100%;}
+ .pre-pos-jogo-conteudo{padding:12px 10px 16px;}
+}
+.pre-pos-jogo-tabela thead tr:nth-child(2) th.pre-pos-jogo-rendimento-sort .pre-pos-jogo-sort-botao{color:#58111a;}
+.pre-pos-jogo-tabela thead tr:nth-child(2) th.pre-pos-jogo-rendimento-sort .pre-pos-jogo-sort-botao:hover{background:rgba(88,17,26,.09);}
