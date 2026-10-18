@@ -10606,7 +10606,7 @@ async function tpApagarProjeto(nome){
 }
 
 
-let avdState={cat:'',data:'',notas:{},anularPse:{},anotacao:'',jogo:false,dias:[],extras:null,carregando:false};
+let avdState={cat:'',data:'',notas:{},anularPse:{},respostasDia:[],anotacao:'',jogo:false,dias:[],extras:null,carregando:false};
 function avdHoje(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function avdCats(){return typeof categoriasTrabalhoDiarioConfig==='function'?categoriasTrabalhoDiarioConfig():{sub11:{label:'Sub 11',anos:['2015','2016','2017','2018']},sub12:{label:'Sub 12',anos:['2014']},sub13:{label:'Sub 13',anos:['2013']},sub16:{label:'Sub 16',anos:['2012','2011','2010','2009']}};}
 function avdCatIds(){return Object.keys(avdCats());}
@@ -10665,8 +10665,21 @@ function avdMediaBR(n){
  return (Number.isInteger(r)?String(r):r.toFixed(1)).replace('.',',');
 }
 function avdRespDoAtleta(a){return (avdState.respostasDia||[]).find(r=>AE.key(r)===AE.key(a.id))||null;}
-function avdTextoPsrPse(a, medPsr, medPse){
- const row=avdRespDoAtleta(a);
+function avdPseDesempenho(row){
+ let pse=row&&row.pse;
+ if(typeof pse==='string'){try{pse=JSON.parse(pse);}catch(e){pse=null;}}
+ if(!pse||typeof pse!=='object')return '-';
+ const valor=pse.desempenho_treino;
+ if(valor===undefined||valor===null||String(valor).trim()==='')return '-';
+ const texto=String(valor).trim().toUpperCase();
+ if(/^DM(?:\b|$)/.test(texto))return 'DM';
+ const numero=Number(texto.replace(',','.'));
+ if(numero===9)return 'DM';
+ if(Number.isInteger(numero)&&numero>=1&&numero<=5)return String(numero);
+ return '-';
+}
+function avdTextoPsrPse(a, medPsr, medPse, row){
+ if(arguments.length<4)row=avdRespDoAtleta(a);
  const psr=avdPsrNotaMonitoramento(row);
  const pse=avdPseNum(row);
  return 'PSR '+avdMediaBR(psr)+' ('+avdMediaBR(medPsr)+') - PSE '+avdMediaBR(pse)+' ('+avdMediaBR(medPse)+')';
@@ -10865,9 +10878,13 @@ function avdRender(){
   const n=avdNota(k);
   const nome=a.id.apelido||a.id.nomeCompleto||'';
   const pseAnulado=avdState.anularPse[k]===true;
+  const pseResposta=avdRespDoAtleta(a);
+  const pseNotaDesempenho=avdPseDesempenho(pseResposta);
+  const pseTextoDesempenho=pseNotaDesempenho==='-'?'Desempenho autoavaliado no PSE: não informado':'Desempenho autoavaliado no PSE: '+pseNotaDesempenho+(pseNotaDesempenho==='DM'?' — lesionado':'');
+  const pseBox='<span class="avd-pse-desempenho" title="'+avdEsc(pseTextoDesempenho)+'" aria-label="'+avdEsc(pseTextoDesempenho)+'">'+avdEsc(pseNotaDesempenho)+'</span>';
   const encodedK=encodeURIComponent(k);
   const btns=[0,7,1,2,3,4,5,9,8].map(v=>'<button type="button" data-n="'+v+'" class="'+(n===v?'on':'')+(v===7?' avd-sem-nota':'')+(v===9?' avd-dm':'')+(v===8?' avd-nc':'')+'" onclick="avdSetNota(\''+k.replace(/'/g,"\\'")+'\','+v+')">'+(v===0?'F':v===7?'X':v===9?'DM':v===8?'NC':v)+'</button>').join('');
-  return '<div class="avd-row" data-k="'+avdEsc(k)+'"><div class="avd-atleta-info"><span class="avd-nome">'+avdEsc(nome)+' <small>'+avdEsc(a.id.ano||'')+'</small></span><label class="avd-anular-pse" title="Não incluir a resposta PSE deste atleta na média"><input type="checkbox" data-k="'+encodedK+'" '+(pseAnulado?'checked':'')+' onchange="avdSetAnularPse(decodeURIComponent(this.dataset.k),this.checked)"><span>ANULAR PSE</span></label><small class="avd-psrpse">'+avdEsc(avdTextoPsrPse(a,med.psr,med.pse))+'</small></div><div class="avd-notas" data-k="'+avdEsc(k)+'">'+btns+'</div></div>';
+  return '<div class="avd-row" data-k="'+avdEsc(k)+'"><div class="avd-atleta-info"><span class="avd-nome">'+avdEsc(nome)+' <small>'+avdEsc(a.id.ano||'')+'</small></span><label class="avd-anular-pse" title="Não incluir a resposta PSE deste atleta na média"><input type="checkbox" data-k="'+encodedK+'" '+(pseAnulado?'checked':'')+' onchange="avdSetAnularPse(decodeURIComponent(this.dataset.k),this.checked)"><span>ANULAR PSE</span></label><small class="avd-psrpse">'+avdEsc(avdTextoPsrPse(a,med.psr,med.pse,pseResposta))+'</small></div><div class="avd-notas" data-k="'+avdEsc(k)+'">'+btns+pseBox+'</div></div>';
  }).join('')||('<p class="avd-empty">'+(avdState.cat?'Nenhum atleta nesta categoria.':'Selecione uma categoria.')+'</p>');
  m.innerHTML=`<div class="avd-card">
   <button class="avd-close" onclick="closeAvaliacaoDiaria()">×</button>
@@ -10883,7 +10900,7 @@ function avdRender(){
    <button type="button" class="avd-print" onclick="avdRelatorio()">Imprimir/Exportar</button>
    <button type="button" class="avd-rel" onclick="openAvdRelatorio()">Relatório</button>
   </div>
-  <div class="avd-legenda"><span><b>F</b> falta</span><span><b>X</b> sem nota</span><span><b>DM</b> lesionado (só fortalecimento)</span><span><b>NC</b> não convocado</span><span><b>1–2</b> fraco</span><span><b>3</b> médio</span><span><b>4–5</b> bom</span></div>
+  <div class="avd-legenda"><span><b>F</b> falta</span><span><b>X</b> sem nota</span><span><b>DM</b> lesionado (só fortalecimento)</span><span><b>NC</b> não convocado</span><span><b>1–2</b> fraco</span><span><b>3</b> médio</span><span><b>4–5</b> bom</span><span><b>PSE</b> desempenho autoavaliado</span></div>
   <div class="avd-list">${avdState.carregando?'<p class="avd-empty">Carregando...</p>':rows}</div>
   <label class="avd-jogo-lab"><input type="checkbox" id="avd-jogo" ${avdState.jogo?'checked':''} onchange="avdState.jogo=this.checked"> <b>Jogo</b> neste dia</label>
   <label class="avd-anot-lab">Objetivos e informações do dia</label>
@@ -10902,7 +10919,7 @@ async function avdListarDias(){
 }
 async function avdCarregarDia(){
  if(!avdState.cat){ avdState.carregando=false; avdRender(); return; }
- avdState.carregando=true; avdRender();
+ avdState.carregando=true; avdState.respostasDia=[]; avdRender();
  const atletas=avdAtletas();
  const notas={},anularPse={};
  atletas.forEach(a=>{ const k=avdChaveId(a.id); notas[k]=3; anularPse[k]=false; });
@@ -12158,6 +12175,7 @@ function modernV3EnsureMenu(){
   <button class="modern-v3-group-title" onclick="modernV3ToggleGroup('mv3-atletas')"><span>Gestão de Atletas</span><b>▾</b></button>
   <div class="modern-v3-group" id="mv3-atletas">
    <button class="nav-btn" onclick="modernV3Navigate('atletas',event)"><span class="mv3-ico">👥</span><span>Atletas</span></button>
+   <button class="nav-btn" onclick="modernV3Action('ficha-completa',event)"><span class="mv3-ico">📄</span><span>Ficha Completa</span></button>
    <button class="nav-btn" onclick="modernV3Navigate('excel-db',event)"><span class="mv3-ico">🗄️</span><span>Banco de Dados</span></button>
    <button class="nav-btn" onclick="modernV3Action('fotos',event)"><span class="mv3-ico">📸</span><span>Fotos</span></button>
   </div>
@@ -12681,6 +12699,487 @@ window.onload=function(){
  w.document.close();
 }
 
+/* === FICHA COMPLETA DO ATLETA — dados reais, períodos e avaliações parciais === */
+let fichaCompletaState = { request:0, ano:'', atletaIndex:null, carregandoFaltas:false, carregandoFicha:false, avdRows:[], avdErro:'', pseErro:'', pseAnularDisponivel:false, faltasPorAtleta:new Map(), faltasTemporadaPorAtleta:new Map() };
+let fichaCompletaRequest = 0;
+const FICHA_COMPLETA_METRICAS = [
+ {key:'altura',label:'Altura',unit:'m',decimals:2,grupo:'Antropometria',chart:'antropometria'},
+ {key:'peso',label:'Peso',unit:'kg',decimals:1,grupo:'Antropometria',chart:'antropometria'},
+ {key:'predita',label:'Altura predita',unit:'m',decimals:2,grupo:'Antropometria'},
+ {key:'gordura',label:'% de gordura',unit:'%',decimals:1,grupo:'Composição corporal',chart:'testes'},
+ {key:'nivel',label:'Nível de resistência',unit:'',decimals:1,grupo:'Resistência'},
+ {key:'distancia',label:'Resistência · distância',unit:'m',decimals:0,grupo:'Resistência',chart:'testes'},
+ {key:'salto1',label:'Salto 1',unit:'m',decimals:2,grupo:'Potência'},
+ {key:'salto2',label:'Salto 2',unit:'m',decimals:2,grupo:'Potência'},
+ {key:'salto3',label:'Salto 3',unit:'m',decimals:2,grupo:'Potência'},
+ {key:'melhorSalto',label:'Potência · melhor salto',unit:'m',decimals:2,grupo:'Potência',chart:'testes'},
+ {key:'aceleracao',label:'Aceleração final',unit:'s',decimals:2,grupo:'Velocidade',chart:'testes',menorMelhor:true},
+ {key:'velocidade',label:'Velocidade final',unit:'s',decimals:2,grupo:'Velocidade',chart:'testes',menorMelhor:true},
+ {key:'agilidade',label:'Agilidade',unit:'s',decimals:2,grupo:'Agilidade',chart:'testes',menorMelhor:true}
+];
+function fichaCompletaEsc(v){return typeof escapeHtmlJogos==='function'?escapeHtmlJogos(v??''):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fichaCompletaNomeNorm(v){return typeof AE!=='undefined'&&AE.nome?AE.nome(v):normalizarTextoTrabalho(v).toLowerCase();}
+function fichaCompletaDataISO(v){
+ if(!v)return '';
+ if(typeof prePosJogoISO==='function'){const d=prePosJogoISO(v);if(d)return d;}
+ if(typeof rppIsoData==='function'){const d=rppIsoData(v);if(d)return d;}
+ if(typeof AE!=='undefined'&&AE.data){const d=AE.data(v);if(d)return d;}
+ const s=String(v).trim(),m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+ return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:'';
+}
+function fichaCompletaHojeISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function fichaCompletaDataBR(iso){const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:String(iso||'');}
+function fichaCompletaTemporada(){return String(new Date().getFullYear());}
+function fichaCompletaIdentidadeNome(id){return fichaCompletaNomeNorm(id?.nomeCompleto||id?.nome_completo||id?.nome||'');}
+function fichaCompletaIdentidadeNascimento(id){return fichaCompletaDataISO(id?.nascimento||id?.data_nascimento||'');}
+function fichaCompletaChaveAtleta(item){
+ const id=item?.id||{};const canonical=typeof AE!=='undefined'&&AE.key?AE.key(id):'';if(canonical)return canonical;
+ const nome=fichaCompletaIdentidadeNome(id);if(!nome)return 'linha-'+String(item?.index??'');
+ const nasc=fichaCompletaIdentidadeNascimento(id),ano=String(id.ano||item?.ano||'').trim();
+ return nome+'||'+(nasc||ano||('linha-'+String(item?.index??'')));
+}
+function fichaCompletaTodosAtletas(){
+ return (excelData||[]).map((row,index)=>{
+  const id=typeof aeIdRow==='function'?aeIdRow(row):{};
+  const anoFisico=(AE.estado?.ready&&id.nomeCompleto&&id.nascimento?AE.ano(id,'fisico'):'')||String(id.ano||relatoriosAnoAtleta(row)||'').trim();
+  const cat=AE.categoriaAno(anoFisico);
+  const item={row,index,id,ano:String(anoFisico||'').trim(),categoria:cat,key:''};item.key=fichaCompletaChaveAtleta(item);return item;
+ }).filter(a=>fichaCompletaIdentidadeNome(a.id));
+}
+function fichaCompletaMesmoAtleta(alvo,registro){
+ const a=alvo?.id||alvo||{},b=registro?.id||registro||{};
+ const na=fichaCompletaIdentidadeNome(a),nb=fichaCompletaIdentidadeNome(b);if(!na||na!==nb)return false;
+ const da=fichaCompletaIdentidadeNascimento(a),db=fichaCompletaIdentidadeNascimento(b);
+ if(da&&db)return da===db;
+ const aa=String(a.ano||alvo?.ano||'').trim(),ab=String(b.ano||registro?.ano||'').trim();
+ if(!da&&!db&&aa&&ab&&aa!==ab)return false;
+ return true;
+}
+function fichaCompletaResolverAtletaKey(registro,atletas,idx){
+ const nome=fichaCompletaIdentidadeNome(registro),nasc=fichaCompletaIdentidadeNascimento(registro);
+ if(!nome)return '';
+ const canonical=nasc&&typeof AE!=='undefined'&&AE.key?AE.key({nomeCompleto:registro?.nome_completo||registro?.nomeCompleto||registro?.nome||'',nascimento:registro?.nascimento||registro?.data_nascimento||''}):'';
+ if(canonical&&idx?.canonical?.has(canonical))return idx.canonical.get(canonical);
+ const candidatos=idx?.nome?.get(nome)||atletas.filter(a=>fichaCompletaIdentidadeNome(a.id)===nome);
+ if(nasc){const exato=candidatos.find(a=>fichaCompletaIdentidadeNascimento(a.id)===nasc);if(exato)return exato.key;}
+ const ano=String(registro?.ano||'').trim();
+ if(ano){const porAno=candidatos.filter(a=>String(a.id.ano||'').trim()===ano||String(a.ano||'').trim()===ano);if(porAno.length===1)return porAno[0].key;}
+ return candidatos.length===1?candidatos[0].key:'';
+}
+function fichaCompletaIndexarAtletas(atletas){
+ const canonical=new Map(),nome=new Map();
+ (atletas||[]).forEach(a=>{
+  const c=typeof AE!=='undefined'&&AE.key?AE.key(a.id):'';if(c)canonical.set(c,a.key);
+  const n=fichaCompletaIdentidadeNome(a.id);if(n){if(!nome.has(n))nome.set(n,[]);nome.get(n).push(a);}
+ });
+ return {canonical,nome};
+}
+function fichaCompletaNotaAVD(r){
+ const bruto=String(r?.nota??'').trim().toUpperCase();if(bruto==='F')return 0;
+ if(bruto==='X'||bruto==='DM'||bruto==='NC'||bruto==='')return null;
+ const n=Number(bruto);return Number.isFinite(n)?n:null;
+}
+function fichaCompletaConsolidarAVD(rows,atletas){
+ const idx=fichaCompletaIndexarAtletas(atletas),catPreferida=new Map((atletas||[]).map(a=>[a.key,AE.categoria(a.id,'avd')||'']));
+ const escolhidas=new Map();
+ (rows||[]).forEach(r=>{
+  const key=fichaCompletaResolverAtletaKey(r,atletas,idx),dia=fichaCompletaDataISO(r.data);if(!key||!dia)return;
+  const id=key+'|'+dia,stamp=String(r.atualizado||r.atualizado_em||''),preferida=String(r.categoria||'')===String(catPreferida.get(key)||'')?1:0,prev=escolhidas.get(id);
+  if(!prev||stamp>prev.stamp||(stamp===prev.stamp&&preferida>prev.preferida))escolhidas.set(id,{key,dia,row:r,stamp,preferida});
+ });
+ const porAtleta=new Map();
+ escolhidas.forEach(item=>{if(!porAtleta.has(item.key))porAtleta.set(item.key,[]);porAtleta.get(item.key).push(item);});
+ porAtleta.forEach(list=>list.sort((a,b)=>a.dia.localeCompare(b.dia)));
+ const faltas=new Map(),faltasTemporada=new Map();
+ porAtleta.forEach((list,key)=>{
+  faltas.set(key,list.filter(item=>fichaCompletaNotaAVD(item.row)===0).length);
+  faltasTemporada.set(key,list.filter(item=>item.dia.slice(0,4)===fichaCompletaTemporada()&&fichaCompletaNotaAVD(item.row)===0).length);
+ });
+ return {porAtleta,faltas,faltasTemporada};
+}
+function fichaCompletaModal(){
+ let m=document.getElementById('ficha-completa-modal');
+ if(!m){m=document.createElement('div');m.id='ficha-completa-modal';m.className='ficha-completa-overlay';m.addEventListener('click',e=>{if(e.target===m)fichaCompletaFechar();});document.body.appendChild(m);}
+ return m;
+}
+async function openFichaCompleta(){
+ if(!await aeExigir())return;
+ const modal=fichaCompletaModal(),request=++fichaCompletaRequest;
+ fichaCompletaState={request,ano:'',atletaIndex:null,carregandoFaltas:true,carregandoFicha:false,avdRows:[],avdErro:'',pseErro:'',pseAnularDisponivel:false,faltasPorAtleta:new Map(),faltasTemporadaPorAtleta:new Map()};
+ modal.style.display='flex';fichaCompletaRenderizarModal();
+ const checkPromise=_supabase.from('avaliacao_diaria_notas').select('anular_pse').limit(1);
+ const rowsPromise=aeAvdLerTabela('avaliacao_diaria_notas','','');
+ const [checkResult,rowsResult]=await Promise.allSettled([checkPromise,rowsPromise]);
+ if(request!==fichaCompletaRequest)return;
+ if(checkResult.status==='fulfilled'&&!checkResult.value.error)fichaCompletaState.pseAnularDisponivel=true;
+ else{
+  fichaCompletaState.pseAnularDisponivel=false;
+  const e=checkResult.status==='rejected'?checkResult.reason:checkResult.value?.error;
+  fichaCompletaState.pseErro=fichaCompletaErroTexto(e,'Não foi possível verificar a regra ANULAR PSE.');
+ }
+ if(rowsResult.status==='fulfilled'){
+  fichaCompletaState.avdRows=rowsResult.value||[];
+  const agregado=fichaCompletaConsolidarAVD(fichaCompletaState.avdRows,fichaCompletaTodosAtletas());
+  fichaCompletaState.faltasPorAtleta=agregado.faltas;
+  fichaCompletaState.faltasTemporadaPorAtleta=agregado.faltasTemporada;
+ }else{
+  fichaCompletaState.avdErro=fichaCompletaErroTexto(rowsResult.reason,'Não foi possível carregar as faltas da Avaliação Diária.');
+  fichaCompletaState.pseAnularDisponivel=false;
+  fichaCompletaState.pseErro=fichaCompletaState.avdErro;
+  fichaCompletaState.avdRows=[];fichaCompletaState.faltasPorAtleta=new Map();fichaCompletaState.faltasTemporadaPorAtleta=new Map();
+ }
+ fichaCompletaState.carregandoFaltas=false;fichaCompletaRenderizarModal();
+}
+function fichaCompletaErroTexto(error,fallback){return String(error?.message||error?.details||fallback||'Erro ao carregar dados.');}
+function fichaCompletaFechar(){fichaCompletaRequest++;fichaCompletaState.carregandoFicha=false;const m=document.getElementById('ficha-completa-modal');if(m)m.style.display='none';}
+function fichaCompletaSelecionarAno(ano){fichaCompletaState.ano=String(ano||'');fichaCompletaState.atletaIndex=null;fichaCompletaRenderizarModal();}
+function fichaCompletaSelecionarAtleta(index){const n=String(index??'');fichaCompletaState.atletaIndex=n===''?null:parseInt(n,10);fichaCompletaRenderizarModal();}
+function fichaCompletaRenderizarModal(){
+ const modal=document.getElementById('ficha-completa-modal');if(!modal||modal.style.display==='none')return;
+ const todos=fichaCompletaTodosAtletas(),anos=[...new Set(todos.map(a=>a.ano).filter(Boolean))].sort((a,b)=>Number(a)-Number(b));
+ const porAno=fichaCompletaState.ano?todos.filter(a=>a.ano===fichaCompletaState.ano).sort((a,b)=>String(a.id.apelido||a.id.nomeCompleto).localeCompare(String(b.id.apelido||b.id.nomeCompleto),'pt-BR',{sensitivity:'base'})):[];
+ const temporada=fichaCompletaTemporada();
+ const optionsAno=anos.map(ano=>{const cat=AE.categoriaAno(ano),label=cat?(AE.categorias[cat]?.label||cat):'Categoria não mapeada';return `<option value="${fichaCompletaEsc(ano)}" ${fichaCompletaState.ano===ano?'selected':''}>${fichaCompletaEsc(label)} · Ano ${fichaCompletaEsc(ano)}</option>`;}).join('');
+ const optionsAtleta=porAno.map(a=>{
+  const apelido=String(a.id.apelido||a.id.nomeCompleto||'Atleta'),nome=String(a.id.nomeCompleto||'');
+  const falta=fichaCompletaState.carregandoFaltas?'carregando…':(fichaCompletaState.avdErro?'—':`${fichaCompletaState.faltasPorAtleta.get(a.key)??0} total · ${fichaCompletaState.faltasTemporadaPorAtleta.get(a.key)??0} em ${temporada}`);
+  const label=(apelido&&nome&&apelido!==nome?`${apelido} — ${nome}`:apelido)+` · Faltas: ${falta}`;
+  return `<option value="${a.index}" ${fichaCompletaState.atletaIndex===a.index?'selected':''}>${fichaCompletaEsc(label)}</option>`;
+ }).join('');
+ const estadoFaltas=fichaCompletaState.carregandoFaltas?`<div class="fc-status">Buscando os registros de faltas da Avaliação Diária…</div>`:(fichaCompletaState.avdErro?`<div class="fc-status fc-status-warn">${fichaCompletaEsc(fichaCompletaState.avdErro)} A ficha poderá ser gerada, mas os dados de faltas e nota do treinador podem ficar indisponíveis.</div>`:'');
+ const estadoPse=!fichaCompletaState.carregandoFaltas&&fichaCompletaState.pseErro?`<div class="fc-status fc-status-warn">${fichaCompletaEsc(fichaCompletaState.pseErro)} A média de PSE será omitida para não misturar respostas anuladas.</div>`:'';
+ const carregando=fichaCompletaState.carregandoFicha?'<div class="fc-generating"><span class="fc-spinner"></span><span>Montando a ficha com os dados disponíveis…</span></div>':'';
+ modal.innerHTML=`<section class="ficha-completa-dialog" role="dialog" aria-modal="true" aria-labelledby="ficha-completa-modal-title"><header class="fc-modal-head"><div><span class="fc-eyebrow">GESTÃO DO ATLETA</span><h2 id="ficha-completa-modal-title">Ficha Completa</h2><p>Escolha o ano/categoria, selecione o atleta e gere o relatório com os dados cadastrados.</p></div><button class="fc-modal-close" type="button" onclick="fichaCompletaFechar()" aria-label="Fechar">×</button></header><div class="fc-modal-body">${estadoFaltas}${estadoPse}<label class="fc-field"><span>1. Ano / categoria</span><select id="fc-selecao-ano" onchange="fichaCompletaSelecionarAno(this.value)" ${fichaCompletaState.carregandoFicha?'disabled':''}><option value="">Selecione o ano/categoria</option>${optionsAno}</select></label><label class="fc-field"><span>2. Atleta <small>— as faltas da temporada aparecem ao lado do nome</small></span><select id="fc-selecao-atleta" onchange="fichaCompletaSelecionarAtleta(this.value)" ${!fichaCompletaState.ano||fichaCompletaState.carregandoFaltas||fichaCompletaState.carregandoFicha?'disabled':''}><option value="">${!fichaCompletaState.ano?'Escolha primeiro o ano/categoria':porAno.length?'Selecione um atleta':'Nenhum atleta encontrado neste ano'}</option>${optionsAtleta}</select></label><div class="fc-modal-foot"><span>Período dos indicadores da temporada: 01/01/${temporada} até ${fichaCompletaDataBR(fichaCompletaHojeISO())}.</span><button type="button" class="fc-generate-btn" onclick="fichaCompletaGerar()" ${fichaCompletaState.atletaIndex===null||fichaCompletaState.carregandoFaltas||fichaCompletaState.carregandoFicha?'disabled':''}>${fichaCompletaState.carregandoFicha?'Gerando…':'Gerar ficha'}</button></div>${carregando}</div></section>`;
+}
+function fichaCompletaDataPeriodo(ano){return {inicio:`${ano}-01-01`,fim:fichaCompletaHojeISO()};}
+async function fichaCompletaFetchPortal(atletas,periodo,colunas){
+ const nomes=[...new Set((atletas||[]).map(a=>String(a.id?.nomeCompleto||'').trim()).filter(Boolean))];if(!nomes.length)return [];
+ const page=1000,maxRows=100000;let from=0,all=[];
+ while(true){
+  const {data,error}=await _supabase.from('portal_respostas_diarias').select(colunas).in('nome_completo',nomes).gte('data',periodo.inicio).lte('data',periodo.fim).order('data',{ascending:true}).range(from,from+page-1);
+  if(error)throw error;const chunk=data||[];all.push(...chunk);if(chunk.length<page)break;from+=page;if(from>=maxRows)throw new Error('A consulta excedeu o limite de 100.000 registros.');
+ }
+ return all;
+}
+async function fichaCompletaBuscarJogos(atleta,temporada){
+ const page=1000,maxRows=100000;let from=0,rows=[];
+ while(true){
+  const {data,error}=await _supabase.from('jogos').select('nome,dados').order('nome',{ascending:true}).range(from,from+page-1);
+  if(error)throw error;const chunk=data||[];rows.push(...chunk);if(chunk.length<page)break;from+=page;if(from>=maxRows)throw new Error('A consulta de jogos excedeu o limite de 100.000 registros.');
+ }
+ const stats={jogos:0,vitorias:0,empates:0,derrotas:0,minutos:0,gols:0,amarelo:0,vermelho:0};
+ rows.forEach(j=>{
+  let d=j?.dados||{};if(typeof d==='string'){try{d=JSON.parse(d);}catch(e){d={};}}
+  let data=fichaCompletaDataISO(d.data_iso||d.data||'');
+  if(!data){const m=String(j?.nome||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);if(m)data=`${m[3]}-${m[2]}-${m[1]}`;}
+  if(!data||data.slice(0,4)!==String(temporada))return;
+  const jogador=(d.atletas||[]).find(a=>fichaCompletaMesmoAtleta(atleta,a));if(!jogador)return;
+  const minutos=parseInt(jogador.minutos||0,10)||0;if(minutos<=0)return;
+  stats.jogos++;stats.minutos+=minutos;stats.gols+=parseInt(jogador.gols||0,10)||0;stats.amarelo+=parseInt(jogador.amarelo||0,10)||0;stats.vermelho+=parseInt(jogador.vermelho||0,10)||0;
+  const gf=parseInt(d.placar?.cfa_prosol||0,10)||0,gs=parseInt(d.placar?.adversario||0,10)||0;
+  if(gf>gs)stats.vitorias++;else if(gf<gs)stats.derrotas++;else stats.empates++;
+ });
+ return stats;
+}
+async function fichaCompletaBuscarPrePos(atleta,periodo){
+ const nome=String(atleta.id.nomeCompleto||'').trim();if(!nome)return [];
+ const page=1000,maxRows=100000;let from=0,all=[];
+ while(true){
+  const {data,error}=await _supabase.from('portal_respostas_diarias').select('data,nome_completo,nascimento,pre_jogo,pos_jogo').eq('nome_completo',nome).gte('data',periodo.inicio).lte('data',periodo.fim).order('data',{ascending:true}).range(from,from+page-1);
+  if(error)throw error;const chunk=data||[];all.push(...chunk);if(chunk.length<page)break;from+=page;if(from>=maxRows)throw new Error('A consulta Pré/Pós excedeu o limite de 100.000 registros.');
+ }
+ return all.filter(r=>fichaCompletaMesmoAtleta(atleta,r));
+}
+function fichaCompletaConstruirAnulacoes(rows){
+ let out=new Map();try{out=rppIndexarAnulacoesPse(rows||[]);}catch(e){console.warn('Falha ao indexar ANULAR PSE:',e);}
+ const semNascimento=new Map();
+ (rows||[]).forEach(r=>{
+  const dia=fichaCompletaDataISO(r.data),nome=fichaCompletaIdentidadeNome(r);if(!dia||!nome||fichaCompletaIdentidadeNascimento(r))return;
+  const key=dia+'|'+nome,stamp=String(r.atualizado||r.atualizado_em||''),prev=semNascimento.get(key),value=r.anular_pse===true||r.anular_pse==='true';
+  if(!prev||stamp>=prev.stamp)semNascimento.set(key,{value,stamp});
+ });
+ semNascimento.forEach((v,k)=>out.set(k,v.value));return out;
+}
+function fichaCompletaPseAnulado(registro,anulacoes){
+ const dia=fichaCompletaDataISO(registro?.data),nome=fichaCompletaIdentidadeNome(registro);if(!dia)return false;
+ const nasc=fichaCompletaIdentidadeNascimento(registro),canonical=AE.key({nomeCompleto:registro?.nome_completo||registro?.nomeCompleto||'',nascimento:registro?.nascimento||registro?.data_nascimento||''});
+ if(canonical&&anulacoes.get(dia+'|'+canonical))return true;
+ if(!nasc&&nome&&anulacoes.get(dia+'|'+nome))return true;
+ return false;
+}
+function fichaCompletaMedia(values){const nums=(values||[]).filter(v=>Number.isFinite(v));return nums.length?{media:nums.reduce((a,b)=>a+b,0)/nums.length,n:nums.length}:null;}
+function fichaCompletaPsrPse(atleta,roster,rows,anulacoes,anularDisponivel,temporada){
+ const ownerRows=(rows||[]).filter(r=>fichaCompletaMesmoAtleta(atleta,r)&&String(fichaCompletaDataISO(r.data)).slice(0,4)===String(temporada));
+ const psr=fichaCompletaMedia(ownerRows.map(r=>rppNotaPsrNum(r)).filter(v=>v!==null&&Number.isFinite(v)));
+ const pseOwner=anularDisponivel?fichaCompletaMedia(ownerRows.filter(r=>!fichaCompletaPseAnulado(r,anulacoes)).map(r=>rppNotaPseNum(r)).filter(v=>v!==null&&Number.isFinite(v))):null;
+ const cat=AE.categoria(atleta.id,'pse')||AE.categoriaAno(atleta.ano),rawGroup=cat?aeAtletasCat(cat,'pse'):[];
+ const roleTarget=rppAtletaEhGoleiro(atleta),group=rawGroup.slice();
+ if(!group.some(a=>fichaCompletaMesmoAtleta(atleta,a)))group.push(atleta);
+ const sameRole=group.filter(a=>rppAtletaEhGoleiro(a)===roleTarget);
+ const groupRows=new Map();
+ (rows||[]).forEach(r=>{
+  if(String(fichaCompletaDataISO(r.data)).slice(0,4)!==String(temporada))return;
+  const member=sameRole.find(a=>fichaCompletaMesmoAtleta(a,r));if(!member)return;
+  const day=fichaCompletaDataISO(r.data),val=rppNotaPseNum(r);if(!day||val===null||!Number.isFinite(val))return;
+  if(anularDisponivel&&fichaCompletaPseAnulado(r,anulacoes))return;
+  const id=member.key||fichaCompletaChaveAtleta(member),key=id+'|'+day;groupRows.set(key,{val,member,day});
+ });
+ const mediaGrupo=anularDisponivel?fichaCompletaMedia([...groupRows.values()].map(x=>x.val)):null;
+ const papel=roleTarget?'goleiros':'atletas de linha';
+ return {psr,pse:pseOwner,mediaPseGrupo:mediaGrupo,papel,grupoCategoria:AE.categorias[cat]?.label||'',tamanhoGrupo:sameRole.length,anularDisponivel};
+}
+function fichaCompletaPrePos(rows,atleta,temporada){
+ const porDiaCategoria=new Map();
+ (rows||[]).forEach(r=>{
+  if(!fichaCompletaMesmoAtleta(atleta,r))return;const dia=fichaCompletaDataISO(r.data);if(!dia||dia.slice(0,4)!==String(temporada))return;
+  const pre=prePosJogoObjeto(r.pre_jogo),pos=prePosJogoObjeto(r.pos_jogo);
+  const preOk=prePosJogoTemResposta(pre,'pre_jogo'),posOk=prePosJogoTemResposta(pos,'pos_jogo');if(!preOk&&!posOk)return;
+  const cat=prePosJogoCategoriaId(pre.categoria_jogo||pos.categoria_jogo),key=dia+'|'+cat;
+  const prev=porDiaCategoria.get(key)||{data:dia,categoria:cat,pre_jogo:{},pos_jogo:{}};
+  if(preOk)prev.pre_jogo=pre;if(posOk)prev.pos_jogo=pos;porDiaCategoria.set(key,prev);
+ });
+ const itens=[...porDiaCategoria.values()],conf=[],nerv=[],rendimento=[];
+ itens.forEach(x=>{
+  const c=x.pre_jogo?.confianca,n=x.pre_jogo?.nervosismo,r=x.pos_jogo?.valor;
+  if(prePosJogoNotaValida(c))conf.push(Number(c));if(prePosJogoNotaValida(n))nerv.push(Number(n));if(prePosJogoNotaValida(r))rendimento.push(Number(r));
+ });
+ return {confianca:fichaCompletaMedia(conf),nervosismo:fichaCompletaMedia(nerv),rendimento:fichaCompletaMedia(rendimento),jogos:itens.length};
+}
+function fichaCompletaAVDTemporada(atleta,avdPorAtleta,temporada){
+ const todos=avdPorAtleta.get(atleta.key)||[];
+ const rows=todos.filter(x=>x.dia.slice(0,4)===String(temporada));
+ const notas=rows.map(x=>({data:x.dia,valor:fichaCompletaNotaAVD(x.row)}));
+ const coach=fichaCompletaMedia(notas.map(x=>x.valor).filter(v=>v!==null&&v>=1&&v<=5));
+ const faltas=notas.filter(x=>x.valor===0).length;
+ const faltasTotal=todos.filter(x=>fichaCompletaNotaAVD(x.row)===0).length;
+ const porMes=new Map();
+ notas.forEach(x=>{if(x.valor===null||x.valor<1||x.valor>5)return;const mes=x.data.slice(0,7);if(!porMes.has(mes))porMes.set(mes,[]);porMes.get(mes).push(x.valor);});
+ const meses=[...porMes.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([iso,vals])=>({iso,label:new Date(Number(iso.slice(0,4)),Number(iso.slice(5,7))-1,1).toLocaleDateString('pt-BR',{month:'short'}).replace('.',''),media:fichaCompletaMedia(vals)}));
+ return {coach,faltas,faltasTotal,meses,nRegistros:rows.length,totalRegistros:todos.length};
+}
+function fichaCompletaFormato(valor,meta){
+ const n=relatoriosNum(valor);if(Number.isNaN(n))return String(valor??'—');
+ const dec=meta?.decimals??1;let texto=n.toFixed(dec).replace('.',',');if(meta?.unit==='%')return texto+'%';if(meta?.unit)return texto+' '+meta.unit;return texto;
+}
+function fichaCompletaChartSVG(titulo,avals,meta,index){
+ const pts=(avals||[]).map(a=>({eval:a.eval,label:'AV'+a.eval,valor:relatoriosNum(a[meta.key]),media:relatorioIndividualMediaGrupoPorAvaliacao(index,a.eval,meta.key)})).filter(p=>!Number.isNaN(p.valor));
+ if(!pts.length)return '';
+ const w=520,h=188,pl=42,pr=16,pt=24,pb=34,values=pts.flatMap(p=>[p.valor,Number.isNaN(p.media)?p.valor:p.media]);
+ let min=Math.min(...values),max=Math.max(...values);if(meta.key==='gordura'){min=Math.min(min,8);max=Math.max(max,14);}if(min===max){min-=1;max+=1;}const pad=(max-min)*.12;min-=pad;max+=pad;
+ const x=i=>pl+(pts.length===1?(w-pl-pr)/2:i*(w-pl-pr)/(pts.length-1)),y=v=>pt+(max-v)*(h-pt-pb)/(max-min);
+ const playerPath=pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.valor).toFixed(1)}`).join(' ');
+ const meanPts=pts.map((p,i)=>({i,v:p.media})).filter(p=>Number.isFinite(p.v));
+ const meanPath=meanPts.map((p,i)=>`${i?'L':'M'}${x(p.i).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+ const grid=[0,1,2,3,4].map(i=>{const yy=pt+i*(h-pt-pb)/4;return `<line x1="${pl}" y1="${yy.toFixed(1)}" x2="${w-pr}" y2="${yy.toFixed(1)}" stroke="#e7ebf0" stroke-width="1"/>`;}).join('');
+ const playerGreen=['altura','peso'].includes(meta.key),playerColor=playerGreen?'#168a73':'#3568c8';
+ const line=pts.length>1?`<path d="${playerPath}" fill="none" stroke="${playerColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`:'';
+ const averageLine=meanPts.length>1?`<path d="${meanPath}" fill="none" stroke="#8491a4" stroke-width="2" stroke-dasharray="5 4"/>`:'';
+ const circles=pts.map((p,i)=>{const color=playerGreen?playerColor:relatorioIndividualCorPonto(meta.key,p.valor,p.media);return `<circle cx="${x(i)}" cy="${y(p.valor)}" r="4.5" fill="${color}" stroke="#fff" stroke-width="1.5"/><text x="${x(i)}" y="${y(p.valor)-8}" text-anchor="middle" font-size="11" font-weight="800" fill="#263247">${fichaCompletaEsc(fichaCompletaFormato(p.valor,meta))}</text><text x="${x(i)}" y="${h-10}" text-anchor="middle" font-size="11" fill="#667085">${p.label}</text>`;}).join('');
+ const mediaCircles=meanPts.map(p=>`<circle cx="${x(p.i)}" cy="${y(p.v)}" r="3" fill="#8491a4"/>`).join('');
+ return `<article class="fc-chart-card"><h3>${fichaCompletaEsc(titulo)}</h3><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${fichaCompletaEsc(titulo)}">${grid}<line x1="${pl}" y1="${h-pb}" x2="${w-pr}" y2="${h-pb}" stroke="#b7c0cc"/>${averageLine}${line}${mediaCircles}${circles}</svg><div class="fc-chart-legend"><span><i class="fc-legend-player" style="background:${playerColor}"></i>Atleta</span><span><i class="fc-legend-group"></i>Média do grupo</span></div></article>`;
+}
+function fichaCompletaMonthlySVG(meses){
+ if(!meses?.length)return '';
+ const w=860,h=235,pl=46,pr=24,pt=26,pb=42,min=1,max=5,pts=meses.map((m,i)=>({ ...m,i }));
+ const x=i=>pl+(pts.length===1?(w-pl-pr)/2:i*(w-pl-pr)/(pts.length-1)),y=v=>pt+(max-v)*(h-pt-pb)/(max-min);
+ const grid=[1,2,3,4,5].map(v=>`<line x1="${pl}" y1="${y(v)}" x2="${w-pr}" y2="${y(v)}" stroke="#e7ebf0"/><text x="${pl-9}" y="${y(v)+3}" text-anchor="end" font-size="11" fill="#788294">${v}</text>`).join('');
+ const path=pts.map((p,i)=>`${i?'L':'M'}${x(i)},${y(p.media.media)}`).join(' '),line=pts.length>1?`<path d="${path}" fill="none" stroke="#58111a" stroke-width="3" stroke-linecap="round"/>`:'';
+ const points=pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.media.media)}" r="5" fill="#f9c614" stroke="#58111a" stroke-width="2"/><text x="${x(i)}" y="${y(p.media.media)-10}" text-anchor="middle" font-size="12" font-weight="800" fill="#58111a">${p.media.media.toFixed(1).replace('.',',')}</text><text x="${x(i)}" y="${h-12}" text-anchor="middle" font-size="12" fill="#667085">${fichaCompletaEsc(p.label)}</text>`).join('');
+ return `<article class="fc-month-chart"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Média mensal da nota do treinador">${grid}${line}${points}</svg></article>`;
+}
+function fichaCompletaMedBar(label,result,max,note,color){
+ if(!result)return '';
+ const width=Math.max(0,Math.min(100,(result.media/max)*100));
+ return `<div class="fc-bar-row"><span class="fc-bar-label">${fichaCompletaEsc(label)}</span><div class="fc-bar-track"><i style="width:${width.toFixed(1)}%;background:${color}"></i></div><strong>${result.media.toFixed(1).replace('.',',')} <small>/ ${max}</small></strong><em>${fichaCompletaEsc(note||`${result.n} resposta(s)`)}</em></div>`;
+}
+function fichaCompletaSectionTitle(title,detail=''){return `<div class="fc-section-heading"><h2>${fichaCompletaEsc(title)}</h2>${detail?`<span>${fichaCompletaEsc(detail)}</span>`:''}</div>`;}
+function fichaCompletaCard(label,value,note,tone='wine'){
+ const cores={blue:'#3568c8',green:'#168a73',gold:'#c89423',wine:'#58111a',neutral:'#929aa6'};
+ const accent=cores[tone]||(/^#[0-9a-f]{6}$/i.test(String(tone))?String(tone):cores.wine);
+ return `<article class="fc-stat-card" style="border-left-color:${accent}"><span>${fichaCompletaEsc(label)}</span><strong>${fichaCompletaEsc(value)}</strong>${note?`<small>${fichaCompletaEsc(note)}</small>`:''}</article>`;
+}
+function fichaCompletaCorIndicador(meta,valor,evalNum,index){
+ if(['altura','peso','predita'].includes(meta.key))return '#929aa6';
+ const n=relatoriosNum(valor);
+ const media=meta.key==='gordura'?NaN:relatorioIndividualMediaGrupoPorAvaliacao(index,evalNum,meta.key);
+ return relatorioIndividualCorPonto(meta.key,n,media)||'#929aa6';
+}
+function fichaCompletaBuildFisico(atleta){
+ const avals=relatorioIndividualMetricasAtleta(atleta.index)||[];if(!avals.length)return '';
+ const available=FICHA_COMPLETA_METRICAS.filter(meta=>avals.some(a=>!Number.isNaN(relatoriosNum(a[meta.key]))));
+ if(!available.length)return '';
+ const summary=available.filter(meta=>['altura','peso','predita','gordura','distancia','melhorSalto','aceleracao','velocidade','agilidade'].includes(meta.key)).map(meta=>{
+  let ultima=null;for(let i=avals.length-1;i>=0;i--){if(!Number.isNaN(relatoriosNum(avals[i][meta.key]))){ultima=avals[i];break;}}
+  if(!ultima)return '';
+  const label=meta.key==='melhorSalto'?'Potência':meta.label;
+  const cor=fichaCompletaCorIndicador(meta,ultima[meta.key],ultima.eval,atleta.index);
+  return fichaCompletaCard(label,fichaCompletaFormato(ultima[meta.key],meta),'',cor);
+ }).filter(Boolean).join('');
+ const avalCols=avals.map(a=>`<th>AV${a.eval}<small>${fichaCompletaEsc(a.label||'')}</small></th>`).join('');
+ const tableSpecs=[
+  {key:'distancia',label:'Resistência / Distância'},
+  {key:'melhorSalto',label:'Potência (melhor salto)'}, 
+  {key:'aceleracao',label:'Aceleração 10 m.'},
+  {key:'velocidade',label:'Velocidade 30 m.'},
+  {key:'agilidade',label:'Agilidade'}
+ ];
+ const tableMetas=tableSpecs.map(spec=>{const meta=available.find(item=>item.key===spec.key);return meta?{...meta,label:spec.label}:null;}).filter(Boolean);
+ const rows=tableMetas.map(meta=>`<tr><th>${fichaCompletaEsc(meta.label)}</th>${avals.map(a=>{
+  const n=relatoriosNum(a[meta.key]);if(Number.isNaN(n))return '<td class="fc-empty-cell">—</td>';
+  const avg=relatorioIndividualMediaGrupoPorAvaliacao(atleta.index,a.eval,meta.key),color=relatorioIndividualCorPonto(meta.key,n,avg)||'#8792a2';
+  return `<td><b><i style="background:${color}"></i>${fichaCompletaEsc(fichaCompletaFormato(n,meta))}</b>${Number.isNaN(avg)?'':`<small>Média: ${fichaCompletaEsc(fichaCompletaFormato(avg,meta))}</small>`}</td>`;
+ }).join('')}</tr>`).join('');
+ const table=tableMetas.length?`<section class="fc-section">${fichaCompletaSectionTitle('Testes físicos · atleta x média do grupo','Cada avaliação e cada teste são exibidos apenas quando há dados.') }<div class="fc-table-wrap"><table class="fc-tests-table"><thead><tr><th>Teste</th>${avalCols}</tr></thead><tbody>${rows}</tbody></table></div><p class="fc-footnote">Comparação calculada com atletas vinculados ao mesmo ano de participação física; testes sem valor ficam como — e não entram em médias.</p></section>`:'';
+ const anthrop=available.filter(m=>m.chart==='antropometria'&&avals.some(a=>!Number.isNaN(relatoriosNum(a[m.key])))).map(m=>fichaCompletaChartSVG(m.label,avals,m,atleta.index)).join('');
+ const tests=available.filter(m=>m.chart==='testes'&&avals.some(a=>!Number.isNaN(relatoriosNum(a[m.key])))).map(m=>fichaCompletaChartSVG(m.label,avals,m,atleta.index)).join('');
+ const chartsAnthrop=anthrop?`<section class="fc-section fc-page-two-start" id="fc-evolucao-antropometrica">${fichaCompletaSectionTitle('Evolução antropométrica','Medições disponíveis por avaliação') }<div class="fc-chart-grid">${anthrop}</div></section>`:'';
+ const chartsTests=tests?`<section class="fc-section fc-page-two-start">${fichaCompletaSectionTitle('Evolução dos Testes','') }<div class="fc-chart-grid">${tests}</div></section>`:'';
+ return `<section class="fc-section">${fichaCompletaSectionTitle('Antropometria e testes físicos',`${avals.length} avaliação(ões) com pelo menos um dado`) }<div class="fc-stat-grid fc-physical-stat-grid">${summary}</div></section>${table}${chartsAnthrop}${chartsTests}`;
+}
+function fichaCompletaBuildGames(stats){
+ if(!stats||!stats.jogos)return '';
+ return `<section class="fc-section">${fichaCompletaSectionTitle('Temporada e participação',`${stats.jogos} jogo(s) com minutagem registrada`) }<div class="fc-stat-grid">${fichaCompletaCard('Jogos',stats.jogos,'','wine')}${fichaCompletaCard('Minutagem total',`${stats.minutos} min`,'','wine')}${fichaCompletaCard('Gols',stats.gols,'','wine')}${fichaCompletaCard('Cartões',`${stats.amarelo} CA · ${stats.vermelho} CV`,'','wine')}${fichaCompletaCard('Vitórias',stats.vitorias,'','wine')}${fichaCompletaCard('Empates',stats.empates,'','wine')}${fichaCompletaCard('Derrotas',stats.derrotas,'','wine')}</div></section>`;
+}
+function fichaCompletaBuildEditaveis(){
+ return `<section class="fc-section fc-edit-section"><div class="fc-section-heading"><h2>Plano individual</h2><span class="fc-edit-note">Campos editáveis nesta janela; não alteram o banco.</span></div><div class="fc-edit-grid"><div class="fc-edit-field"><strong>Comentário da comissão</strong><div class="fc-editable" contenteditable="true" role="textbox" aria-label="Comentário da comissão" aria-multiline="true" data-placeholder="Escreva o comentário da comissão…" spellcheck="true"></div></div><div class="fc-edit-field"><strong>Foco do próximo ciclo</strong><div class="fc-editable" contenteditable="true" role="textbox" aria-label="Foco do próximo ciclo" aria-multiline="true" data-placeholder="Defina o foco prioritário do próximo ciclo…" spellcheck="true"></div></div></div></section>`;
+}
+function fichaCompletaBuildPrePos(data){
+ if(!data)return '';
+ const bars=[fichaCompletaMedBar('Confiança pré-jogo',data.confianca,5,`${data.confianca?.n||0} registro(s)`,'#3568c8'),fichaCompletaMedBar('Nervosismo pré-jogo',data.nervosismo,5,`${data.nervosismo?.n||0} registro(s)`,'#b7791f'),fichaCompletaMedBar('Rendimento pós-jogo',data.rendimento,5,`${data.rendimento?.n||0} registro(s)`,'#168a73')].filter(Boolean).join('');
+ return bars?`<section class="fc-section">${fichaCompletaSectionTitle('Pré / Pós jogo',`${data.jogos} jogo(s) com resposta válida`) }<div class="fc-bars-card">${bars}</div></section>`:'';
+}
+function fichaCompletaBuildInternos(avd,pseps,temporada){
+ const cards=[];
+ if(avd?.totalRegistros>0)cards.push(fichaCompletaCard('Faltas',String(avd.faltas||0),'','wine'));
+ if(avd?.coach)cards.push(fichaCompletaCard('Nota do treinador',`${avd.coach.media.toFixed(1).replace('.',',')} / 5`,'','wine'));
+ if(pseps?.pse)cards.push(fichaCompletaCard('PSE · esforço',`${pseps.pse.media.toFixed(1).replace('.',',')} / 7`,'','wine'));
+ if(pseps?.psr)cards.push(fichaCompletaCard('PSR',`${pseps.psr.media.toFixed(1).replace('.',',')} / 25`,'','wine'));
+ const chart=avd?.meses?.length?`${fichaCompletaSectionTitle('Nota do treinador por mês','')}${fichaCompletaMonthlySVG(avd.meses)}`:'';
+ return cards.length||chart?`<section class="fc-section">${fichaCompletaSectionTitle('Indicadores internos','')}${cards.length?`<div class="fc-stat-grid">${cards.join('')}</div>`:''}</section>${chart?`<section class="fc-section">${chart}</section>`:''}`:'';
+}
+function fichaCompletaBuildReport(payload){
+ const {atleta,season,periodo,physical,games,prepos,pseps,avd,warnings=[]}=payload;
+ const row=atleta.row,id=atleta.id,apelido=id.apelido||id.nomeCompleto||'Atleta',nome=id.nomeCompleto||apelido;
+ const foto=String(relatoriosValorColunaFlex(row,['foto'])||fotosFallbackAtleta(row)||'camiseta_linha.png');
+ const pos1=relatoriosValorColunaFlex(row,['posição 1','posicao 1','posição','posicao'])||'—',pos2=relatoriosValorColunaFlex(row,['posição 2','posicao 2'])||'';
+ const nasc=convertExcelDate(relatoriosValorColunaFlex(row,['data de nascimento','nascimento'])||'')||'—';
+ const catLabel=AE.categorias[atleta.categoria]?.label||'Categoria não mapeada';
+ const idade=nasc!=='—'?calcularIdadeAvaliacao(nasc,fichaCompletaDataBR(fichaCompletaHojeISO())):'';
+ const basic=`<header class="fc-profile"><div class="fc-photo"><img src="${fichaCompletaEsc(foto)}" onerror="this.onerror=null;this.src='${fichaCompletaEsc(fotosFallbackAtleta(row)||'camiseta_linha.png')}'" alt="Foto de ${fichaCompletaEsc(nome)}"></div><div class="fc-profile-info"><span class="fc-kicker">CFA PROSOL · FICHA INDIVIDUAL DO ATLETA</span><h2>${fichaCompletaEsc(apelido)}</h2><p>${fichaCompletaEsc(nome)}</p><div class="fc-profile-facts"><span>Nasc. ${fichaCompletaEsc(nasc)}</span>${idade?`<span>${fichaCompletaEsc(idade)} anos (aprox.)</span>`:''}<span>${fichaCompletaEsc(pos1)}${pos2?` / ${fichaCompletaEsc(pos2)}`:''}</span></div></div><div class="fc-category-badge"><strong>${fichaCompletaEsc(catLabel)}</strong><small>Ano ${fichaCompletaEsc(atleta.ano||'—')}</small></div></header>`;
+ const alerts=warnings.length?`<aside class="fc-warnings"><strong>Dados parciais</strong><ul>${warnings.map(w=>`<li>${fichaCompletaEsc(w)}</li>`).join('')}</ul></aside>`:'';
+ const seasonLabel=`${season} · ${fichaCompletaDataBR(periodo.inicio)} a ${fichaCompletaDataBR(periodo.fim)}`;
+ const sectionGames=fichaCompletaBuildGames(games),sectionPrePos=fichaCompletaBuildPrePos(prepos),sectionInternos=fichaCompletaBuildInternos(avd,pseps,season);
+ const physicalHtml=physical||'',pageTwoMarker='<section class="fc-section fc-page-two-start"',pageTwoAt=physicalHtml.indexOf(pageTwoMarker);
+ const physicalPageOne=pageTwoAt>=0?physicalHtml.slice(0,pageTwoAt):physicalHtml;
+ const physicalPageTwo=pageTwoAt>=0?physicalHtml.slice(pageTwoAt):'';
+ const pageOneSections=[sectionGames,sectionPrePos,sectionInternos,physicalPageOne].filter(Boolean).join('');
+ const pageTwoSections=[physicalPageTwo,fichaCompletaBuildEditaveis()].filter(Boolean).join('');
+ return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ficha Completa — ${fichaCompletaEsc(apelido)}</title><style>
+*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:#f3f5f8;color:#19202c;font-family:Arial,Helvetica,sans-serif}.fc-page{max-width:1200px;margin:0 auto;padding:18px}.fc-document{width:100%}.fc-print-page-two{margin-top:18px}.fc-topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#58111a;color:#fff}.fc-topbar strong{color:#f9c614;letter-spacing:.06em}.fc-topbar span{font-size:12px;color:#f4e9eb}.fc-actions{display:flex;gap:8px}.fc-actions button{border:0;border-radius:8px;padding:8px 12px;background:#f9c614;color:#21180c;font-weight:800;cursor:pointer}.fc-hero{padding:18px 20px;border-top:7px solid #f9c614;border-radius:14px;background:#58111a;color:#fff;box-shadow:0 4px 14px #19202c18}.fc-hero-title{display:flex;align-items:center;gap:10px}.fc-hero-logo{display:block;width:54px;height:54px;object-fit:contain;flex:0 0 auto;border-radius:5px}.fc-hero .fc-kicker{font-size:11px;font-weight:900;color:#f9c614;letter-spacing:.08em}.fc-hero h1{margin:4px 0;font-size:clamp(24px,4vw,34px);line-height:1.05;letter-spacing:.03em}.fc-hero p{margin:5px 0 0;color:#f2dee1;font-size:13px}.fc-profile{display:grid;grid-template-columns:88px minmax(0,1fr) 180px;gap:14px;align-items:center;margin-top:12px;padding:14px 16px;border:1px solid #e0e4ea;border-radius:13px;background:#fff;box-shadow:0 2px 6px #19202c10}.fc-photo{width:78px;height:96px;border-radius:10px;overflow:hidden;border:2px solid #f9c614;background:#f4f5f7;display:flex;align-items:center;justify-content:center}.fc-photo img{width:100%;height:100%;object-fit:cover}.fc-profile-info .fc-kicker{font-size:10px;font-weight:900;color:#8d6470;letter-spacing:.06em}.fc-profile-info h2{margin:2px 0 0;color:#58111a;font-size:23px;line-height:1.1}.fc-profile-info p{margin:3px 0 7px;font-size:12px;color:#536071}.fc-profile-facts{display:flex;gap:6px 13px;flex-wrap:wrap;font-size:11px;color:#687386}.fc-category-badge{justify-self:end;min-width:150px;text-align:center;padding:10px;border-radius:10px;background:#eff3ff;color:#365dba}.fc-category-badge strong,.fc-category-badge small{display:block}.fc-category-badge strong{font-size:13px;text-transform:uppercase}.fc-category-badge small{margin-top:4px;font-size:11px}.fc-section{margin-top:16px}.fc-section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:0 0 8px;border-bottom:2px solid #f9c614;padding:0 0 5px}.fc-section-heading h2{margin:0;color:#58111a;font-size:17px;text-transform:uppercase;letter-spacing:.02em}.fc-section-heading span{color:#778194;font-size:10px;text-align:right}.fc-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.fc-stat-card{min-height:76px;padding:11px 13px;border:1px solid #e0e4ea;border-left:5px solid #58111a;border-radius:10px;background:#fff;box-shadow:0 2px 5px #19202c0d}.fc-stat-card>span{display:block;color:#697486;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.fc-stat-card strong{display:block;margin-top:5px;color:#1b2432;font-size:20px;line-height:1.1}.fc-stat-card small{display:block;margin-top:5px;color:#798394;font-size:9px;line-height:1.3}.fc-tone-blue{border-left-color:#3568c8}.fc-tone-green{border-left-color:#168a73}.fc-tone-gold{border-left-color:#c89423}.fc-tone-wine{border-left-color:#58111a}.fc-chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:9px}.fc-chart-card,.fc-month-chart{border:1px solid #e0e4ea;border-radius:11px;background:#fff;padding:9px 11px;box-shadow:0 2px 5px #19202c0b;min-width:0}.fc-chart-card h3{margin:2px 0 5px;font-size:11px;text-transform:uppercase;color:#3a4351}.fc-chart-card svg,.fc-month-chart svg{display:block;width:100%;height:auto}.fc-chart-legend{display:flex;gap:14px;justify-content:center;font-size:9px;color:#626e80}.fc-chart-legend span{display:flex;align-items:center;gap:5px}.fc-chart-legend i{width:10px;height:3px;display:inline-block}.fc-legend-player{background:#3568c8}.fc-legend-group{background:#8491a4}.fc-table-wrap{overflow:auto;border:1px solid #e0e4ea;border-radius:10px;background:#fff}.fc-tests-table{width:100%;border-collapse:collapse;min-width:600px;font-size:10px}.fc-tests-table th,.fc-tests-table td{border-bottom:1px solid #e7ebf0;padding:7px 8px;text-align:center;vertical-align:middle}.fc-tests-table thead th{background:#58111a;color:#fff;font-size:10px}.fc-tests-table thead th:first-child{text-align:left;min-width:170px}.fc-tests-table thead th small{display:block;margin-top:3px;color:#f6d46b;font-size:8px;font-weight:500}.fc-tests-table tbody th{text-align:left;color:#303949;font-size:10px}.fc-tests-table td b{display:flex;align-items:center;justify-content:center;gap:5px;font-size:10px;color:#253044;white-space:nowrap}.fc-tests-table td b i{width:8px;height:8px;display:inline-block;border-radius:50%;flex:0 0 8px}.fc-tests-table td small{display:block;margin-top:4px;color:#7b8492;font-size:8px}.fc-empty-cell{color:#bbc1ca;background:#fafbfc}.fc-footnote{margin:5px 2px 0;color:#788294;font-size:9px}.fc-bars-card{padding:13px 16px;border:1px solid #e0e4ea;border-radius:12px;background:#fff;box-shadow:0 2px 5px #19202c0b}.fc-bar-row{display:grid;grid-template-columns:150px minmax(100px,1fr) 82px 115px;align-items:center;gap:10px;margin:7px 0}.fc-bar-label{font-size:11px;font-weight:800;color:#3b4656}.fc-bar-track{height:13px;border-radius:99px;background:#edf0f4;overflow:hidden}.fc-bar-track i{display:block;height:100%;border-radius:inherit}.fc-bar-row>strong{font-size:13px;text-align:right;color:#1d2938}.fc-bar-row>strong small{font-size:9px;color:#808b9c}.fc-bar-row em{font-size:9px;font-style:normal;color:#7d8796}.fc-warnings{margin-top:12px;padding:10px 14px;border:1px solid #f0d08b;border-radius:10px;background:#fff8e8;color:#694f19;font-size:10px}.fc-warnings ul{margin:5px 0 0;padding-left:18px}.fc-warnings li{margin:3px 0}.fc-footer{margin-top:18px;padding-top:8px;border-top:1px solid #d8dee7;color:#7a8492;font-size:9px;display:flex;justify-content:space-between;gap:12px}.fc-empty-note{padding:12px;border-radius:9px;background:#fff;border:1px dashed #c9d0da;color:#6e7888;font-size:11px}.fc-print-actions{display:flex;gap:8px}.fc-print-actions button{border:0;border-radius:8px;padding:8px 12px;background:#f9c614;color:#21180c;font-weight:800;cursor:pointer}@media(max-width:700px){.fc-page{padding:8px}.fc-topbar{align-items:flex-start;flex-direction:column}.fc-profile{grid-template-columns:66px minmax(0,1fr);padding:10px;gap:10px}.fc-photo{width:60px;height:76px}.fc-profile-info h2{font-size:19px}.fc-hero-logo{width:44px;height:44px}.fc-category-badge{grid-column:1/-1;justify-self:stretch;min-width:0;padding:7px}.fc-section-heading{align-items:flex-start;flex-direction:column;gap:3px}.fc-section-heading span{text-align:left}.fc-chart-grid{grid-template-columns:minmax(0,1fr)}.fc-bar-row{grid-template-columns:1fr 65px;gap:5px 8px}.fc-bar-track{grid-column:1;grid-row:2}.fc-bar-row>strong{grid-column:2;grid-row:1}.fc-bar-row em{grid-column:1/-1}.fc-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fc-stat-card{min-width:0}.fc-stat-card strong{font-size:17px}.fc-footer{flex-direction:column}}@media print{body{background:#fff}.fc-topbar{display:none!important}.fc-document{width:202mm}.fc-print-page{width:202mm;height:289mm;margin:0;overflow:hidden;break-inside:avoid;page-break-inside:avoid;break-after:page;page-break-after:always}.fc-print-page:last-child{break-after:auto;page-break-after:auto}.fc-print-page-two{margin-top:0}.fc-page{width:202mm;max-width:none;margin:0;padding:0;display:flow-root}.fc-topbar{margin-bottom:7px;box-shadow:none}.fc-actions,.fc-print-actions{display:none!important}.fc-hero,.fc-profile,.fc-stat-card,.fc-chart-card,.fc-month-chart,.fc-bars-card{box-shadow:none}.fc-section{break-inside:avoid}.fc-chart-card{break-inside:avoid}.fc-tests-table{font-size:8px}.fc-tests-table th,.fc-tests-table td{padding:5px 4px}.fc-profile{margin-top:8px}.fc-footer{break-inside:avoid}@page{size:A4 portrait;margin:4mm}}
+.fc-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.fc-edit-field{min-width:0;padding:9px;border:1px solid #e0e4ea;border-radius:8px;background:#fff}.fc-edit-field>strong{display:block;margin-bottom:5px;color:#3b4656;font-size:10px;text-transform:uppercase;letter-spacing:.03em}.fc-editable{min-height:66px;padding:8px 9px;border:1px dashed #aeb8c5;border-radius:6px;background:#fff;color:#253044;font-size:11px;line-height:1.4;outline:none;white-space:pre-wrap;overflow-wrap:anywhere}.fc-editable:focus{border-style:solid;border-color:#3568c8;box-shadow:0 0 0 2px #3568c81c}.fc-editable:empty:before{content:attr(data-placeholder);color:#9aa3b0}.fc-edit-note{font-weight:500}@media(max-width:700px){.fc-edit-grid{grid-template-columns:1fr}}
+.fc-physical-stat-grid{grid-template-columns:repeat(5,minmax(0,1fr))}@media(max-width:700px){.fc-physical-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+body.fc-print-fit{width:202mm!important;min-width:202mm!important;max-width:202mm!important;margin:0!important;overflow:visible!important;background:#fff!important}
+body.fc-print-fit .fc-document{width:202mm!important;max-width:202mm!important;margin:0!important}
+body.fc-print-fit .fc-print-page{width:202mm!important;height:289mm!important;margin:0!important;overflow:hidden!important;break-inside:avoid;page-break-inside:avoid;break-after:page;page-break-after:always}
+body.fc-print-fit .fc-print-page:last-child{break-after:auto;page-break-after:auto}
+body.fc-print-fit .fc-print-page-two{margin-top:0!important}
+body.fc-print-fit .fc-page{display:flow-root;width:202mm!important;height:auto!important;min-width:0!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden;transform-origin:top left}
+body.fc-print-fit .fc-topbar{display:none!important;padding:4px 8px;margin:0 0 4px;border-radius:5px}
+body.fc-print-fit .fc-topbar span{font-size:9px}
+body.fc-print-fit .fc-hero{padding:8px 11px;border-top-width:4px;border-radius:7px;box-shadow:none}
+body.fc-print-fit .fc-hero h1{font-size:21px;margin:2px 0}
+body.fc-print-fit .fc-hero-title{gap:7px}body.fc-print-fit .fc-hero-logo{width:34px;height:34px}
+body.fc-print-fit .fc-hero p{font-size:9px;margin-top:3px}
+body.fc-print-fit .fc-profile{grid-template-columns:54px minmax(0,1fr) 112px;gap:8px;margin-top:5px;padding:6px 8px;border-radius:7px;box-shadow:none}
+body.fc-print-fit .fc-photo{width:48px;height:58px;border-width:1px;border-radius:5px}
+body.fc-print-fit .fc-profile-info .fc-kicker{font-size:8px}
+body.fc-print-fit .fc-profile-info h2{font-size:16px}
+body.fc-print-fit .fc-profile-info p{font-size:8px;margin:2px 0 4px}
+body.fc-print-fit .fc-profile-facts{font-size:8px;gap:3px 7px}
+body.fc-print-fit .fc-category-badge{min-width:100px;padding:5px;border-radius:6px}
+body.fc-print-fit .fc-category-badge strong{font-size:9px}
+body.fc-print-fit .fc-category-badge small{font-size:8px;margin-top:2px}
+body.fc-print-fit .fc-section{margin-top:6px;break-inside:auto;page-break-inside:auto}
+body.fc-print-fit .fc-section-heading{margin-bottom:3px;padding-bottom:2px;border-bottom-width:1px}
+body.fc-print-fit .fc-section-heading h2{font-size:11px}
+body.fc-print-fit .fc-section-heading span{font-size:8px}
+body.fc-print-fit .fc-stat-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+body.fc-print-fit .fc-physical-stat-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+body.fc-print-fit .fc-edit-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+body.fc-print-fit .fc-edit-field{padding:4px 5px;border-radius:5px}
+body.fc-print-fit .fc-edit-field>strong{font-size:8px;margin-bottom:2px}
+body.fc-print-fit .fc-editable{min-height:38px;padding:4px 5px;font-size:8px;line-height:1.25}
+body.fc-print-fit .fc-edit-note{display:none}
+body.fc-print-fit .fc-stat-card{min-height:0;padding:4px 5px;border-left-width:3px;border-radius:5px;box-shadow:none}
+body.fc-print-fit .fc-stat-card>span{font-size:7px;line-height:1.05}
+body.fc-print-fit .fc-stat-card strong{font-size:14px;margin-top:2px;line-height:1}
+body.fc-print-fit .fc-stat-card small{display:none!important}
+body.fc-print-fit .fc-chart-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+body.fc-print-fit .fc-chart-card,body.fc-print-fit .fc-month-chart{padding:3px 4px;border-radius:5px;box-shadow:none;min-width:0}
+body.fc-print-fit .fc-chart-card h3{font-size:8px;margin:0 0 2px}
+body.fc-print-fit .fc-chart-legend{font-size:7px;gap:8px}
+body.fc-print-fit .fc-chart-legend i{width:8px}
+body.fc-print-fit .fc-table-wrap{overflow:visible;border-radius:5px}
+body.fc-print-fit .fc-tests-table{min-width:0;width:100%;table-layout:fixed;font-size:8px}
+body.fc-print-fit .fc-tests-table th,body.fc-print-fit .fc-tests-table td{padding:3px 2px;border-bottom-width:.5px}
+body.fc-print-fit .fc-tests-table thead th{font-size:8px}
+body.fc-print-fit .fc-tests-table thead th:first-child{min-width:0;width:28%}
+body.fc-print-fit .fc-tests-table thead th small{font-size:7px;margin-top:1px}
+body.fc-print-fit .fc-tests-table tbody th{font-size:8px}
+body.fc-print-fit .fc-tests-table td b{font-size:8px;gap:2px}
+body.fc-print-fit .fc-tests-table td b i{width:5px;height:5px;flex-basis:5px}
+body.fc-print-fit .fc-tests-table td small{font-size:7px;margin-top:1px}
+body.fc-print-fit .fc-footnote{display:none}
+body.fc-print-fit .fc-bars-card{padding:4px 7px;border-radius:6px;box-shadow:none}
+body.fc-print-fit .fc-bar-row{grid-template-columns:94px minmax(60px,1fr) 45px;gap:5px;margin:3px 0}
+body.fc-print-fit .fc-bar-label{font-size:8px}
+body.fc-print-fit .fc-bar-track{height:8px}
+body.fc-print-fit .fc-bar-row>strong{font-size:9px}
+body.fc-print-fit .fc-bar-row>strong small{font-size:7px}
+body.fc-print-fit .fc-bar-row em{display:none}
+body.fc-print-fit .fc-warnings{margin-top:5px;padding:4px 6px;font-size:8px}
+body.fc-print-fit .fc-empty-note{padding:5px;font-size:8px}
+body.fc-print-fit .fc-footer{margin-top:6px;padding-top:4px;font-size:7px;break-inside:avoid}
+body.fc-print-fit .fc-actions,body.fc-print-fit .fc-print-actions{display:none!important}
+@media print{html,body{margin:0!important}body.fc-print-fit{background:#fff!important}}
+</style></head><body><div class="fc-document"><section class="fc-print-page fc-print-page-one"><div class="fc-page"><div class="fc-topbar"><div><strong>CFA PROSOL</strong><span> · Temporada ${fichaCompletaEsc(seasonLabel)}</span></div><div class="fc-actions"><button type="button" onclick="imprimirFichaCompleta()">Imprimir / Salvar em PDF</button></div></div><section class="fc-hero"><span class="fc-kicker">CFA PROSOL · FICHA COMPLETA DO ATLETA</span><div class="fc-hero-title"><img class="fc-hero-logo" src="logo.png" alt="Logo CFA Prosol"><h1>DESENVOLVIMENTO ESPORTIVO</h1></div><p>Dados do cadastro, avaliações e registros disponíveis · Temporada ${fichaCompletaEsc(season)}</p></section>${basic}${alerts}${pageOneSections||'<section class="fc-section"><div class="fc-empty-note">Ainda não há registros complementares para este atleta neste período. A ficha foi gerada sem interromper o processo.</div></section>'}</div></section><section class="fc-print-page fc-print-page-two"><div class="fc-page">${pageTwoSections}<footer class="fc-footer"><span>Ficha gerada em ${fichaCompletaEsc(fichaCompletaDataBR(fichaCompletaHojeISO()))} · Dados do sistema CFA Prosol.</span><span>As seções sem registros foram omitidas.</span></footer></div></section></div><script>function ajustarFichaImpressao(){var body=document.body;if(body.classList.contains('fc-print-fit'))return;body.classList.add('fc-print-fit');var maxW=202*96/25.4,maxH=289*96/25.4;document.querySelectorAll('.fc-print-page').forEach(function(wrapper){var page=wrapper.querySelector('.fc-page');if(!page)return;page.style.zoom='';var box=page.getBoundingClientRect(),naturalW=Math.max(page.scrollWidth,box.width),naturalH=Math.max(page.scrollHeight,box.height),zoom=Math.min(1,maxW/naturalW,maxH/naturalH);if(!Number.isFinite(zoom)||zoom<=0)zoom=1;page.style.zoom=String(zoom);});}function restaurarFichaVisual(){document.body.classList.remove('fc-print-fit');document.querySelectorAll('.fc-print-page .fc-page').forEach(function(page){page.style.zoom='';});}window.addEventListener('beforeprint',ajustarFichaImpressao);window.addEventListener('afterprint',restaurarFichaVisual);function imprimirFichaCompleta(){ajustarFichaImpressao();setTimeout(function(){window.print();if(!window.matchMedia('(print)').matches)setTimeout(restaurarFichaVisual,250);},100)};<\/script></body></html>`
+}
+async function fichaCompletaGerar(){
+ const index=fichaCompletaState.atletaIndex;if(!Number.isInteger(index)||!excelData[index]){alert('Selecione um atleta para continuar.');return;}
+ const popup=window.open('','_blank','width=1250,height=900');if(!popup){alert('Permita pop-ups para gerar e imprimir a ficha completa.');return;}
+ popup.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Ficha Completa</title><style>body{font-family:Arial,sans-serif;background:#f3f5f8;padding:30px;color:#58111a}main{max-width:680px;margin:12vh auto;padding:28px;background:#fff;border-radius:14px;box-shadow:0 5px 24px #0002}h1{font-size:22px}p{color:#556}</style></head><body><main><h1>Montando a ficha…</h1><p>Buscando os registros disponíveis no sistema.</p></main></body></html>');popup.document.close();
+ fichaCompletaState.carregandoFicha=true;fichaCompletaRenderizarModal();
+ try{
+  const atleta=fichaCompletaTodosAtletas().find(a=>a.index===index);
+  if(!atleta){popup.close();alert('Não foi possível localizar o atleta selecionado.');return;}
+  const temporada=fichaCompletaTemporada(),periodo=fichaCompletaDataPeriodo(temporada),warnings=[];
+  const pseCat=AE.categoria(atleta.id,'pse')||AE.categoriaAno(atleta.ano),pseRoster=pseCat?aeAtletasCat(pseCat,'pse'):[];
+  if(!pseRoster.some(a=>fichaCompletaMesmoAtleta(atleta,a)))pseRoster.push(atleta);
+  const [jogosResult,portalResult,prePosResult]=await Promise.allSettled([
+   fichaCompletaBuscarJogos(atleta,temporada),
+   fichaCompletaFetchPortal(pseRoster,periodo,'data,nome_completo,nascimento,psr,pse'),
+   fichaCompletaBuscarPrePos(atleta,periodo)
+  ]);
+  let games=null,portalRows=[],prePosRows=[];
+  if(jogosResult.status==='fulfilled')games=jogosResult.value;else{console.warn('Ficha Completa: jogos indisponíveis',jogosResult.reason);warnings.push('Não foi possível carregar os jogos da temporada.');}
+  if(portalResult.status==='fulfilled')portalRows=portalResult.value||[];else{console.warn('Ficha Completa: PSR/PSE indisponíveis',portalResult.reason);warnings.push('Não foi possível carregar as respostas PSR/PSE.');}
+  if(prePosResult.status==='fulfilled')prePosRows=prePosResult.value||[];else{console.warn('Ficha Completa: Pré/Pós indisponível',prePosResult.reason);warnings.push('Não foi possível carregar os dados Pré/Pós jogo.');}
+  const avdAggregate=fichaCompletaConsolidarAVD(fichaCompletaState.avdRows||[],fichaCompletaTodosAtletas());
+  const avd=fichaCompletaAVDTemporada(atleta,avdAggregate.porAtleta,temporada);
+  if(fichaCompletaState.avdErro)warnings.push('A Avaliação Diária não pôde ser lida por completo; faltas e notas do treinador podem não aparecer.');
+  const anulacoes=fichaCompletaConstruirAnulacoes(fichaCompletaState.avdRows||[]);
+  const pseps=portalResult.status==='fulfilled'?fichaCompletaPsrPse(atleta,pseRoster,portalRows,anulacoes,fichaCompletaState.pseAnularDisponivel,temporada):null;
+  if(pseps&&!pseps.anularDisponivel)warnings.push('Médias de PSE omitidas: não foi possível validar ANULAR PSE em Notas Diárias.');
+  const prepos=prePosResult.status==='fulfilled'?fichaCompletaPrePos(prePosRows,atleta,temporada):null;
+  let physical='';try{physical=fichaCompletaBuildFisico(atleta);}catch(e){console.error('Ficha Completa: avaliações físicas',e);warnings.push('As avaliações físicas não puderam ser organizadas.');}
+  const html=fichaCompletaBuildReport({atleta,season:temporada,periodo,physical,games,prepos,pseps,avd,warnings});
+  popup.document.open();popup.document.write(html);popup.document.close();
+ }catch(error){
+  console.error('Erro ao gerar Ficha Completa:',error);
+  try{popup.document.open();popup.document.write('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Ficha Completa</title><body style="font-family:Arial,sans-serif;padding:28px;color:#58111a"><h2>Não foi possível montar a ficha completa.</h2><p>Alguns dados não puderam ser processados. Feche esta janela e tente novamente.</p></body></html>');popup.document.close();}catch(e){}
+  alert('Não foi possível montar a ficha completa. Verifique os dados do atleta e tente novamente.');
+ }finally{fichaCompletaState.carregandoFicha=false;fichaCompletaRenderizarModal();}
+}
 function modernV3Action(action,event){
  if(typeof limparSelecaoAtletaCadastro==='function') limparSelecaoAtletaCadastro(false); else esconderTooltipAtletaCadastro();
  document.body.classList.add('app-v3-mode');modernV3EnsureMenu();modernV3SetActive(event&&event.currentTarget);
@@ -12690,6 +13189,7 @@ function modernV3Action(action,event){
   modernV3PrepareHome();
   modernV3AutoSidebar(action);
   if(action==='atletas-extras'){openAtletasExtras();return;}
+  if(action==='ficha-completa'){openFichaCompleta().catch(e=>{console.error(e);alert('Não foi possível abrir a Ficha Completa.');});return;}
   if(action==='relatorio-fisico'){openRelatoriosModal();return;}
   if(action==='trabalho-diario'){openTrabalhoDiarioModal();return;}
   if(action==='planejamento'){openPlanejamentoSemanalModal();return;}
@@ -12731,7 +13231,7 @@ function modernV3BuildHome(){
 }
 
 function modernV3AnyModalOpen(){
- const selectors=['#ae-modal','.escalacao-overlay','.relatorios-menu-overlay','.trabalho-diario-overlay','.trabalho-atletas-overlay','.relatorio-visualizacao-overlay','.rpp-overlay','.rpp-extra-overlay','.vba-modal-overlay','#convocacao-modal','#convocacao-manual-modal','#campo-convocacao-manual-modal','#prancheta-modal','#jogos-professor-modal','#relatorios-modal','#trabalho-diario-modal','#planejamento-semanal-modal','#fotos-atletas-modal','#pre-pos-jogo-modal'];
+ const selectors=['#ae-modal','.escalacao-overlay','.relatorios-menu-overlay','.trabalho-diario-overlay','.trabalho-atletas-overlay','.relatorio-visualizacao-overlay','.rpp-overlay','.rpp-extra-overlay','.vba-modal-overlay','#convocacao-modal','#convocacao-manual-modal','#campo-convocacao-manual-modal','#prancheta-modal','#jogos-professor-modal','#relatorios-modal','#trabalho-diario-modal','#planejamento-semanal-modal','#fotos-atletas-modal','#pre-pos-jogo-modal','#ficha-completa-modal'];
  return selectors.some(sel=>Array.from(document.querySelectorAll(sel)).some(el=>{
   const st=getComputedStyle(el);
   return st.display!=='none' && st.visibility!=='hidden' && st.opacity!=='0';
@@ -12745,7 +13245,7 @@ function modernV3RestoreSidebarIfHomeFree(){
 document.addEventListener('click',modernV3RestoreSidebarIfHomeFree,true);
 
 function modernV3FecharModaisAbertos(){
- const ids=['ae-modal','jogos-professor-modal','prancheta-modal','convocacao-modal','convocacao-manual-modal','campo-convocacao-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal','relatorios-modal','relatorios-menu-modal','trabalho-diario-modal','planejamento-semanal-modal','fotos-atletas-modal','detalhes-jogo-salvo-modal','novo-jogo-modal','atletas-ativos-jogos-modal','carregar-jogo-salvo-modal','add-athlete-modal','modal-anotacoes','fichaModal','controle-peso-modal','relatorio-psrpse-modal','relatorio-visualizacao-modal','pre-pos-jogo-modal'];
+ const ids=['ae-modal','jogos-professor-modal','prancheta-modal','convocacao-modal','convocacao-manual-modal','campo-convocacao-modal','campo-convocacao-manual-modal','manual-convocacao-salvar-modal','manual-convocacao-carregar-modal','manual-convocacao-excluir-modal','relatorios-modal','relatorios-menu-modal','trabalho-diario-modal','planejamento-semanal-modal','fotos-atletas-modal','detalhes-jogo-salvo-modal','novo-jogo-modal','atletas-ativos-jogos-modal','carregar-jogo-salvo-modal','add-athlete-modal','modal-anotacoes','fichaModal','controle-peso-modal','relatorio-psrpse-modal','relatorio-visualizacao-modal','pre-pos-jogo-modal','ficha-completa-modal'];
  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
  document.querySelectorAll('.escalacao-overlay,.vba-modal-overlay,.mini-prancheta-overlay,.fotos-overlay').forEach(el=>{el.style.display='none';});
 }

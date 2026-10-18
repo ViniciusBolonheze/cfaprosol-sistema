@@ -5609,3 +5609,34 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
 }
 .pre-pos-jogo-tabela thead tr:nth-child(2) th.pre-pos-jogo-rendimento-sort .pre-pos-jogo-sort-botao{color:#58111a;}
 .pre-pos-jogo-tabela thead tr:nth-child(2) th.pre-pos-jogo-rendimento-sort .pre-pos-jogo-sort-botao:hover{background:rgba(88,17,26,.09);}
+
+.avd-notas .avd-pse-desempenho{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:34px;height:34px;flex:0 0 34px;border:1px solid #aeb5bf;border-radius:8px;background:#e5e7eb;color:#374151;font-size:12px;font-weight:900;cursor:default;user-select:none;}
+@media(max-width:900px){.avd-notas .avd-pse-desempenho{width:40px;height:40px;flex:0 0 40px;}}
+
+/* === Seletor da Ficha Completa do Atleta === */
+.ficha-completa-overlay{position:fixed;inset:0;z-index:24550;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(18,10,12,.68);backdrop-filter:blur(4px);overflow:auto}
+.ficha-completa-dialog{position:relative;width:min(100%,680px);max-height:min(90vh,820px);overflow:auto;border:1px solid rgba(255,255,255,.4);border-radius:18px;background:#fff;box-shadow:0 28px 80px rgba(0,0,0,.32);color:#253044}
+.fc-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:22px 24px 18px;background:linear-gradient(120deg,#58111a,#781b28);color:#fff;border-bottom:4px solid #f9c614}
+.fc-eyebrow{display:block;color:#f9c614;font-size:10px;font-weight:950;letter-spacing:.11em;text-transform:uppercase}
+.fc-modal-head h2{margin:4px 0 5px;color:#fff;font-size:25px;line-height:1.1}
+.fc-modal-head p{max-width:520px;margin:0;color:rgba(255,255,255,.78);font-size:12px;line-height:1.45}
+.fc-modal-close{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(255,255,255,.1);color:#fff;font-size:25px;line-height:1;cursor:pointer}
+.fc-modal-close:hover{background:rgba(255,255,255,.2)}
+.fc-modal-body{padding:20px 24px 22px}
+.fc-field{display:flex;flex-direction:column;gap:7px;margin:0 0 17px;color:#58111a;font-size:12px;font-weight:900}
+.fc-field small{color:#7b8492;font-size:10px;font-weight:600}
+.fc-field select{width:100%;min-height:46px;padding:10px 40px 10px 12px;border:1px solid #cbd2dc;border-radius:10px;background:#fff;color:#273344;font:600 13px Arial,Helvetica,sans-serif;outline:none}
+.fc-field select:focus{border-color:#a17a1a;box-shadow:0 0 0 3px rgba(249,198,20,.2)}
+.fc-field select:disabled{background:#f3f5f8;color:#9aa2ae}
+.fc-status{margin:0 0 14px;padding:10px 12px;border:1px solid #cfe1f2;border-radius:9px;background:#f2f8fd;color:#355c7d;font-size:11px;line-height:1.4}
+.fc-status-warn{border-color:#f0d08b;background:#fff8e8;color:#76571d}
+.fc-modal-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-top:3px}
+.fc-modal-foot>span{color:#788294;font-size:10px;line-height:1.4}
+.fc-generate-btn{flex:0 0 auto;min-height:44px;padding:0 20px;border:0;border-radius:10px;background:linear-gradient(135deg,#f9c614,#ffe582);color:#311f0a;font-size:13px;font-weight:950;box-shadow:0 7px 18px rgba(151,111,13,.18);cursor:pointer}
+.fc-generate-btn:hover:not(:disabled){filter:brightness(1.04);transform:translateY(-1px)}
+.fc-generate-btn:disabled{background:#d9dde4;color:#8a929e;box-shadow:none;cursor:not-allowed}
+.fc-generating{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;padding:12px;border-radius:9px;background:#f7f4eb;color:#6a4e0d;font-size:12px;font-weight:800}
+.fc-spinner{display:inline-block;width:18px;height:18px;border:3px solid #eadcae;border-top-color:#58111a;border-radius:50%;animation:fc-spin .8s linear infinite}
+@keyframes fc-spin{to{transform:rotate(360deg)}}
+@media(max-width:700px){.ficha-completa-overlay{align-items:flex-start;padding:9px}.ficha-completa-dialog{width:100%;max-height:calc(100dvh - 18px);border-radius:14px}.fc-modal-head{padding:17px 16px 14px;gap:10px}.fc-modal-head h2{font-size:21px}.fc-modal-head p{font-size:11px}.fc-modal-body{padding:16px 15px 18px}.fc-field select{min-height:44px}.fc-modal-foot{align-items:stretch;flex-direction:column}.fc-modal-foot>span{font-size:10px}.fc-generate-btn{width:100%}}
+@media print{.ficha-completa-overlay{display:none!important}}
