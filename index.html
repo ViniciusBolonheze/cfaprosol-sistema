@@ -8,13 +8,13 @@
     <link rel="shortcut icon" type="image/png" href="logo.png">
     <link rel="apple-touch-icon" href="logo.png">
     <meta name="theme-color" content="#58111a">
-    <link rel="stylesheet" href="style.css?v=ficha-completa-rev7-20261018">
+    <link rel="stylesheet" href="style.css?v=principal-mapa-a4-20260826-v6-ficha-restaurada">
     <!-- FontAwesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SheetJS (XLSX) para leitura de arquivos do Excel -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- html2pdf para geração de PDFs -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Bibliotecas locais (vendor), seguindo o pacote do SA -->
+    <script src="vendor/xlsx.full.min.js"></script>
+    <script src="vendor/jspdf.umd.min.js"></script>
+    <script src="vendor/html2pdf.bundle.min.js"></script>
     <!-- Biblioteca do Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -129,17 +129,26 @@
             <div class="vba-atletas-container">
                 <div class="vba-atletas-title">Atletas - CFA Prosol</div>
                 <div class="vba-anos-filter">
-                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                        <label><input type="checkbox" class="year-chk" value="2009" onchange="renderAtletasScreen()"> 2009</label>
-                        <label><input type="checkbox" class="year-chk" value="2010" onchange="renderAtletasScreen()"> 2010</label>
-                        <label><input type="checkbox" class="year-chk" value="2011" onchange="renderAtletasScreen()"> 2011</label>
-                        <label><input type="checkbox" class="year-chk" value="2012" onchange="renderAtletasScreen()"> 2012</label>
-                        <label><input type="checkbox" class="year-chk" value="2013" onchange="renderAtletasScreen()"> 2013</label>
-                        <label><input type="checkbox" class="year-chk" value="2014" onchange="renderAtletasScreen()"> 2014</label>
-                        <label><input type="checkbox" class="year-chk" value="2015" onchange="renderAtletasScreen()"> 2015</label>
-                        <label><input type="checkbox" class="year-chk" value="2016" onchange="renderAtletasScreen()"> 2016</label>
-                        <label><input type="checkbox" class="year-chk" value="2017" onchange="renderAtletasScreen()"> 2017</label>
-                        <label><input type="checkbox" class="year-chk" value="2018" onchange="renderAtletasScreen()"> 2018</label>
+                    <div class="atletas-years-checks">
+                            <label><input type="checkbox" class="year-chk" value="2009" onchange="atletasAnosManuaisAlterados()"> 2009</label>
+                            <label><input type="checkbox" class="year-chk" value="2010" onchange="atletasAnosManuaisAlterados()"> 2010</label>
+                            <label><input type="checkbox" class="year-chk" value="2011" onchange="atletasAnosManuaisAlterados()"> 2011</label>
+                            <label><input type="checkbox" class="year-chk" value="2012" onchange="atletasAnosManuaisAlterados()"> 2012</label>
+                            <label><input type="checkbox" class="year-chk" value="2013" onchange="atletasAnosManuaisAlterados()"> 2013</label>
+                            <label><input type="checkbox" class="year-chk" value="2014" onchange="atletasAnosManuaisAlterados()"> 2014</label>
+                            <label><input type="checkbox" class="year-chk" value="2015" onchange="atletasAnosManuaisAlterados()"> 2015</label>
+                            <label><input type="checkbox" class="year-chk" value="2016" onchange="atletasAnosManuaisAlterados()"> 2016</label>
+                            <label><input type="checkbox" class="year-chk" value="2017" onchange="atletasAnosManuaisAlterados()"> 2017</label>
+                            <label><input type="checkbox" class="year-chk" value="2018" onchange="atletasAnosManuaisAlterados()"> 2018</label>
+                    </div>
+                    <div class="atletas-filter-actions">
+                        <label class="atletas-category-filter" for="atletas-categoria-filter">Categoria
+                            <select id="atletas-categoria-filter" onchange="atletasCategoriaSelecionada(this.value)" aria-label="Filtrar atletas por categoria">
+                                <option value="">Todas</option>
+                                <option value="__manual__">Seleção manual</option>
+                            </select>
+                        </label>
+                        <button class="vba-map-btn" type="button" onclick="abrirMapaCategoriaAtletas()">Mapa da categoria</button>
                     </div>
                 </div>
                 <div class="vba-content-grid">
@@ -157,7 +166,7 @@
                         <div class="pos-box"><div class="pos-header">Volantes</div><div class="pos-list" id="list-volantes"></div></div>
                         <div class="pos-box"><div class="pos-header">Meias</div><div class="pos-list" id="list-meias"></div></div>
                         <div class="pos-box"><div class="pos-header">Atacantes</div><div class="pos-list" id="list-atacantes"></div></div>
-                        <div class="pos-box"><div class="pos-header">Extremos</div><div class="pos-list" id="list-extremos"></div></div>
+                        <div class="pos-box"><div class="pos-header">Pontas</div><div class="pos-list" id="list-extremos"></div></div>
                     </div>
                 </div>
             </div>
@@ -426,21 +435,17 @@
                 <div class="form-row"><label>Data de Nascimento:</label><input type="text" id="add-nascimento" placeholder="DD/MM/AAAA"></div>
                 <div class="form-row">
                     <label>Posição:</label>
-                    <select id="add-posicao">
+                    <select id="add-posicao" aria-label="Posição principal">
                         <option value="Goleiro">Goleiro</option>
-                        <option value="Zagueiro">Zagueiro</option>
-                        <option value="Zagueiro Dir.">Zagueiro Dir.</option>
-                        <option value="Zagueiro Esq.">Zagueiro Esq.</option>
                         <option value="Lateral Dir.">Lateral Dir.</option>
                         <option value="Lateral Esq.">Lateral Esq.</option>
+                        <option value="Zagueiro">Zagueiro</option>
                         <option value="Volante">Volante</option>
-                        <option value="1º Volante">1º Volante</option>
-                        <option value="2º Volante">2º Volante</option>
                         <option value="Meia" selected>Meia</option>
                         <option value="Atacante">Atacante</option>
                         <option value="Ponta Dir.">Ponta Dir.</option>
                         <option value="Ponta Esq.">Ponta Esq.</option>
-                        <option value="Extremo">Extremo</option>
+                        <option value="__KEEP__">Manter posições atuais</option>
                     </select>
                 </div>
                 <div class="form-row"><label>Cidade:</label><input type="text" id="add-cidade"></div>
@@ -557,6 +562,6 @@
         </div>
     </div>
 </div>
-    <script src="script.js?v=ficha-completa-rev7-20261018"></script>
+    <script src="script.js?v=principal-mapa-a4-20260826-v6-ficha-restaurada"></script>
 <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a41e268519ee808f',t:'MTc5MDU1MDI5OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a45d9266baa7d15f',t:'MTc5MTIxNTMyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a490274dbdd9ae1a',t:'MTc5MTc0NTcwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

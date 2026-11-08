@@ -5613,6 +5613,377 @@ img.mv3-academy-logo{width:30px;height:30px;object-fit:contain;border-radius:4px
 .avd-notas .avd-pse-desempenho{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:34px;height:34px;flex:0 0 34px;border:1px solid #aeb5bf;border-radius:8px;background:#e5e7eb;color:#374151;font-size:12px;font-weight:900;cursor:default;user-select:none;}
 @media(max-width:900px){.avd-notas .avd-pse-desempenho{width:40px;height:40px;flex:0 0 40px;}}
 
+
+
+/* === Atualizações localizadas da Prancheta e do mapa de atletas === */
+
+/* Filtro por categoria e anos: mantém os anos como filtro manual independente. */
+.vba-anos-filter{justify-content:flex-start;flex-wrap:wrap;gap:12px;}
+.vba-anos-filter .atletas-category-filter{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;}
+.atletas-category-filter select{min-height:34px;max-width:220px;padding:6px 10px;border:1px solid #9aa4ae;border-radius:6px;background:#fff;color:#263238;font-weight:800;}
+.atletas-years-checks{align-items:center;gap:8px 12px!important;}
+.atletas-years-checks label{white-space:nowrap;}
+.vba-map-btn{font-weight:900;padding:12px 10px;cursor:pointer;text-align:center;border-radius:4px;border:2px solid #075985;background:#0284c7;color:#fff;box-shadow:0 2px 5px rgba(0,0,0,.2);}
+.vba-map-btn:hover{background:#0369a1;}
+
+/* Mapa da categoria: um único campo, nove posições e uma faixa de exceções. */
+.atleta-mapa-overlay{position:fixed;inset:0;z-index:150000;display:none;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;background:rgba(5,12,20,.78);}
+.atleta-mapa-card{width:min(1120px,98vw);max-height:96vh;max-height:96dvh;overflow:auto;box-sizing:border-box;background:#fff;color:#17202a;border:2px solid #6b1523;border-radius:18px;box-shadow:0 22px 70px rgba(0,0,0,.38);}
+.atleta-mapa-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:12px 16px;background:linear-gradient(130deg,#58111a,#8a172d);color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.18);}
+.atleta-mapa-header>img{width:58px;height:58px;object-fit:contain;background:#fff;border-radius:10px;padding:4px;box-sizing:border-box;}
+.atleta-mapa-header>div{flex:1;min-width:0;}
+.atleta-mapa-header h2{margin:0 0 4px;font-size:20px;}
+.atleta-mapa-header p{margin:0;font-weight:800;font-size:13px;}
+.atleta-mapa-header>button{width:42px;height:42px;border:1px solid rgba(255,255,255,.45);border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font-size:28px;line-height:1;cursor:pointer;}
+.atleta-mapa-note{padding:10px 16px;color:#475569;font-size:12px;line-height:1.45;border-bottom:1px solid #e2e8f0;}
+.atleta-mapa-field{position:relative;width:min(680px,96%);aspect-ratio:2/3;margin:16px auto 10px;overflow:hidden;border-radius:14px;background:repeating-linear-gradient(0deg,#317d47 0 9%,#35894d 9% 18%);border:2px solid #174f2e;box-shadow:0 10px 28px rgba(15,23,42,.2);isolation:isolate;}
+.atleta-mapa-field:before{content:"";position:absolute;inset:4%;z-index:0;border:2px solid rgba(255,255,255,.55);pointer-events:none;}
+.atleta-mapa-field:after{content:"";position:absolute;left:50%;top:50%;width:24%;aspect-ratio:1;transform:translate(-50%,-50%);z-index:0;border:2px solid rgba(255,255,255,.5);border-radius:50%;pointer-events:none;}
+.atleta-mapa-pitch-img{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:fill;pointer-events:none;}
+.atleta-mapa-pitch-img.asset-missing{display:none;}
+.atleta-mapa-pos{position:absolute;z-index:2;width:30%;max-height:17%;min-height:42px;overflow:hidden;box-sizing:border-box;padding:5px 6px;background:rgba(255,255,255,.91);border:1px solid rgba(15,23,42,.55);border-radius:8px;box-shadow:0 2px 7px rgba(0,0,0,.22);}
+.atleta-mapa-pos h3{margin:0 0 3px;color:#58111a;font-size:clamp(9px,1.45vw,13px);font-weight:950;line-height:1.15;}
+.atleta-mapa-pos h3 small{font-size:.9em;color:#475569;}
+.atleta-mapa-pos ul{list-style:none;margin:0;padding:0;max-height:calc(17vh - 25px);overflow:auto;}
+.atleta-mapa-pos li,.atleta-mapa-outros li{display:flex;align-items:baseline;justify-content:space-between;gap:4px;padding:2px 1px;border-bottom:1px solid rgba(148,163,184,.35);font-size:clamp(8px,1.15vw,11px);line-height:1.2;}
+.atleta-mapa-pos li span,.atleta-mapa-outros li span{min-width:0;overflow-wrap:anywhere;font-weight:750;}
+.atleta-mapa-pos li b,.atleta-mapa-outros li b{flex:0 0 auto;color:#334155;font-size:.95em;}
+.atleta-mapa-pos.goleiro{left:35%;top:83%;}
+.atleta-mapa-pos.lateral-esq{left:1.5%;top:67%;}
+.atleta-mapa-pos.zagueiro{left:35%;top:66%;}
+.atleta-mapa-pos.lateral-dir{right:1.5%;top:67%;}
+.atleta-mapa-pos.volante{left:35%;top:51%;}
+.atleta-mapa-pos.meia{left:35%;top:37%;}
+.atleta-mapa-pos.ponta-esq{left:1.5%;top:23%;}
+.atleta-mapa-pos.atacante{left:35%;top:22%;}
+.atleta-mapa-pos.ponta-dir{right:1.5%;top:23%;}
+.atleta-mapa-outros{width:min(900px,94%);box-sizing:border-box;margin:10px auto 16px;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;}
+.atleta-mapa-outros h3{margin:0 0 8px;color:#58111a;font-size:14px;}
+.atleta-mapa-outros ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;list-style:none;margin:0;padding:0;}
+.atleta-mapa-outros li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:3px 8px;padding:5px;border-bottom:1px solid #e2e8f0;font-size:12px;}
+.atleta-mapa-outros li small{grid-column:1/-1;color:#64748b;font-size:10px;}
+.atleta-mapa-outros li.empty{display:block;color:#64748b;}
+.atleta-mapa-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-top:1px solid #e2e8f0;color:#64748b;font-size:11px;}
+.atleta-mapa-footer img{width:115px;height:25px;object-fit:contain;}
+
+/* Diálogo de nove opções de posição: cabe no celular e rola sem sair da tela. */
+.atleta-posicao-drop-card{width:min(620px,calc(100vw - 24px));max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px);overflow:auto;box-sizing:border-box;padding:20px;border-radius:16px;}
+.atleta-posicao-drop-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:min(48vh,430px);max-height:min(48dvh,430px);overflow:auto;padding:2px;}
+.atleta-posicao-drop-options button{min-height:44px;}
+
+/* Prancheta: menu escuro rolável, controles táteis, alça para arrastar e camadas reais. */
+.tp-ctx{box-sizing:border-box;display:none;flex-direction:column;min-width:min(280px,calc(100vw - 16px));width:min(420px,calc(100vw - 16px));max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);padding:0;overflow:hidden;}
+.tp-ctx-grab{display:flex;align-items:center;gap:8px;flex:0 0 auto;min-height:42px;padding:6px 8px 6px 10px;border-bottom:1px solid rgba(249,198,20,.38);background:#252d37;color:#f9c614;cursor:grab;touch-action:none;user-select:none;}
+.tp-ctx-grab:active{cursor:grabbing;}
+.tp-ctx-grab strong{flex:1;min-width:0;font-size:13px;}
+.tp-ctx-grab button{width:32px!important;min-width:32px;height:32px;padding:0!important;text-align:center!important;background:#3a4552!important;border:1px solid #596779!important;font-size:21px!important;line-height:1;}
+.tp-ctx-grip{font-size:19px;color:#aab4c2;line-height:1;}
+.tp-ctx-scroll{min-height:0;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:7px 9px 10px;}
+.tp-ctx-section{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.09);}
+.tp-ctx-section:last-child{border-bottom:0;}
+.tp-ctx-section>b{display:block;margin:0 0 6px;color:#f9c614;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+.tp-ctx-section label{display:block;margin:5px 0;color:#e9edf2;font-size:11px;font-weight:800;}
+.tp-ctx-section input[type=text],.tp-ctx-section select{display:block;width:100%;min-height:35px;margin-top:4px;padding:7px 8px;box-sizing:border-box;border:1px solid #566170;border-radius:6px;background:#111820;color:#fff;font-size:13px;}
+.tp-ctx-section input[type=range]{width:100%;margin:8px 0 2px;accent-color:#f9c614;}
+.tp-ctx-section input[type=color]{width:34px;height:28px;margin-left:7px;padding:1px;border:1px solid #64748b;border-radius:4px;background:#111820;vertical-align:middle;}
+.tp-ctx-section .tp-ctx-colors{display:flex;flex-wrap:wrap;gap:7px;padding:2px 0;}
+.tp-ctx-section .tp-ctx-colors>.tp-c{display:block;flex:0 0 24px;width:24px;min-width:24px;height:24px;padding:0!important;border:1px solid rgba(255,255,255,.65)!important;border-radius:5px!important;cursor:pointer;}
+.tp-ctx-custom-color{display:flex!important;align-items:center;justify-content:space-between;gap:6px;margin-top:6px!important;color:#cbd5e1!important;font-size:10px!important;}
+.tp-ctx-size-row,.tp-ctx-inline{display:flex;align-items:center;gap:6px;margin-top:6px;}
+.tp-ctx-size-row>span{margin-right:auto;color:#cbd5e1;font-size:10px;font-weight:800;}
+.tp-ctx-size-row button,.tp-ctx-inline button{width:auto!important;min-width:38px;min-height:34px;padding:6px 9px!important;text-align:center!important;border:1px solid #566170!important;background:#303b48!important;color:#fff!important;}
+.tp-ctx-size-row button.active{background:#f9c614!important;color:#111!important;border-color:#f9c614!important;}
+.tp-ctx-section .tp-ctx-check{display:flex;align-items:center;gap:8px;margin:8px 0;}
+.tp-ctx-section .tp-ctx-check input{width:18px;height:18px;accent-color:#f9c614;}
+.tp-ctx-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.15);}
+.tp-ctx-actions button{width:auto!important;min-height:40px;text-align:center!important;background:#303b48!important;border:1px solid #4b596a!important;}
+.tp-ctx-actions button:hover{background:#f9c614!important;color:#111!important;}
+.tp-ctx-actions .tp-ctx-del{background:#5a2024!important;color:#ffd5d5!important;border-color:#8a353d!important;}
+.tp-ctx-section [data-ctx-action="rotate"],.tp-ctx-section>[data-ctx-action="edit-text"]{width:100%!important;margin-top:6px;min-height:38px;text-align:center!important;background:#303b48!important;border:1px solid #4b596a!important;}
+.tp-ctx-section .tp-ctx-inline button{flex:1;}
+.tp-ctx :focus-visible{outline:2px solid #f9c614;outline-offset:2px;}
+.tp-shape-sq,.tp-shape-ci,.tp-shape-sq.selected,.tp-shape-ci.selected{z-index:var(--tp-layer,1)!important;}
+.tp-shape-svg .tp-shape-fill{pointer-events:none!important;}
+.tp-shape-svg .tp-shape-hit,.tp-shape-svg .tp-shape-outline{pointer-events:stroke!important;}
+.tp-shape-svg{filter:drop-shadow(0 1px 2px #0006);}
+.tp-piece .tp-disc.tp-size-P{width:17px;height:17px;font-size:8px;}
+.tp-piece .tp-disc.tp-size-M{width:23px;height:23px;font-size:10px;}
+.tp-piece .tp-disc.tp-size-G{width:31px;height:31px;font-size:13px;}
+.tp-piece .tp-disc-gk.tp-size-P{width:19px;height:19px;border-radius:6px;}
+.tp-piece .tp-disc-gk.tp-size-M{width:25px;height:25px;border-radius:7px;}
+.tp-piece .tp-disc-gk.tp-size-G{width:33px;height:33px;border-radius:9px;}
+.tp-text-piece{display:flex;align-items:center;justify-content:center;overflow:visible;cursor:grab;pointer-events:auto;}
+.tp-text-label{display:block;max-width:100%;overflow-wrap:anywhere;white-space:pre-wrap;text-align:center;font-weight:900;line-height:1.1;text-shadow:0 1px 2px rgba(255,255,255,.5);pointer-events:auto;}
+.tp-text-editor-input{min-width:110px;max-width:min(360px,80vw);min-height:34px;box-sizing:border-box;padding:5px 8px;border:2px solid #f9c614;border-radius:6px;background:#fff;color:#111;font:900 16px Arial;text-align:center;}
+.tp-goal-cones{display:flex;align-items:center;justify-content:space-around;width:100%;height:100%;pointer-events:none;}
+.tp-goal-cone{display:block;width:24%;height:85%;}
+.tp-goal-cone .tp-ico{filter:drop-shadow(0 1px 2px #0006);}
+.tp-goal-svg{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 1px 2px #0006);pointer-events:none;}
+
+@media(max-width:900px){
+ .vba-anos-filter{align-items:flex-start;flex-direction:column;gap:8px;padding:9px;}
+ .atletas-category-filter{width:100%;justify-content:space-between;}
+ .atletas-category-filter select{flex:1;max-width:none;min-height:40px;}
+ .atletas-years-checks{width:100%;display:flex!important;gap:6px 10px!important;}
+ .vba-map-btn{min-height:40px;font-size:11px;}
+ .atleta-mapa-overlay{align-items:flex-start;padding:6px;}
+ .atleta-mapa-card{width:100%;max-height:calc(100dvh - 12px);border-radius:12px;}
+ .atleta-mapa-header{gap:8px;padding:8px 10px;}
+ .atleta-mapa-header>img{width:44px;height:44px;}
+ .atleta-mapa-header h2{font-size:16px;}
+ .atleta-mapa-header p{font-size:11px;}
+ .atleta-mapa-note{padding:7px 10px;font-size:10px;}
+ .atleta-mapa-field{width:100%;max-width:510px;margin:10px auto 8px;border-radius:9px;}
+ .atleta-mapa-pos{width:32%;max-height:16%;min-height:32px;padding:3px 4px;border-radius:6px;}
+ .atleta-mapa-pos h3{font-size:clamp(8px,2.5vw,11px);margin-bottom:2px;}
+ .atleta-mapa-pos ul{max-height:calc(16vh - 21px);}
+ .atleta-mapa-pos li{font-size:clamp(7px,2vw,9px);gap:2px;padding:1px 0;}
+ .atleta-mapa-pos.goleiro{left:34%;top:83%;}
+ .atleta-mapa-pos.lateral-esq{left:.8%;top:67%;}
+ .atleta-mapa-pos.zagueiro{left:34%;top:66%;}
+ .atleta-mapa-pos.lateral-dir{right:.8%;top:67%;}
+ .atleta-mapa-pos.volante{left:34%;top:51%;}
+ .atleta-mapa-pos.meia{left:34%;top:37%;}
+ .atleta-mapa-pos.ponta-esq{left:.8%;top:23%;}
+ .atleta-mapa-pos.atacante{left:34%;top:22%;}
+ .atleta-mapa-pos.ponta-dir{right:.8%;top:23%;}
+ .atleta-mapa-outros{width:100%;margin:8px auto 10px;padding:9px;}
+ .atleta-mapa-outros ul{grid-template-columns:1fr;}
+ .atleta-mapa-footer{padding:8px 10px;font-size:9px;}
+ .atleta-mapa-footer img{width:92px;height:20px;}
+ .atleta-posicao-drop-card{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:15px;}
+ .atleta-posicao-drop-options{grid-template-columns:repeat(2,minmax(0,1fr));max-height:52dvh;}
+ .tp-ctx.tp-ctx-mob{left:var(--tp-ctx-left,12px)!important;right:12px!important;bottom:88px!important;top:auto!important;width:auto!important;max-width:none;max-height:calc(100vh - 108px);max-height:calc(100dvh - 108px);}
+ .tp-ctx.tp-ctx-mob[data-dragged="1"]{left:var(--tp-ctx-left,12px)!important;top:var(--tp-ctx-top,12px)!important;right:auto!important;bottom:auto!important;width:min(480px,calc(100vw - 24px))!important;max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);}
+ .tp-ctx-mob .tp-ctx-grab{min-height:46px;}
+ .tp-ctx-mob .tp-ctx-grab strong{font-size:14px;}
+ .tp-ctx-mob .tp-ctx-section label{font-size:12px;}
+ .tp-ctx-mob .tp-ctx-section input[type=text],.tp-ctx-mob .tp-ctx-section select{min-height:40px;font-size:15px;}
+ .tp-ctx-mob .tp-ctx-section input[type=range]{min-height:28px;}
+ .tp-ctx-mob .tp-ctx-actions button{min-height:44px;font-size:14px;}
+}
+@media(max-width:390px){
+ .atleta-mapa-pos{width:33%;}
+ .atleta-mapa-pos li{font-size:7px;}
+ .atleta-mapa-pos h3{font-size:8px;}
+ .atleta-mapa-pos.goleiro,.atleta-mapa-pos.zagueiro,.atleta-mapa-pos.volante,.atleta-mapa-pos.meia,.atleta-mapa-pos.atacante{left:33.5%;}
+}
+@media(prefers-reduced-motion:reduce){.tp-ctx button,.atleta-mapa-header>button{transition:none!important;}}
+
+.tp-tool.text{background:#e8d5ff;color:#25113b;}
+
+/* Ajustes solicitados: barra de categoria no mesmo alinhamento da referência e mapa sem rolagem dentro dos cards. */
+.vba-anos-filter{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;min-height:62px;padding:8px 10px;background:#fff;border-bottom:1px solid #edf0f4;}
+.atletas-years-checks{display:flex!important;flex:1 1 auto;align-items:center;justify-content:flex-start;gap:7px!important;min-width:0;flex-wrap:nowrap;}
+.atletas-years-checks label{display:inline-flex;align-items:center;gap:5px;min-height:32px;padding:5px 9px;white-space:nowrap;border:1px solid #e1e6ee;border-radius:999px;background:#f8fafc;color:#344054;font-size:11px;font-weight:800;}
+.atletas-years-checks input[type=checkbox]{width:13px;height:13px;margin:0;accent-color:#0877f9;}
+.atletas-filter-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex:0 0 auto;margin-left:auto;}
+.atletas-category-filter{display:inline-flex!important;align-items:center;justify-content:space-between;gap:9px;width:auto!important;min-height:44px;padding:5px 8px 5px 12px;white-space:nowrap;border:1px solid #e1e7ef;border-radius:999px;background:#f8fafc;color:#344054;font-size:11px;font-weight:850;}
+.atletas-category-filter select{min-width:78px;max-width:150px;min-height:34px;padding:5px 22px 5px 10px;border:1px solid #d9e0e8;border-radius:12px;background:#fff;color:#263238;font-size:12px;font-weight:800;}
+.vba-map-btn{min-height:40px;height:40px;padding:0 15px;border:0!important;border-radius:8px;background:#087b7d;color:#fff;box-shadow:0 2px 6px rgba(8,123,125,.18);font-size:11px;font-weight:900;white-space:nowrap;}
+.vba-map-btn:hover{background:#066a6c;color:#fff;}
+@media(max-width:1100px){.vba-anos-filter{flex-wrap:wrap;row-gap:8px}.atletas-years-checks{flex-basis:100%;flex-wrap:wrap}.atletas-filter-actions{margin-left:auto;}}
+@media(max-width:620px){.vba-anos-filter{align-items:stretch;gap:8px;padding:8px}.atletas-years-checks{flex-basis:100%;gap:6px!important}.atletas-years-checks label{min-height:32px;padding:5px 8px;font-size:10px}.atletas-filter-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;margin:0}.atletas-category-filter{min-width:0;min-height:40px;padding:4px 6px 4px 10px}.atletas-category-filter select{flex:1;min-width:0;max-width:none;min-height:32px}.vba-map-btn{height:40px;padding:0 11px;font-size:10px;}}
+
+/* O mapa reduz o campo para caber na janela; as listas não têm rolagem interna. */
+.atleta-mapa-card{width:min(1120px,98vw);max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow:auto;overscroll-behavior:contain;}
+.atleta-mapa-field{width:min(680px,46vh);width:min(680px,46dvh);max-width:100%;height:min(69vh,calc(100vh - 220px));height:min(69dvh,calc(100dvh - 220px));aspect-ratio:2/3;overflow:visible;margin:8px auto 5px;}
+.atleta-mapa-pos{width:32%;max-height:none;min-height:0;overflow:visible;padding:4px 5px;background:rgba(255,255,255,.94);}
+.atleta-mapa-pos h3{margin:0 0 3px;font-size:clamp(8px,1.2vw,11px);}
+.atleta-mapa-pos ul{display:grid;grid-template-columns:repeat(var(--map-cols,1),minmax(0,1fr));gap:1px 4px;max-height:none;overflow:visible;}
+.atleta-mapa-pos li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:1px 3px;padding:1px 0;font-size:var(--map-font,9px);line-height:1.12;}
+.atleta-mapa-pos li span{min-width:0;overflow-wrap:anywhere;font-size:var(--map-font,9px);}
+.atleta-mapa-pos li b{font-size:8px;}
+.atleta-mapa-pos.goleiro{left:35%;top:80%;}
+.atleta-mapa-outros{max-height:none;overflow:visible;margin:5px auto 8px;padding:7px 10px;}
+.atleta-mapa-outros ul{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px 8px;}
+.atleta-mapa-outros li{padding:3px 4px;font-size:10px;}
+.atleta-mapa-outros li small{font-size:9px;}
+.atleta-mapa-footer{padding:6px 12px;}
+.atleta-mapa-field-dense{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto;grid-auto-rows:auto;align-content:start;gap:6px;width:min(1000px,96%);height:auto;min-height:0;max-height:none;aspect-ratio:auto;overflow:visible;padding:8px;background-color:#35834a;}
+.atleta-mapa-field-dense .atleta-mapa-pitch-img{object-fit:cover;opacity:.86;}
+.atleta-mapa-field-dense .atleta-mapa-pos{position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:auto!important;max-height:none;min-height:0;align-self:stretch;overflow:visible;padding:4px;background:rgba(255,255,255,.94);}
+.atleta-mapa-field-dense .atleta-mapa-outros{grid-column:1/-1;width:auto;max-height:none;margin:0;padding:4px 7px;background:rgba(255,255,255,.94);}
+@media(max-width:900px){.atleta-mapa-card{width:100%;max-height:calc(100dvh - 12px);}.atleta-mapa-field{width:min(680px,46dvh);height:min(68dvh,calc(100dvh - 205px));margin:7px auto 4px;}.atleta-mapa-pos{width:33%;padding:3px;}.atleta-mapa-pos h3{font-size:clamp(7px,2.3vw,10px);}.atleta-mapa-pos li,.atleta-mapa-pos li span{font-size:var(--map-font,8px);}.atleta-mapa-pos li b{font-size:7px;}.atleta-mapa-pos.goleiro{left:34%;top:80%;}.atleta-mapa-outros{width:96%;}.atleta-mapa-field-dense{width:96%;height:auto;min-height:0;max-height:none;overflow:visible;gap:4px;padding:5px;}.atleta-mapa-field-dense .atleta-mapa-pos{width:auto!important;padding:3px;}.atleta-mapa-field-dense .atleta-mapa-outros{width:auto;margin:0;}}
+@media(max-width:480px){.atleta-mapa-field{width:min(680px,43dvh);height:min(64dvh,calc(100dvh - 195px),140vw);}.atleta-mapa-pos{width:34%;padding:2px 3px;}.atleta-mapa-pos h3{font-size:7px;}.atleta-mapa-pos li,.atleta-mapa-pos li span{font-size:var(--map-font,7px);}.atleta-mapa-pos li b{font-size:6px;}.atleta-mapa-field-dense{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto;grid-auto-rows:auto;height:auto;min-height:0;max-height:none;overflow:visible;background:#35834a;}.atleta-mapa-field-dense .atleta-mapa-outros{grid-column:1/-1;}}
+
+/* Menu contextual mais discreto, no estilo da referência SA; destaque ciano/verde em vez de amarelo. */
+.tp-ctx{box-sizing:border-box!important;position:fixed!important;display:none;width:min(360px,calc(100vw - 16px));min-width:0!important;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow:hidden;padding:7px!important;border:1px solid #42516a!important;border-radius:9px!important;background:#1d2a3d!important;color:#fff!important;box-shadow:0 12px 32px rgba(0,0,0,.55);z-index:100003!important;font:500 12px/1.3 system-ui,Arial,sans-serif;}
+.tp-ctx *{box-sizing:border-box;}
+.tp-ctx-grab{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;min-height:22px;padding:0 28px 3px;border:0;border-bottom:1px solid rgba(159,176,198,.14);background:transparent;color:#9fb0c6;touch-action:none;}
+.tp-ctx-grab strong{flex:1;min-width:0;color:#9fb0c6;font-size:10px;font-weight:600;text-align:left;}
+.tp-ctx-grip{color:#8d9bad;font-size:15px;line-height:1;cursor:grab;}
+.tp-ctx-grab button{position:absolute;right:0;top:-4px;width:28px!important;min-width:28px;height:26px;min-height:26px;padding:0!important;border:0!important;border-radius:5px;background:transparent!important;color:#b6c4d5!important;font-size:20px!important;line-height:1;text-align:center!important;}
+.tp-ctx-grab button:hover{background:#34465d!important;color:#fff!important;}
+.tp-ctx-scroll{min-height:0;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:3px 2px 4px;}
+.tp-ctx-section{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;padding:4px 0;border-bottom:1px solid rgba(159,176,198,.13);}
+.tp-ctx-section>b{display:inline-block;flex:0 0 72px;margin:0;color:#9fb0c6;font-size:10px;font-weight:600;letter-spacing:0;text-transform:none;}
+.tp-ctx-section label{display:inline-flex;align-items:center;gap:4px;margin:2px 0;color:#e2e8f0;font-size:10px;font-weight:600;}
+.tp-ctx-section input[type=text],.tp-ctx-section select{display:inline-block;width:auto;min-width:56px;max-width:155px;min-height:27px;margin:0;padding:4px 6px;border:1px solid #374962;border-radius:5px;background:#101b2c;color:#fff;font-size:11px;}
+.tp-ctx-section input[type=range]{width:82px;max-width:30vw;min-height:18px;margin:2px 1px;accent-color:#23a86b;}
+.tp-ctx-section input[type=color]{width:27px;height:25px;margin:0 0 0 4px;padding:1px;border:1px solid #64748b;border-radius:4px;background:#101b2c;}
+.tp-ctx-section .tp-ctx-colors{display:flex;align-items:center;flex:1 1 150px;flex-wrap:wrap;gap:5px;padding:2px 1px;}
+.tp-ctx-section .tp-ctx-colors>.tp-c{display:block;flex:0 0 20px;width:20px;min-width:20px;height:20px;padding:0!important;border:0!important;border-radius:50%!important;box-shadow:0 0 0 1px #ffffff36;}
+.tp-ctx-custom-color{display:inline-flex!important;align-items:center;justify-content:flex-end;gap:4px;margin:2px 0 2px auto!important;color:#9fb0c6!important;font-size:10px!important;}
+.tp-ctx-size-row,.tp-ctx-inline{display:flex;align-items:center;flex:1 1 100%;gap:4px;margin:3px 0 0;}
+.tp-ctx-size-row>span{margin-right:auto;color:#9fb0c6;font-size:10px;font-weight:600;}
+.tp-ctx-size-row button,.tp-ctx-inline button{display:inline-flex;align-items:center;justify-content:center;width:auto!important;min-width:34px;min-height:27px;padding:4px 7px!important;border:0!important;border-radius:7px!important;background:transparent!important;color:#fff!important;font-size:10px!important;}
+.tp-ctx-size-row button.active{background:#23a86b!important;color:#061e13!important;border-color:#23a86b!important;}
+.tp-ctx-size-row button:hover,.tp-ctx-inline button:hover{background:#34465d!important;color:#fff!important;}
+.tp-ctx-section .tp-ctx-check{display:inline-flex;align-items:center;gap:5px;margin:2px 0;}
+.tp-ctx-section .tp-ctx-check input{width:15px;height:15px;accent-color:#23a86b;}
+.tp-ctx-section [data-ctx-action="rotate"],.tp-ctx-section>[data-ctx-action="edit-text"]{display:inline-flex;align-items:center;justify-content:center;width:auto!important;min-height:28px;margin:2px 0;padding:5px 8px!important;border:0!important;border-radius:7px!important;background:transparent!important;color:#f4f7fb!important;font-size:10px!important;}
+.tp-ctx-section [data-ctx-action="rotate"]:hover,.tp-ctx-section>[data-ctx-action="edit-text"]:hover{background:#34465d!important;}
+.tp-ctx-actions{display:flex;align-items:center;flex-wrap:wrap;gap:2px 4px;margin:5px 0 0;padding-top:4px;border-top:1px solid rgba(159,176,198,.13);}
+.tp-ctx-actions button{display:inline-flex;align-items:center;justify-content:center;width:auto!important;min-height:28px;padding:5px 7px!important;border:0!important;border-radius:6px!important;background:transparent!important;color:#f4f7fb!important;font-size:10px!important;white-space:nowrap;}
+.tp-ctx-actions button:hover{background:#34465d!important;color:#fff!important;}
+.tp-ctx-actions .tp-ctx-del{background:transparent!important;color:#ff6b6b!important;border-color:transparent!important;}
+.tp-ctx-actions .tp-ctx-del:hover{background:#c0392b!important;color:#fff!important;}
+.tp-ctx :focus-visible{outline:2px solid #74f0ca;outline-offset:2px;}
+.tp-piece.selected{outline:2px dashed #20bdc8!important;outline-offset:2px!important;}
+.tp-handle{background:#20bdc8!important;border:1px solid #164b52!important;box-shadow:0 1px 3px #0007;}
+.tp-arrow-body:after{top:-2px;border:3px solid transparent;border-left:5px solid var(--tp-ac,#111);}
+@media(max-width:900px){.tp-ctx.tp-ctx-mob{width:min(360px,calc(100vw - 16px));max-width:calc(100vw - 16px);}.tp-ctx-mob .tp-ctx-section label{font-size:11px;}.tp-ctx-mob .tp-ctx-section input[type=text],.tp-ctx-mob .tp-ctx-section select{min-height:34px;font-size:13px;}.tp-ctx-mob .tp-ctx-actions button{min-height:36px;font-size:12px!important;}}
+
+
+/* Mapa da categoria do Sistema Principal — layout amplo, zonas em grade e folha A4. */
+.atleta-mapa-overlay{padding:10px;background:rgba(5,12,20,.78);}
+.atleta-mapa-card{display:flex;flex-direction:column;width:min(1020px,98vw);max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);overflow:hidden;overscroll-behavior:contain;}
+.atleta-mapa-header{position:relative;top:auto;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;}
+.atleta-mapa-header-main{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
+.atleta-mapa-header-main>img{width:54px;height:54px;flex:0 0 54px;object-fit:contain;border-radius:9px;background:#fff;padding:3px;}
+.atleta-mapa-header-main>div{min-width:0;}
+.atleta-mapa-header h2{margin:0 0 3px;font-size:20px;line-height:1.15;}
+.atleta-mapa-header p{margin:0;font-size:12px;line-height:1.2;}
+.atleta-mapa-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;}
+.atleta-mapa-header-actions button{min-height:38px;border:0;border-radius:8px;font-weight:850;cursor:pointer;}
+.atleta-mapa-export-btn{padding:8px 12px;background:#36b99d;color:#123831;font-size:11px;white-space:nowrap;}
+.atleta-mapa-export-btn:hover{background:#56d0b3;}
+.atleta-mapa-close{width:38px;height:38px;padding:0;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.42)!important;font-size:23px;line-height:1;}
+.atleta-mapa-close:hover{background:rgba(255,255,255,.23);}
+.atleta-mapa-scroll{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px;background:#eef4f1;}
+.atleta-mapa-page{width:min(780px,100%);margin:0 auto;padding:12px;background:#fff;color:#173b59;border:1px solid #d8e2e5;border-radius:12px;box-shadow:0 4px 18px rgba(13,76,52,.14);}
+.atleta-mapa-page-head{display:flex;align-items:center;gap:12px;min-height:58px;margin:0 0 9px;padding:0 2px;color:#173b59;}
+.atleta-mapa-page-head>img{display:block;width:52px;height:52px;flex:0 0 52px;object-fit:contain;}
+.atleta-mapa-page-head>div{min-width:0;}
+.atleta-mapa-page-head small{display:block;color:#0b7b75;font-size:9px;font-weight:900;letter-spacing:.11em;}
+.atleta-mapa-page-head h2{margin:3px 0 0;color:#173b59;font-size:20px;line-height:1.12;overflow-wrap:anywhere;}
+.atleta-mapa-page-head p{margin:3px 0 0;color:#607388;font-size:10px;font-weight:700;}
+.atleta-mapa-field{position:relative;width:100%;max-width:none;height:auto!important;min-height:0;aspect-ratio:2/3;overflow:hidden;margin:0 auto;border:2px solid #1a5932;border-radius:12px;background:#28794a;box-shadow:0 4px 16px rgba(13,76,52,.2);isolation:isolate;}
+.atleta-mapa-field:before,.atleta-mapa-field:after{content:none!important;display:none!important;}
+.atleta-mapa-pitch-img{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:fill;pointer-events:none;}
+.atleta-mapa-pitch-img.asset-missing{display:none;}
+.atleta-mapa-grid{position:absolute;z-index:2;inset:1.4%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:1fr 1.05fr .95fr 1.42fr .75fr;grid-template-areas:'ponta-esq atacante ponta-dir' 'meia meia meia' 'volante volante volante' 'lateral-esq zagueiro lateral-dir' 'goleiro goleiro goleiro';gap:1.25%;}
+.atleta-mapa-grid .atleta-mapa-pos{position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;inset:auto!important;z-index:2;width:auto!important;min-width:0;min-height:0;max-height:none!important;overflow:visible!important;display:flex;flex-direction:column;padding:6px;border:1px solid rgba(255,255,255,.58);border-radius:10px;background:rgba(8,49,37,.38);color:#fff;box-shadow:none;}
+.atleta-mapa-grid .atleta-mapa-pos.ponta-esq{grid-area:ponta-esq;}
+.atleta-mapa-grid .atleta-mapa-pos.atacante{grid-area:atacante;}
+.atleta-mapa-grid .atleta-mapa-pos.ponta-dir{grid-area:ponta-dir;}
+.atleta-mapa-grid .atleta-mapa-pos.meia{grid-area:meia;}
+.atleta-mapa-grid .atleta-mapa-pos.volante{grid-area:volante;}
+.atleta-mapa-grid .atleta-mapa-pos.lateral-esq{grid-area:lateral-esq;}
+.atleta-mapa-grid .atleta-mapa-pos.zagueiro{grid-area:zagueiro;}
+.atleta-mapa-grid .atleta-mapa-pos.lateral-dir{grid-area:lateral-dir;}
+.atleta-mapa-grid .atleta-mapa-pos.goleiro{grid-area:goleiro;}
+.atleta-mapa-grid .atleta-mapa-pos h3{flex:0 0 auto;margin:0 0 5px;color:#e6fff2;font:850 10px/1.15 Arial,sans-serif;letter-spacing:.04em;text-align:center;text-transform:uppercase;}
+.atleta-mapa-grid .atleta-mapa-pos h3 small{color:#d5eee0;font-size:9px;}
+.atleta-mapa-grid .atleta-mapa-pos ul{display:flex;flex:1 1 auto;align-content:flex-start;align-items:flex-start;justify-content:center;flex-wrap:wrap;gap:5px;max-height:none!important;overflow:visible!important;list-style:none;margin:0;padding:0;}
+.atleta-mapa-grid .atleta-mapa-pos li{display:inline-flex;flex:0 1 auto;flex-direction:column;align-items:center;justify-content:center;min-width:56px;max-width:120px;margin:0;padding:4px 7px;border:1px solid rgba(255,255,255,.75);border-radius:8px;background:#f5fffa;color:#173b59;font:700 10px/1.18 Arial,sans-serif;text-align:center;overflow-wrap:anywhere;word-break:break-word;}
+.atleta-mapa-grid .atleta-mapa-pos li span{display:block;max-width:100%;color:#173b59;font:700 10px/1.18 Arial,sans-serif;overflow-wrap:anywhere;word-break:break-word;}
+.atleta-mapa-grid .atleta-mapa-pos li b{display:block;flex:0 0 auto;margin-top:2px;color:#54746a;font:600 9px/1.15 Arial,sans-serif;}
+.atleta-mapa-grid .atleta-mapa-pos li.atleta-mapa-empty{min-width:0;border:0;background:transparent;color:#d8eee1;font-size:12px;}
+.atleta-mapa-outros{width:min(780px,100%);max-height:none;overflow:visible;margin:10px auto 0;padding:9px 11px;border:1px solid #d5e0e6;border-radius:10px;background:#f5f8fa;}
+.atleta-mapa-outros h3{margin:0 0 7px;color:#425b6b;font-size:11px;line-height:1.2;}
+.atleta-mapa-outros ul{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:5px;max-height:none;overflow:visible;list-style:none;margin:0;padding:0;}
+.atleta-mapa-outros li{display:inline-flex;flex:0 1 auto;flex-direction:column;align-items:center;min-width:70px;max-width:180px;margin:0;padding:5px 8px;border:1px solid #cbd8de;border-radius:8px;background:#fff;color:#173b59;font-size:10px;line-height:1.15;text-align:center;overflow-wrap:anywhere;}
+.atleta-mapa-outros li span{font-weight:800;overflow-wrap:anywhere;}
+.atleta-mapa-outros li b,.atleta-mapa-outros li small{display:block;margin-top:2px;color:#54746a;font-size:9px;font-weight:600;}
+.atleta-mapa-page-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 2px 0;color:#64748b;font-size:9px;}
+.atleta-mapa-page-foot img{display:block;width:115px;height:25px;object-fit:contain;}
+.atleta-mapa-export-overlay{position:fixed;inset:0;z-index:150002;display:flex;align-items:center;justify-content:center;padding:14px;background:rgba(4,12,19,.72);}
+.atleta-mapa-export-card{width:min(440px,100%);padding:20px;border:1px solid #d8e2e5;border-radius:14px;background:#fff;color:#173b59;box-shadow:0 16px 48px rgba(0,0,0,.32);font:14px/1.4 system-ui,Arial,sans-serif;}
+.atleta-mapa-export-card h2{margin:0;color:#58111a;font-size:19px;}
+.atleta-mapa-export-card p{margin:8px 0 14px;color:#475569;}
+.atleta-mapa-export-actions{display:flex;flex-wrap:wrap;gap:8px;}
+.atleta-mapa-export-actions button{min-height:40px;padding:9px 12px;border:0;border-radius:8px;background:#58111a;color:#fff;font-weight:850;cursor:pointer;}
+.atleta-mapa-export-actions button:hover{background:#7b1c2a;}
+.atleta-mapa-export-actions button[data-action=cancel]{background:#e7edf0;color:#173b59;}
+.atleta-mapa-export-actions button:disabled{opacity:.55;cursor:wait;}
+.atleta-mapa-export-status{min-height:18px;margin:10px 0 0!important;color:#0b6d52!important;font-size:12px;}
+.atleta-mapa-export-holder{position:fixed;left:-10000px;top:0;z-index:-1;width:210mm;height:297mm;overflow:hidden;pointer-events:none;background:#fff;}
+.atleta-mapa-page-print{width:210mm!important;max-width:none!important;height:297mm!important;margin:0!important;padding:5mm!important;display:flex!important;flex-direction:column!important;gap:2mm!important;overflow:hidden!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important;}
+.atleta-mapa-page-print .atleta-mapa-page-head{flex:0 0 15mm;min-height:0;margin:0;padding:0 2mm;gap:3mm;}
+.atleta-mapa-page-print .atleta-mapa-page-head>img{width:13mm;height:13mm;flex:0 0 13mm;}
+.atleta-mapa-page-print .atleta-mapa-page-head small{font-size:6.5pt;}
+.atleta-mapa-page-print .atleta-mapa-page-head h2{margin:1mm 0 0;font-size:15pt;}
+.atleta-mapa-page-print .atleta-mapa-page-head p{margin:1mm 0 0;font-size:7pt;}
+.atleta-mapa-page-print .atleta-mapa-field-print{flex:1 1 auto;width:180mm;height:auto!important;min-height:0;aspect-ratio:auto!important;margin:0 auto;border-width:1mm;border-radius:3mm;}
+.atleta-mapa-page-print .atleta-mapa-grid{inset:1.5%;grid-template-rows:1fr 1.05fr .95fr 1.42fr .75fr;gap:1.4mm;}
+.atleta-mapa-page-print .atleta-mapa-grid .atleta-mapa-pos{padding:1.2mm;border-width:.35mm;border-radius:2mm;}
+.atleta-mapa-page-print .atleta-mapa-grid .atleta-mapa-pos h3{margin:0 0 1mm;font-size:6.5pt;}
+.atleta-mapa-page-print .atleta-mapa-grid .atleta-mapa-pos h3 small{font-size:6pt;}
+.atleta-mapa-page-print .atleta-mapa-grid .atleta-mapa-pos ul{gap:1mm;}
+.atleta-mapa-page-print .atleta-mapa-grid .atleta-mapa-pos li{min-width:13mm;max-width:28mm;padding:1mm 1.3mm;border-radius:1.5mm;font-size:6pt;line-height:1.12;}
+.atleta-mapa-page-print .atleta-mapa-grid .atleta-mapa-pos li span{font-size:6pt;line-height:1.12;}
+.atleta-mapa-page-print .atleta-mapa-grid .atleta-mapa-pos li b{margin-top:.5mm;font-size:5.5pt;}
+.atleta-mapa-page-print .atleta-mapa-outros{flex:0 0 auto;width:180mm;max-height:none;overflow:visible;margin:0 auto;padding:1.2mm 2mm;border-radius:2mm;}
+.atleta-mapa-page-print .atleta-mapa-outros h3{margin:0 0 .8mm;font-size:6pt;}
+.atleta-mapa-page-print .atleta-mapa-outros ul{gap:.7mm;}
+.atleta-mapa-page-print .atleta-mapa-outros li{min-width:15mm;max-width:35mm;padding:.7mm 1mm;border-radius:1mm;font-size:5.2pt;line-height:1.1;}
+.atleta-mapa-page-print .atleta-mapa-outros li b,.atleta-mapa-page-print .atleta-mapa-outros li small{font-size:4.8pt;}
+.atleta-mapa-page-print .atleta-mapa-page-foot{flex:0 0 7mm;margin:0;padding:0 2mm;font-size:6pt;}
+.atleta-mapa-page-print .atleta-mapa-page-foot img{width:30mm;height:6.5mm;}
+@page{size:A4 portrait;margin:0;}
+@media(max-width:700px){.atleta-mapa-overlay{padding:6px}.atleta-mapa-card{width:100%;max-height:calc(100dvh - 12px);border-radius:12px}.atleta-mapa-header{align-items:flex-start;gap:7px;padding:9px}.atleta-mapa-header-main{gap:8px}.atleta-mapa-header-main>img{width:40px;height:40px;flex-basis:40px}.atleta-mapa-header h2{font-size:16px}.atleta-mapa-header p{font-size:10px}.atleta-mapa-header-actions{gap:5px}.atleta-mapa-header-actions button{min-height:34px}.atleta-mapa-export-btn{padding:6px 8px;font-size:10px;white-space:normal}.atleta-mapa-close{width:34px;height:34px}.atleta-mapa-scroll{padding:7px}.atleta-mapa-page{padding:7px;border-radius:8px}.atleta-mapa-page-head{gap:8px;min-height:42px;margin-bottom:6px}.atleta-mapa-page-head>img{width:40px;height:40px;flex-basis:40px}.atleta-mapa-page-head small{font-size:7px}.atleta-mapa-page-head h2{font-size:16px}.atleta-mapa-page-head p{font-size:8px}.atleta-mapa-grid{gap:1%}.atleta-mapa-grid .atleta-mapa-pos{padding:3px;border-radius:6px}.atleta-mapa-grid .atleta-mapa-pos h3{margin-bottom:3px;font-size:8px}.atleta-mapa-grid .atleta-mapa-pos h3 small{font-size:7px}.atleta-mapa-grid .atleta-mapa-pos ul{gap:3px}.atleta-mapa-grid .atleta-mapa-pos li{min-width:46px;max-width:95px;padding:3px 4px;border-radius:5px;font-size:8px}.atleta-mapa-grid .atleta-mapa-pos li span{font-size:8px}.atleta-mapa-grid .atleta-mapa-pos li b{font-size:7px}.atleta-mapa-outros{margin-top:6px;padding:6px}.atleta-mapa-outros li{min-width:60px;max-width:130px;padding:4px 5px;font-size:8px}.atleta-mapa-outros li b,.atleta-mapa-outros li small{font-size:7px}.atleta-mapa-page-foot{margin-top:5px;font-size:7px}.atleta-mapa-page-foot img{width:92px;height:20px}}
+@media(max-width:390px){.atleta-mapa-header-actions{flex-direction:column;align-items:stretch}.atleta-mapa-export-btn{min-width:90px}.atleta-mapa-close{align-self:flex-end}.atleta-mapa-grid .atleta-mapa-pos{padding:2px}.atleta-mapa-grid .atleta-mapa-pos h3{font-size:7px}.atleta-mapa-grid .atleta-mapa-pos li{min-width:40px;max-width:78px;font-size:7px}.atleta-mapa-grid .atleta-mapa-pos li span{font-size:7px}.atleta-mapa-grid .atleta-mapa-pos li b{font-size:6px}}
+
+/* Adaptação automática para mapas muito povoados, sem rolagem dentro das zonas. */
+.atleta-mapa-grid-dense{grid-template-rows:1.1fr 1.2fr 1.2fr 2.5fr .9fr;gap:1%;}
+.atleta-mapa-grid-dense .atleta-mapa-pos ul{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));grid-auto-rows:min-content;align-content:start;align-items:stretch;justify-content:stretch;gap:4px;}
+.atleta-mapa-grid-dense .atleta-mapa-pos li{width:100%;min-width:0;max-width:none;padding:4px 6px;border-radius:6px;font-size:9px;line-height:1.12;}
+.atleta-mapa-grid-dense .atleta-mapa-pos li span{font-size:9px;line-height:1.12;overflow-wrap:anywhere;}
+.atleta-mapa-grid-dense .atleta-mapa-pos li b{margin-top:2px;font-size:7.5px;}
+.atleta-mapa-grid-dense .atleta-mapa-pos li.atleta-mapa-empty{min-width:0;}
+@media(max-width:700px){.atleta-mapa-field-dense{aspect-ratio:2/5.8}.atleta-mapa-grid-dense{grid-template-rows:1.2fr 1fr 1fr 2.35fr .85fr;gap:.8%}.atleta-mapa-grid-dense .atleta-mapa-pos ul{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:2px}.atleta-mapa-grid-dense .atleta-mapa-pos li{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:3px;min-height:0;padding:2px 4px;font-size:7px;line-height:1;white-space:nowrap}.atleta-mapa-grid-dense .atleta-mapa-pos li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:7px;line-height:1}.atleta-mapa-grid-dense .atleta-mapa-pos li b{flex:0 0 auto;margin:0;font-size:6px;line-height:1}}
+@media(max-width:390px){.atleta-mapa-grid-dense .atleta-mapa-pos h3{font-size:7px}.atleta-mapa-grid-dense .atleta-mapa-pos li{min-height:0;padding:1.5px 3px;font-size:6.5px}.atleta-mapa-grid-dense .atleta-mapa-pos li span{font-size:6.5px}.atleta-mapa-grid-dense .atleta-mapa-pos li b{font-size:5.8px}}
+/* Linhas compactas para preservar toda a grade quando o elenco é muito grande. */
+.atleta-mapa-grid-dense .atleta-mapa-pos li{display:grid;grid-template-columns:minmax(0,1fr) 28px;align-items:center;gap:3px;min-height:20px;padding:3px 5px;white-space:nowrap;}
+.atleta-mapa-grid-dense .atleta-mapa-pos li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.atleta-mapa-grid-dense .atleta-mapa-pos li b{margin:0;text-align:right;white-space:nowrap;}
+/* Exportação html2pdf: compactação A4 das zonas densas, igual à impressão nativa. */
+.atleta-mapa-page-print .atleta-mapa-grid-dense{grid-template-rows:1.25fr 1.15fr 1.15fr 2.25fr .8fr;gap:1.2mm;}
+.atleta-mapa-page-print .atleta-mapa-grid-dense .atleta-mapa-pos ul{display:grid;flex:1 1 0;min-height:0;grid-template-columns:1fr;grid-auto-rows:min-content;align-content:start;justify-content:stretch;gap:.25mm;}
+.atleta-mapa-page-print .atleta-mapa-grid-dense .atleta-mapa-pos.meia ul,.atleta-mapa-page-print .atleta-mapa-grid-dense .atleta-mapa-pos.volante ul,.atleta-mapa-page-print .atleta-mapa-grid-dense .atleta-mapa-pos.goleiro ul{grid-template-columns:repeat(2,minmax(0,1fr));}
+.atleta-mapa-page-print .atleta-mapa-grid-dense .atleta-mapa-pos li{display:grid;grid-template-columns:minmax(0,1fr) 9mm;align-items:center;justify-content:stretch;width:100%;min-width:0;max-width:none;min-height:0!important;padding:.1mm .55mm;border-width:.2mm;border-radius:.6mm;font-size:4.4pt;line-height:.95;text-align:left;white-space:nowrap;}
+.atleta-mapa-page-print .atleta-mapa-grid-dense .atleta-mapa-pos li span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:4.4pt;line-height:.95;text-align:left;}
+.atleta-mapa-page-print .atleta-mapa-grid-dense .atleta-mapa-pos li b{margin:0;color:#54746a;font-size:4.1pt;line-height:.95;text-align:right;white-space:nowrap;}
+.atleta-mapa-page-print .atleta-mapa-grid-dense .atleta-mapa-pos li.atleta-mapa-empty{display:block;width:auto;min-width:0;border:0;background:transparent;color:#c2dbcb;text-align:center;font-size:7pt;}
+/* Elenco denso no celular: altura fixa por linha para manter todos os atletas visíveis. */
+@media(max-width:700px){
+ .atleta-mapa-grid-dense{grid-template-rows:1.45fr .9fr 1.1fr 2.8fr .7fr;gap:.8%;}
+ .atleta-mapa-grid-dense .atleta-mapa-pos ul{flex:1 1 0;min-height:0;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));grid-auto-rows:14px;gap:0;}
+ .atleta-mapa-grid-dense .atleta-mapa-pos li{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:2px;box-sizing:border-box;width:100%;height:14px;min-height:0;padding:1px 2px;overflow:hidden;font-size:6.5px;line-height:1;white-space:nowrap;}
+ .atleta-mapa-grid-dense .atleta-mapa-pos li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:6.5px;line-height:1;}
+ .atleta-mapa-grid-dense .atleta-mapa-pos li b{flex:0 0 auto;margin:0;font-size:5.5px;line-height:1;}
+ .atleta-mapa-grid-dense .atleta-mapa-pos h3{font-size:7px;}
+}
+
+/* Faixa de posições não mapeadas compacta, sem cortar atletas em relatórios densos. */
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-outros{max-height:none;overflow:visible;padding:.8mm 1.2mm;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-outros ul{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.35mm;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-outros li{display:flex;flex-direction:column;justify-content:center;min-width:0;max-width:none;padding:.45mm .6mm;border:.2mm solid #cbd8de;font-size:4.3pt;line-height:1.05;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-outros li b,.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-outros li small{font-size:4pt;line-height:1.02;}
+
+/* PDF/Impressão com a mesma apresentação em cartões do mapa na tela. */
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-grid-dense{grid-template-rows:1.25fr 1.15fr 1.15fr 2.25fr .8fr;gap:1.2mm;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-grid-dense .atleta-mapa-pos ul{display:grid;flex:1 1 0;min-height:0;grid-template-columns:repeat(auto-fill,minmax(26mm,1fr));grid-auto-rows:min-content;align-content:start;align-items:stretch;justify-content:stretch;gap:.8mm;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-grid-dense .atleta-mapa-pos li{display:grid;grid-template-columns:minmax(0,1fr) 6.5mm;align-items:center;gap:.35mm;width:100%;min-width:0;max-width:none;min-height:5.2mm!important;padding:.35mm .65mm;border:.25mm solid rgba(255,255,255,.75);border-radius:1.5mm;background:#f5fffa;color:#173b59;font:700 5.4pt/1.05 Arial,sans-serif;text-align:left;white-space:nowrap;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-grid-dense .atleta-mapa-pos li span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#173b59;font:700 5.4pt/1.05 Arial,sans-serif;text-align:left;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-grid-dense .atleta-mapa-pos li b{margin:0;color:#54746a;font:600 4.9pt/1 Arial,sans-serif;text-align:right;white-space:nowrap;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-grid-dense .atleta-mapa-pos li.atleta-mapa-empty{display:block;width:auto;min-height:0!important;padding:0;border:0;background:transparent;color:#c2dbcb;text-align:center;font-size:7pt;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-outros ul{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:.7mm;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-outros li{display:inline-flex;flex:0 1 auto;flex-direction:column;align-items:center;min-width:18mm;max-width:35mm;padding:.65mm .9mm;border:.2mm solid #cbd8de;border-radius:1.2mm;background:#fff;font-size:4.8pt;line-height:1.05;text-align:center;}
+.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-outros li b,.atleta-mapa-page-print.atleta-mapa-page-dense .atleta-mapa-outros li small{font-size:4.3pt;line-height:1.02;}
+
 /* === Seletor da Ficha Completa do Atleta === */
 .ficha-completa-overlay{position:fixed;inset:0;z-index:24550;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(18,10,12,.68);backdrop-filter:blur(4px);overflow:auto}
 .ficha-completa-dialog{position:relative;width:min(100%,680px);max-height:min(90vh,820px);overflow:auto;border:1px solid rgba(255,255,255,.4);border-radius:18px;background:#fff;box-shadow:0 28px 80px rgba(0,0,0,.32);color:#253044}
