@@ -8,7 +8,7 @@
     <link rel="shortcut icon" type="image/png" href="logo.png">
     <link rel="apple-touch-icon" href="logo.png">
     <meta name="theme-color" content="#58111a">
-    <link rel="stylesheet" href="style.css?v=principal-mapa-a4-20260826-v6-ficha-restaurada">
+    <link rel="stylesheet" href="style.css?v=principal-coordenacao-local-v1">
     <!-- FontAwesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Bibliotecas locais (vendor), seguindo o pacote do SA -->
@@ -167,6 +167,7 @@
                         <div class="pos-box"><div class="pos-header">Meias</div><div class="pos-list" id="list-meias"></div></div>
                         <div class="pos-box"><div class="pos-header">Atacantes</div><div class="pos-list" id="list-atacantes"></div></div>
                         <div class="pos-box"><div class="pos-header">Pontas</div><div class="pos-list" id="list-extremos"></div></div>
+                        <div class="pos-box" id="posicoes-nao-identificadas" style="display:none"><div class="pos-header">Posição não identificada</div><div class="pos-list" id="list-outros"></div></div>
                     </div>
                 </div>
             </div>
@@ -445,7 +446,7 @@
                         <option value="Atacante">Atacante</option>
                         <option value="Ponta Dir.">Ponta Dir.</option>
                         <option value="Ponta Esq.">Ponta Esq.</option>
-                        <option value="__KEEP__">Manter posições atuais</option>
+                        <option value="__KEEP__">Posição não informada</option>
                     </select>
                 </div>
                 <div class="form-row"><label>Cidade:</label><input type="text" id="add-cidade"></div>
@@ -469,11 +470,21 @@
     <div id="fichaModal" class="modal-overlay">
         <!-- Mantido como original -->
         <div class="modal-container">
-            <div class="modal-header">
-                <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div class="modal-header sp-ficha-header">
+                <button type="button" class="close-btn sp-ficha-close" onclick="closeModal()" aria-label="Fechar ficha">&times;</button>
                 <h2>Ficha CFA Prosol</h2>
+                <div class="sp-ficha-tabs" role="group" aria-label="Tipo de ficha">
+                    <button type="button" data-sp-ficha-modo="simplificada" onclick="spFichaMudarModo('simplificada')" aria-pressed="true">Ficha simplificada</button>
+                    <button type="button" data-sp-ficha-modo="completa" onclick="spFichaMudarModo('completa')" aria-pressed="false">Ficha completa</button>
+                    <button type="button" data-sp-ficha-modo="fisico" onclick="spFichaMudarModo('fisico')" aria-pressed="false">Relatório físico</button>
+                </div>
             </div>
-            <div class="modal-body" id="fichaModalBody"></div>
+            <div class="modal-body" id="fichaModalBody" tabindex="0"></div>
+            <div class="sp-ficha-actions">
+                <button type="button" onclick="spFichaBaixarPDF()">Salvar PDF</button>
+                <button type="button" onclick="shareFichaPDF()">Compartilhar PDF</button>
+                <button type="button" onclick="spFichaImprimir()">Imprimir</button>
+            </div>
         </div>
     </div>
 
@@ -562,6 +573,6 @@
         </div>
     </div>
 </div>
-    <script src="script.js?v=principal-mapa-a4-20260826-v6-ficha-restaurada"></script>
+    <script src="script.js?v=principal-coordenacao-supabase-v1"></script>
 <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a41e268519ee808f',t:'MTc5MDU1MDI5OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a45d9266baa7d15f',t:'MTc5MTIxNTMyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a490274dbdd9ae1a',t:'MTc5MTc0NTcwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
